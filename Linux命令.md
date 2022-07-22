@@ -98,5 +98,16 @@
   * package：安装的包名。
   
 ## 2.2 yum常用命令
-  |按键|操作效果|
+  |命令|操作效果|
   |---|---|
+  |yum check-update|列出所有可更新的软件清单命令|
+  |yum update|更新所有软件命令|
+  |yum install <package_name>|仅安装指定的软件命令|
+  |yum update <package_name>|仅更新指定的软件命令|
+  |yum list| 列出所有可安裝的软件清单命令|
+  |yum remove <package_name>|删除软件包命令|
+  |yum search <keyword>|查找软件包命令|
+  |yum clean packages|清除缓存目录下的软件包|
+  |yum clean headers|清除缓存目录下的 headers|
+  |yum clean oldheaders|清除缓存目录下旧的 headers|
+  |yum clean, yum clean all|清除缓存目录下的软件包及旧的 headers|
