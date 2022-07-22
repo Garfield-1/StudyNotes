@@ -111,3 +111,27 @@
   |yum clean headers|清除缓存目录下的 headers|
   |yum clean oldheaders|清除缓存目录下旧的 headers|
   |yum clean, yum clean all|清除缓存目录下的软件包及旧的 headers|
+
+# 3. Linux APT常用命令
+  * APT（Advanced Package Tool）是linux的Debian发行版已经一些以Debian为基础的发行版（Ubuntu等）下，做软件包管理的一个工具，其中包括deselect和apt-get两个工具，他们都可以提供下载、安装、更新、删除软件包的功能。
+  
+## 3.1 apt语法命令结构
+  > `apt [options] [command] [package ...]`
+  * options：可选，选项包括 -h（帮助），-y（当安装过程提示选择全部为"yes"），-q（不显示安装的过程）等等
+  * command：要进行的操作
+  * package：安装的包名
+  
+## 3.2 apt常用命令
+  |命令|操作效果|
+  |---|---|
+  |sudo apt update|列出所有可更新的软件清单命令|
+  |sudo apt upgrade|升级软件包|
+  |apt list --upgradeable|列出可更新的软件包及版本信息|
+  |sudo apt full-upgrade|升级软件包，升级前先删除需要更新软件包|
+  |sudo apt install <package_name>|安装指定的软件命令|
+  |sudo apt show <package_name>|显示软件包具体信息,例如：版本号，安装大小，依赖关系等等|
+  |sudo apt autoremove|清理不再使用的依赖和库文件|
+  |sudo apt purge <package_name>|移除软件包及配置文件|
+  |sudo apt search <keyword>|查找软件包命令|
+  |apt list --installed|列出所有已安装的包|
+  |apt list --all-versions|列出所有已安装的包的版本信息|
