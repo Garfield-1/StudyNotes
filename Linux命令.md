@@ -3,6 +3,7 @@
 CSDN论坛有关帖子
 
 [TOC]
+# 0.高频命令
 
 ---
 # 1.vim
@@ -137,6 +138,7 @@ CSDN论坛有关帖子
   |apt list --installed|列出所有已安装的包|
   |apt list --all-versions|列出所有已安装的包的版本信息|
 
+  ---
 # 4.Linux系统文件结构
   |命令|操作效果|
   |---|---|
