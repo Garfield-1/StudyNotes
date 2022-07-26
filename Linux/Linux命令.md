@@ -309,7 +309,7 @@
 
   //6.显示包含 ed 或者 at 字符的内容行
   grep -E 'ed|at' test.txt
-```
+
 ## 0.22 wc 命令
 * wc(word count)功能为统计指定的文件中字节数、字数、行数，并将统计结果输出
 * 命令格式：`wc [option] file..
