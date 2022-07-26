@@ -1,6 +1,6 @@
 参考文献:   
-菜鸟教程-Linux模块    
-CSDN论坛有关帖子
+  菜鸟教程-Linux模块    
+  CSDN论坛有关帖子
 
 [TOC]
 # 0.高频命令
@@ -201,15 +201,15 @@ CSDN论坛有关帖子
   |s|特殊权限|
   
 * 使用实例
-```
-//增加文件 t.log 所有用户可执行权限
-chmod a+x t.log
+ ```
+  //增加文件 t.log 所有用户可执行权限
+  chmod a+x t.log
 
-//撤销原来所有的权限，然后使拥有者具有可读权限,并输出处理信息
-chmod u=r t.log -c
+  //撤销原来所有的权限，然后使拥有者具有可读权限,并输出处理信息
+  chmod u=r t.log -c
 
-//给 file 的属主分配读、写、执行(7)的权限，给file的所在组分配读、执行(5)的权限，给其他用户分配执行(1)的权限
-chmod 751 t.log -c（或者：chmod u=rwx,g=rx,o=x t.log -c)
+  //给 file 的属主分配读、写、执行(7)的权限，给file的所在组分配读、执行(5)的权限，给其他用户分配执行(1)的权限
+  chmod 751 t.log -c（或者：chmod u=rwx,g=rx,o=x t.log -c)
 ```
 ## 0.18 chown命令
 * chown 将指定文件的拥有者改为指定的用户或组
@@ -223,11 +223,11 @@ chmod 751 t.log -c（或者：chmod u=rwx,g=rx,o=x t.log -c)
   
 * 使用实例
 ```
-//改变拥有者和群组 并显示改变信息
-chown -c mail:mail log2012.log
+  //改变拥有者和群组 并显示改变信息
+  chown -c mail:mail log2012.log
 
-//改变文件群组
-chown -c :mail t.log
+  //改变文件群组
+  chown -c :mail t.log
 ```
 
 ## 0.19 df命令
