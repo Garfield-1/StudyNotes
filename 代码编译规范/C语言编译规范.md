@@ -221,11 +221,11 @@ C语言通用编程规范 V1.0     --XXXX终端有限公司
 ```
           中文版：
 
-  版权所有 (c) 荣耀终端有限公司 2020-2021
+  版权所有 (c) XXXX终端有限公司 2020-2021
 
           英文版：
 
-  Copyright (c) Honor Device Co., Ltd. 2020-2021. Allrights reserved.
+  Copyright (c) XXXX Device Co., Ltd. 2020-2021. Allrights reserved.
 ```
 
 * 其中，2020-2021 根据实际需要可以修改， 2020 是文件首次创建年份，而 2021 是最后文件修改年份。对文件有重大修改时，必须更新后面年			份。
@@ -233,7 +233,7 @@ C语言通用编程规范 V1.0     --XXXX终端有限公司
 * 增加包含了 'Note' 和 'History 的文件头格式如下
 ```
   /*
-  * Copyright (c) Honor Device Co., Ltd. 2020-2021. All rights reserved.
+  * Copyright (c) XXXX Device Co., Ltd. 2020-2021. All rights reserved.
   * Description: 文件功能描述
   * Author: 王二
   * Create: 2020-12-22
