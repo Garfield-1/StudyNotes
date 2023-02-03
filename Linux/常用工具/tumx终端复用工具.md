@@ -12,7 +12,7 @@
 
 * tmux a　　连接上一个会话
 
-* tmux a -t mysession　　连接指定会话
+* tmux a -t mysession　　连接指定会话<>
 
 * tmux rename -t s1 s2　　重命名会话s1为s2
 
