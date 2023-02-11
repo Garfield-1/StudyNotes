@@ -230,7 +230,7 @@
   chmod u=r t.log -c
 
   //给 file 的属主分配读、写、执行(7)的权限，给file的所在组分配读、执行(5)的权限，给其他用户分配执行(1)的权限
-  chmod 751 t.log -c（或者：chmod u=rwx,g=rx,o=x t.log -c)
+  chmod 751 t.log -c（或者：chmod u=rwx,g=rx,o=x t.log -c
 ```
 
 ## 0.18 chown命令
