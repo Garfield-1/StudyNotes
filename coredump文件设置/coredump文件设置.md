@@ -16,7 +16,7 @@ coredump文件含有当进程被终止时内存、CPU寄存器和各种函数调
 
 ## 3.设置coredump文件大小
 
-1. 修改`/etc/security/limits.conf`修改系统对coredump文件大小限制；有soft，hard和-，soft指的是当前系统生效的设置值，软限制也可以理解为警告值。hard表明系统中所能设定的最大值。soft的限制不能比hard限制高
+1. 修改`/etc/security/limits.conf`修改系统对coredump文件大小限制；有soft，hard和-，soft指的是当前系统生效的设置值，软限制也可以理解为警告值。hard表明系统中所能设定的最大值;soft的限制不能比hard限制高
 ![Alt text](image/coredump文件设置_文件大小.png)
 
 1. 在终端中输入`ulimit -c 文件大小`临时设置coredump文件大小
