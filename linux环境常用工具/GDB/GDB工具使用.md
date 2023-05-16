@@ -39,23 +39,31 @@ GDB在显示变量值时都会在对应值之前加上"$N"标记，它是当前�
 
    ```cpp
    {
+       // 使用 IntelliSense 了解相关属性。 
+       // 悬停以查看现有属性的描述。
+       // 欲了解更多信息，请访问: https://go.microsoft.com/fwlink/?linkid=830387
        "version": "0.2.0",
        "configurations": [
            {
                "name": "(gdb) 启动", //配置名称，显示在配置下拉菜单中
                "type": "cppdbg", //配置类型
                "request": "launch", //请求配置类型，可以是启动或者是附加
-               "program": "${workspaceFolder}/data_structure/02_排序算法/a.out", //程序可执行文件的完整路径，${workspaceFolder}表示远程连接的初始路径
+               "program": "${fileDirname}/a.out", //程序可执行文件的完整路径，${workspaceFolder}表示远程连接的初始路径
                "args": [], //传递给程序的命令行参数
-               "stopAtEntry": false,//可选参数，如果为true,调试程序应该在入口（main）处停止
-               "cwd": "${workspaceFolder}", //目标的工作目录
+               "stopAtEntry": true, //可选参数，如果为true,调试程序应该在入口（main）处停止
+               "cwd": "${workspaceFolder}", //用于查找依赖项和其他文件的当前工作目录
                "environment": [], //表示要预设的环境变量
-               "externalConsole": false,//如果为true，则为调试对象启动控制台
-               "MIMode": "gdb",//要连接到的控制台启动程序
+               "externalConsole": false, //如果为true，则为调试对象启动控制台
+               "MIMode": "gdb", //要连接到的控制台启动程序
                "setupCommands": [ //为了安装基础调试程序而执行的一个或多个GDB/LLDB命令
                    {
-                       "description": "为 gdb 启用整齐打印",
+                       "description": "开启pretty-printer",
                        "text": "-enable-pretty-printing",
+                       "ignoreFailures": true
+                   },
+                   {
+                       "description": "设置反汇编风格为inter",
+                       "text": "-gdb-set disassembly-flavor intel",
                        "ignoreFailures": true
                    }
                ]
@@ -63,3 +71,23 @@ GDB在显示变量值时都会在对应值之前加上"$N"标记，它是当前�
        ]
    }
    ```
+
+## 调试时单步执行遇到库函数
+
+* 在调试时如果单步执行遇到库函数`srand(time(NULL));`则GDB会提示无法加载源文件
+
+  ![无法加载源文件](./image/01_%E6%97%A0%E6%B3%95%E5%8A%A0%E8%BD%BD%E6%BA%90%E6%96%87%E4%BB%B6.png)
+
+* 此时代码中的`time(NULL)`函数指向libc.so.6库，由于在GDB配置路径中不存在对应版本的glibc源代码所以无法正常跳转至函数定义处
+
+  >  /lib/x86_64-linux-gnu/libc.so.6是Linux操作系统中的动态链接库，全称为C标准库。在Linux系统中，所有使用C语言编写的程序都需要使用C标准库提供的函数、变量和常量。C标准库的主要功能包括文件操作、字符串操作、数学计算、内存管理、时间处理、网络通信等方面。C标准库是Linux操作系统中的一项核心组件，对于开发Linux应用程序非常重要。/lib/x86_64-linux-gnu/libc.so.6这个文件是C标准库的本地动态链接库，也就是所谓的libc库。在运行Linux程序时，如果发现程序需要用到C标准库中的函数或变量，就会自动调用该库中相应的代码来完成操作
+
+  ![程序启动时链接libc.so.6](./image/02_%E9%93%BE%E6%8E%A5libc.so.6%E5%BA%93.png)
+
+* 通过ldd --version、直接执行对应的libc.so.6文件都可以找到自身系统的libc.so.6对应的glibc版本是多少
+
+  ![查看libc.so.6对应版本号](./image/03_%E6%9F%A5%E7%9C%8Blibc.so.6%E5%AF%B9%E5%BA%94%E7%89%88%E6%9C%AC%E5%8F%B7.png)
+
+* 下载对应版本的glibc源代码，并将源代码目录放在配置文件中的`"cwd": "${workspaceFolder}/glibc-2.31",`中，此时再使用gdb调试遇到库函数时便会跳转至glibc源码中对应的函数实现
+
+  ![time函数](./image/04_time%E5%87%BD%E6%95%B0.png)
