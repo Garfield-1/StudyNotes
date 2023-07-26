@@ -235,6 +235,34 @@ end
 2:2
 3:nil
 4:4
+
+
+local table_1 ={
+    {name = "a", value = "1"},
+    {name = "c", value = "3"},
+    {name = "d", value = "4"},
+    {name = "b", value = "2"},
+}
+
+i = 0
+for i, k in pairs(network) do    
+    for key, value in pairs(k) do    
+        print(tostring(key)..":"..tostring(value))
+    end
+    print("\n")
+end
+结果：
+name:a
+value:1
+
+name:c
+value:3
+
+name:d
+value:4
+
+name:b
+value:2
 ```
 
 
@@ -461,3 +489,107 @@ end
 
     
 
+## 4. 函数
+
+* 参数调用，需要将所有参数放到一对圆括号中，即使调用函数时没有参数也必须写出一对圆括号
+
+  * 若一个函数若只有一个参数，并且此参数是一个字面字符串或`table`构造式，那么圆括号便是可有可无的
+
+    ```lua
+    print "Hello Morld"         --->Hello Morld
+    print("Hello World")        --->Hello Morld
+    
+    print(type{})               --->table
+    print(type({}))             --->table
+    ```
+
+  * Lua为面向对象式的调用也提供了一种特殊的语法——冒号操作符。表达式`o.foo(o, x)`的另一种写法是`o:foo(x)`,冒号操作符使调用o.foo时将o隐含地作为函数的第一个参数。
+
+* 关于实参和形参，Lua会自动调整实参的数量，以匹配参数表的要求。这项调整与多重赋值很相似，即“若实参多余形参，则舍弃多余的实参；若实参不足，则多余的形参初始化为`nil`
+
+
+
+### 4.1 多重返回值
+
+* Lua具有一项非常与众不同的特征，允许函数返回多个结果，只需在`return`关键字后列出所有的返回值即可
+* 如果一个函数没有返回值或者没有返回足够多的返回值，那么Lua会用`nil`来补充缺失的值
+* `table`构造式可以完整地接收一个函数调用的所有结果，即不会有任何数量方面的调整：
+
+
+
+### 4.2 变长参数
+
+* Lua参数传递时可以将所有参数全部放在一个table中，然后将这个table作为唯一参数传递；在函数内部，对必要参数进行检查，这样也可以实现变长参数的效果
+
+* Lua中的函数可以接受不同数量的实参
+
+  * 参数表中的3个点(….)表示该函数可接受不同数量的实参，一个函数要访问它的变长参数时，仍需用到3个点(..)。但不同的是，此时这3个点是作为一个表达式来使用的
+
+    ```lua
+    function foo(...)
+        local a,b,c = ...
+    end
+    
+    function foo(...)
+        return ...
+    end
+    ```
+
+* 具有变长参数的函数同样也可以拥有任意数量的固定参数，但固定参数必须放在变长参数之前。Lua会将前面的实参赋予固定参数，而将余下的实参(如果有的话)视为变长参数
+
+  ```lua
+  function foo(fmt, ...)
+      return string.format(fmt, ...)
+  end
+  
+  local a, b, c = foo("a")            		--->a,nil,nil
+  local a, b, c = foo("%d, %d", 4, 5)			--->4,5,nil,nil
+  ```
+
+* 通常一个函数在遍历其变长参数时只需使用表达式{..},这就像访问一个table一样，访问所有的变长参数
+
+  ```lua
+  for i = 1, select('#', ...) do      --遍历所有变长参数
+      local arg = select(i, ...)      --得到第i个参数
+      print(arg)
+  end
+  ```
+
+
+
+## 5. 深入函数
+
+* 在`Lua`中，函数是一种“第一类值”,它们具有特定的词法域，“第一类值”是什么意思呢?这表示在Lua中函数与其他传统类型的值(例如数字和字符串)具有相同的权利。函数可以存储到变量中(无论全局变量还是局部变量)或`table`中，可以作为实参传递给其他函数，还可以作为其他函数的返回值。
+
+  ```lua
+  local network ={
+      {name = "a", IP = "210.26.30.34"},
+      {name = "c", IP = "210.26.30.23"},
+      {name = "d", IP = "210.26.23.12"},
+      {name = "b", IP = "210.26.23.20"},
+  }
+  
+  --如果想以name字段、按反向的字符顺序来对这个table排序的话，只需这么写：
+  table.sort(network, function (a, b) return(a.name > b.name) end)
+  ```
+
+* `Lua`中函数可以作为一个变量被其他变量持有
+
+* `Lua`中一个函数可以嵌套在另一个函数中，内部函数可以访问外部函数中的变量
+
+  * 函数作为表达式时不能命名、
+
+    ```lua
+    function foo_1(x)
+        x = x + 1
+        return function ()
+            print(x)
+            return x
+        end
+    end
+    
+    local foo_3 = foo_1(10)
+    foo_3()          --->11
+    ```
+
+  
