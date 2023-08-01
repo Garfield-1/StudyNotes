@@ -1,10 +1,11 @@
 # Javascript基本语法
 
+参考文档：
 
+1. JavaScript高级程序设计(中文)-第3版                																		人民邮电出版社 																								【美】Nicholas C.Zakas 著        李松峰  曹力 译
+2. MDN Web Docs [MDN Web Docs (mozilla.org)](https://developer.mozilla.org/zh-CN/)
 
 ## 1. 在HTML中使用JavaScript
-
-### 1.1 在 `<head>` 或者 `<body>` 的JavaScript
 
 * 脚本可位于 HTML 的 `<body>` 或 `<head>` 部分中，或者同时存在于两个部分中。
 
@@ -32,7 +33,7 @@
     </html>
     ```
   
-  * <body> 中的 JavaScript 函数
+  * `<body>` 中的 JavaScript 函数
   
     ```javascript
     <!DOCTYPE html>
@@ -54,9 +55,11 @@
 
 
 
-### 1.2 数据类型
+## 2.数据类型
 
-* JavaScript 拥有动态类型。这意味着相同的变量可用作不同的类型；变量的数据类型可以使用 **`typeof`** 操作符来查看：
+* JavaScript 拥有动态类型。这意味着相同的变量可用作不同的类型；变量的数据类型可以使用 **`typeof`** 操作符来查看
+
+### 2.1 基本类型
 
 * JavaScript中有6种值类型（基本类型）变量
 
@@ -110,6 +113,10 @@
   * Symbol
 
     * symbol是一个`ES6标准`种新增的一种基本数据类型；symbol 的值是通过 Symbol() 函数生成，每一个 symbol 的值都是唯一的，并且可以作为对象的属性标识符使用
+
+
+
+### 2.2 对象类型
 
 * 三种引用数据类型（对象类型）
 
@@ -171,6 +178,10 @@
 
     * `JavaScript`不支持函数重载特性，如果连续声明两个同名函数，结果是后面的函数覆盖了前面的函数。
 
+
+
+### 2.3 特殊类型对象
+
 * 两种特殊的对象
 
   * RegExp（正则）
@@ -193,4 +204,39 @@
 
   * Date（日期）
 
-    * 
+    * `Date`类型是在早期Java中的`java.util.Date`类基础上构建的。为此`Date`类型使用来自`UTC`时间的1970年1月1日0时开始经过的毫秒数来保存日期
+    
+      ```javascript
+      /* 创建一个日期对象 */
+      var now = new Date()
+      ```
+
+## 2. 操作符与语句
+
+* `JavaScript`中大部分语句和操作符格式、风格、使用方法与C语言相同，在此仅针对部分讲解，其余部分不做赘述
+
+### 2.1 for-in语句
+
+* `for/in` 语句常用于循环遍历对象的属性
+
+  ```java
+  var obj = { a: 1, b: 2, c: 3 };
+  
+  for (var prop in obj) {
+      console.log("obj." + prop + " = " + obj[prop]);
+  }
+  /* 输出：
+   * "obj.a = 1"
+   * "obj.b = 2"
+   * "obj.c = 3"
+   */ 
+  ```
+
+ 
+
+## 3. 函数表达式
+
+## 4. 变量、作用域和内存问题
+
+## 5. 面对对象的程序设计
+
