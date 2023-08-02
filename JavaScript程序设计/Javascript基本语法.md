@@ -236,7 +236,83 @@
 
 ## 3. 函数表达式
 
+### 3.1 函数创建的两种方式
+
+* 定义函数的方式有两种、一种是函数声明、另一种是函数表达式
+
+  ```javascript
+  /* 使用使用function创建函数 */
+  function functionName(arg0, arg1, arg2) {
+      //函数体
+  }
+  
+  /* 使用函数表达式创建函数 */
+  var functionName = function (argo, argl, arg2) {
+      //函数体
+  };
+  ```
+
+* 使用函数表达式创建函数，这样创建的函数称为匿名函数
+
+* 这种方式`function`关键字后面没有标识符，匿名函数的`name`属性是空字符串
+
+
+
+### 3.2 闭包
+
+* `JavaScript`中允许在一个函数中定义另一个函数
+
+  * 内部函数可以使用外部函数的局部变量，即使这个内部函数被返回了，而且是在其他地方被调用了，但他任然可以访问外部函数的局部变量
+
+* 有权访问另一个函数作用域中的变量的函数称为闭包
+
+  ```javascript
+  function createCounter() {
+      let count = 0;
+  
+      return function increment() {
+          count++;
+          console.log(count);
+      };
+  }
+  
+  const counter = createCounter();
+  
+  counter(); // 输出 1
+  counter(); // 输出 2
+  counter(); // 输出 3
+  ```
+
+  
+
 ## 4. 变量、作用域和内存问题
+
+### 4.1 私有变量
+
+* 任何在函数中定义的变量，都可认为是私有变量，因为不能在函数外部访问这些变量
+
+  * 私有变量包括函数的参数、局部变量和在函数内部定义的其他函数、
+
+* 我们把有权访问私有变量和私有函数的公有方法称为特权方法(privileged method)
+
+  ```javascript
+  function Myobject() {
+      //私有变量和私有函数var privateVariable = 10;
+      function privateFunction() {
+          return false;
+      }
+      //特权方法
+      this.publicMethod = function () {
+          privateVariable++; return privateFunction();
+      };
+  }
+  ```
+
+
+
+### 4.2 静态私有变量
+
+
 
 ## 5. 面对对象的程序设计
 
