@@ -2,14 +2,14 @@
 
 参考文档
 
-1. 《Lua程序设计（第二版）》 							--电子工业出版社  [巴西]Roberto Ierusalimschy 著  周惟迪 译
+1. 《Lua程序设计（第二版）》 																											--电子工业出版社  [巴西]Roberto Ierusalimschy 著  周惟迪 译
 2. 菜鸟教程(RUNOOB.COM)
 
 
 
 ## 1. 类型与值
 
-​	`Lua`是一种动态类型语言，在语言中没有类型定义的语法，任何变量都可以包含任何类型的值；`Lua`中有8中基础类型，可以使用函数`type`返回一个值的类型名称
+* `Lua`是一种动态类型语言，在语言中没有类型定义的语法，任何变量都可以包含任何类型的值；`Lua`中有8中基础类型，可以使用函数`type`返回一个值的类型名称
 
 * `nil`空
 
@@ -52,30 +52,28 @@
   print(type(a))						--->table
   ```
 
-如果一个变量没有初始化，它的类型为nil
+* 如果一个变量没有初始化，它的类型为nil
 
-```lua
-local a
-print(type(a))							--->nil
-```
-
-
+    ```lua
+    local a
+    print(type(a))							--->nil
+    ```
 
 ### 1.1 nil（空）
 
-​	`nil`类型是一种特殊的类型，仅有一个值`nil`；其主要功能就是用于区分其他任何值，一个全局变量在第一次赋值前的默认值就是`nil`，将`nil`赋予一个全局变量等同于删除它，`Lua`将`nil`用于表述一种无效值的情况
+* `nil`类型是一种特殊的类型，仅有一个值`nil`；其主要功能就是用于区分其他任何值，一个全局变量在第一次赋值前的默认值就是`nil`，将`nil`赋予一个全局变量等同于删除它，`Lua`将`nil`用于表述一种无效值的情况
 
 
 
 ### 1.2 Boolean（布尔）
 
-​	`boolean`类型有两个值可以选择`false`和`true`；`Lua`将`false`和`nil`视为“假”，其余之外的其他值视为“真”
+* `boolean`类型有两个值可以选择`false`和`true`；`Lua`将`false`和`nil`视为“假”，其余之外的其他值视为“真”
 
 
 
 ### 1.3 number（数字）
 
-​	`Lua`中对于整数和浮点数不进行区分，全部使用`number`类型表示
+* `Lua`中对于整数和浮点数不进行区分，全部使用`number`类型表示
 
 
 
@@ -121,7 +119,7 @@ print(type(a))							--->nil
 
 ### 1.5 table(表)
 
-​	`Lua` 中的表（table）其实是一个"关联数组"（associative arrays），数组的索引可以是数字、字符串或表类型。在 `Lua` 里，table 的创建是通过"构造表达式"来完成，最简单构造表达式是{}，用来创建一个空表。
+* `Lua` 中的表（table）其实是一个"关联数组"（associative arrays），数组的索引可以是数字、字符串或表类型。在 `Lua` 里，table 的创建是通过"构造表达式"来完成，最简单构造表达式是{}，用来创建一个空表。
 
 * `Lua table`是不固定大小的，可以根据自己的需要进行扩充
 * `Lua table` 使用关联型数组，你可以用任意类型的值来作数组的索引，但这个值不能是 nil
@@ -199,79 +197,75 @@ print(type(a))							--->nil
 * `ipairs`只遍历1，2，数值型下标，下一个3不连续就中断了
 * 由于`#tbtest`获取的值为4，故下标3的值为`nil`
 
-```lua
-table_1 = {
-    a = "a",
-    [1] = "1",
-    b = "b", 
-    c = "c",
-    [2] = "2",
-    [4] = "4"
-}
-
-for key, value in pairs(table_1) do      
-    print(tostring(key)..":"..tostring(value))
-end
-结果：
-1:1
-2:2
-4:4
-a:a
-b:b
-c:c
-
-for key, value in ipairs(table_1) do      
-    print(tostring(key)..":"..tostring(value))
-end
-结果：
-1:1
-2:2
-
-for i=1, #table_1 do 
-    print(tostring(i)..":"..tostring(table_1[i]))
-end
-结果：
-1:1
-2:2
-3:nil
-4:4
-
-
-local table_1 ={
-    {name = "a", value = "1"},
-    {name = "c", value = "3"},
-    {name = "d", value = "4"},
-    {name = "b", value = "2"},
-}
-
-i = 0
-for i, k in pairs(network) do    
-    for key, value in pairs(k) do    
+    ```lua
+    table_1 = {
+        a = "a",
+        [1] = "1",
+        b = "b", 
+        c = "c",
+        [2] = "2",
+        [4] = "4"
+    }
+    
+    for key, value in pairs(table_1) do      
         print(tostring(key)..":"..tostring(value))
     end
-    print("\n")
-end
-结果：
-name:a
-value:1
-
-name:c
-value:3
-
-name:d
-value:4
-
-name:b
-value:2
-```
+    结果：
+    1:1
+    2:2
+    4:4
+    a:a
+    b:b
+    c:c
+    
+    for key, value in ipairs(table_1) do      
+        print(tostring(key)..":"..tostring(value))
+    end
+    结果：
+    1:1
+    2:2
+    
+    for i=1, #table_1 do 
+        print(tostring(i)..":"..tostring(table_1[i]))
+    end
+    结果：
+    1:1
+    2:2
+    3:nil
+    4:4
+    
+    local table_1 ={
+        {name = "a", value = "1"},
+        {name = "c", value = "3"},
+        {name = "d", value = "4"},
+        {name = "b", value = "2"},
+    }
+    
+    i = 0
+    for i, k in pairs(table_1) do    
+        for key, value in pairs(k) do    
+            print(tostring(key)..":"..tostring(value))
+        end
+        print("\n")
+    end
+    结果：
+    name:a
+    value:1
+    
+    name:c
+    value:3
+    
+    name:d
+    value:4
+    
+    name:b
+    value:2
 
 
 
 ## 2. 语句
 
 * `Lua`支持的常规语句基本上和C语言中的差不多，这些语句包括赋值、控制结构、过程调用等。另外`Lua`还支持一些不太常见的语句，比如多重赋值和局部变量声明
-
-
 
 ### 2.1 多重赋值语句
 
@@ -301,9 +295,7 @@ value:2
 
 ## 3.控制结构
 
-​	控制结构中的条件表达式可以是任何值，`Lua`将所有不是`false`和`nil`的值视为真
-
-
+* 控制结构中的条件表达式可以是任何值，`Lua`将所有不是`false`和`nil`的值视为真
 
 ### 3.1 if then else
 
@@ -465,7 +457,7 @@ value:2
     * 把多个状态封装在一个 `table` 里面，然后使用泛型 for 循环
 
     ```lua
-    array = {"Google", "Runoob"}
+    local array = {"Google", "Runoob"}
     
     function elementIterator (collection)
        local index = 0
@@ -506,8 +498,6 @@ value:2
   * Lua为面向对象式的调用也提供了一种特殊的语法——冒号操作符。表达式`o.foo(o, x)`的另一种写法是`o:foo(x)`,冒号操作符使调用o.foo时将o隐含地作为函数的第一个参数。
 
 * 关于实参和形参，Lua会自动调整实参的数量，以匹配参数表的要求。这项调整与多重赋值很相似，即“若实参多余形参，则舍弃多余的实参；若实参不足，则多余的形参初始化为`nil`
-
-
 
 ### 4.1 多重返回值
 
@@ -574,8 +564,6 @@ value:2
   ```
 
 * `Lua`中函数可以作为一个变量被其他变量持有
-
-
 
 ### 5.1 闭合函数（闭包）
 
