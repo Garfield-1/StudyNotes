@@ -98,54 +98,10 @@
 
     
 
-## 3. 流程控制语句和操作符
-
-### 3.1 流程控制语句
-
-* **需要特别注意的时在一个目标内使用时，前面不可以有`[tab]符号`，否则会被认为是`shell语句`；相关语句会传给shell解释器使用shell语法解析，导致报错**
-
-* ifeq函数，判断参数是否不相等；相等为 true，不相等为 false
-
-  ```makefile
-  ifeq ($(a), $(b))
-  	@echo "a = b"
-  else
-  	@echo "a != b"
-  endif
-  ```
-
-* ifneq函数，判断参数是否不相等；不相等为 true，相等为 false
-
-  ```makefile
-  ifneq ($(a), $(b))
-  	@echo "a = b"
-  else
-  	@echo "a != b"
-  endif
-  ```
-
-* ifdef函数，判断变量的值是不是为空；有值为 true，没有值为 false
-
-  ```makefile
-  ifdef v
-  	@echo "a = b"
-  else
-  	@echo "a != b"
-  endif
-  ```
-
-* ifndef函数，判断变量的值是不是为空；没有值为 true，有值为 false
-
-  ```makefile
-  ifndef v
-  	@echo "a = b"
-  else
-  	@echo "a != b"
-  endif
-  ```
+## 3. 特殊操作符
 
 
-### 3.2 特殊操作符
+### 3.1 特殊操作符
 
 * 只有在此变量之前没有赋值的情况下才会对这个变量进行赋值
 

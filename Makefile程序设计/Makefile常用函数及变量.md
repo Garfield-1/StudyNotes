@@ -420,7 +420,29 @@
   # 返回值foo.c bar.c；返回当前目录下所有.c文件列表
   ```
 
+
+
+
+### 3.9 abspath函数
+
+* 函数原型：**$(abspath FILE_PATH)**
+
+* 函数功能：`FILE_PATH`是一个相对路径的变量或字符，`abspath函数`作用是将`FILE_PATH`转化为绝对路径
+
+* 返回值：转化后的绝对路径
+
+* 示例：
+
+  ```makefile
+  name = ../openwrt/COPYING
   
+  all:
+  	$(info $(abspath $(name)))		#COPYING文件的绝对路径
+  ```
+
+  
+
+
 
 ## 4. 其他函数
 
@@ -609,3 +631,213 @@ all:
 
   
 
+## 4. 流程控制语句
+
+* **需要特别注意的时在一个目标内使用时，前面不可以有`[tab]符号`，否则会被认为是`shell语句`；相关语句会传给shell解释器使用shell语法解析，导致报错**
+
+
+
+### 4.1 ifeq函数
+
+* 判断参数是否不相等；相等为 true，不相等为 false
+
+  ```makefile
+  ifeq ($(a), $(b))
+  	@echo "a = b"
+  else
+  	@echo "a != b"
+  endif
+  ```
+
+
+
+
+### 4.2 ifneq函数
+
+* 判断参数是否不相等；不相等为 true，相等为 false
+
+  ```makefile
+  ifneq ($(a), $(b))
+  	@echo "a = b"
+  else
+  	@echo "a != b"
+  endif
+  ```
+
+
+
+
+### 4.3 ifdef函数
+
+* 判断变量的值是不是为空；有值为 true，没有值为 false
+
+  ```makefile
+  ifdef v
+  	@echo "a = b"
+  else
+  	@echo "a != b"
+  endif
+  ```
+
+
+
+
+### 4.4 ifndef函数
+
+* 判断变量的值是不是为空；没有值为 true，有值为 false
+
+  ```makefile
+  ifndef v
+  	@echo "a = b"
+  else
+  	@echo "a != b"
+  endif
+  ```
+
+
+
+## 5. 特殊变量
+
+* makefile中内置了一些特殊的变量，巧妙的使用他们可以极大的提升我们的开发效率
+
+
+
+### 5.1 环境变量
+
+#### 5.1.1 MAKEFILES变量
+
+* `MAKEFILES` 是一个特殊的 Makefile 变量，在 Makefile 中使用它可以指定其他要包含的 Makefile 文件
+
+#### 5.1.2 MAKEFILES_LIST变量
+
+* 在 Makefile 中，`MAKEFILES_LIST` 是一个特殊的变量，它包含了当前构建过程中所有被包含的 Makefile 文件的列表。`MAKEFILES_LIST` 变量是一个只读变量，它按照 `Makefile` 文件被包含的顺序存储了这些文件的路径
+
+#### 5.1.3 VPATH变量 
+
+* `VPATH` 是一个特殊的 Makefile 变量，用于指定在构建过程中搜索源文件的路径。通常情况下，Make 工具会在当前目录下搜索依赖项中指定的源文件。但是，有时源文件可能位于其他目录中，这时就可以使用 `VPATH` 变量来告诉 Make 工具在指定目录中搜索源文件
+
+* 示例：
+
+  ```makefile
+  VPATH = ./src
+  
+  test : main.c
+  	gcc -o $@ $<
+  	
+  # 文件目录结构如下
+  ├── src
+  │   └── main.c
+  ```
+
+#### 5.1.4 SHELL变量
+
+* `SHELL` 是一个环境变量，用于指定在运行 Makefile 规则中的命令时使用的 shell 程序。在 Makefile 中，默认情况下，`SHELL` 变量的值为 `/bin/sh`，表示使用标准的 Bourne shell 或兼容的 shell 解析执行命令
+
+#### 5.1.5 MAKE_SHELL变量
+
+* `MAKE_SHELL`用于指定在运行 Makefile 规则中的命令时使用的 shell 程序。可以通过设置 `MAKE_SHELL` 变量来指定要使用的 shell 解释器。例如，使用 `Bash shell` 来执行命令，可以将 `MAKE_SHELL` 设置为 `/bin/bash`
+
+#### 5.1.6 MAKE变量
+
+* `MAKE` 是一个预定义的环境变量，在 Makefile 中表示正在使用的 Make 工具的名称
+
+#### 5.1.7 MAKELEVEL变量
+
+* `MAKELEVEL` 是一个预定义的 Makefile 变量，用于表示当前 Make 的递归层级。在 Make 的递归构建过程中，当进行嵌套调用时，每次调用都会递增 `MAKELEVEL` 的值。这个值最初为 0，表示最外层的 Makefile。每当进行一次嵌套调用时，`MAKELEVEL` 的值就会增加
+
+#### 5.1.8 MAKEFLAGS变量 
+
+* `MAKEFLAGS` 是一个预定义的 Makefile 变量，用于指定 Make 工具的参数和标志。如果执行总控 `Makefile` 时，`make` 命令带有参数或者在上层的 `Makefile` 中定义了这个变量，那么 `MAKEFLAGS` 变量的值将会是 `make` 命令传递的参数，并且会传递到下层的 `Makefile` 中，这是一个系统级别的环境变量
+
+#### 5.1.9 MAKECMDGOALS变量 
+
+* `MAKECMDGOALS` 是一个预定义的 Makefile 变量，用于表示在命令行中指定的目标列表。
+
+  * 当你在命令行中运行 `make` 命令，并指定要构建的目标列表时，这些目标会被存储在 `MAKECMDGOALS` 变量中。`MAKECMDGOALS` 的值是一个以空格分隔的目标列表
+
+    ```makefile
+    all:
+        $(info $(MAKECMDGOALS))
+    
+    # 命令行中运行 make target1 target2 时，打印target1 target2
+    ```
+
+#### 5.1.10 CURDIR变量
+
+* `CURDIR` 是一个预定义的 Makefile 变量，用于表示当前工作目录的路径。在 Makefile 中，`CURDIR` 变量会被设置为执行 Make 命令时所在的当前工作目录的绝对路径
+
+
+
+### 5.2 自动化变量
+
+#### 5.2.1 $@变量
+
+* `$@` 是一个在 Makefile 中使用的自动化变量，它表示当前规则的目标（target）
+
+  ```makefile
+  test : main.c
+  	gcc -o $@ $<		# $@是test
+  ```
+
+#### 5.2.2 $<变量
+
+* 在 Makefile 中，`$<` 是一个自动化变量，它表示当前规则的第一个依赖文件
+
+  ```makefile
+  test : main.c
+  	gcc -o $@ $<		# $<是main.c
+  ```
+
+#### 5.2.3 $?变量
+
+* 在 Makefile 中，`$?` 是一个自动化变量，它表示比目标文件更新的所有依赖文件的列表，以空格分隔。
+
+  * 当一个目标文件的依赖文件发生变化时，Make 在运行时会比较目标文件和依赖文件的时间戳来判断是否需要重新生成目标文件。如果目标文件的时间戳早于其中任何一个依赖文件的时间戳，则说明依赖文件发生了更新，此时 `$?` 会被替换为所有发生更新的依赖文件的列表
+
+  * 通过使用 `$?`，我们可以在规则的命令中引用发生更新的依赖文件，从而只重新生成需要更新的部分，提高构建的效率
+
+    ```makefile
+    all: program
+    
+    program: main.o utils.o
+        gcc -o $@ $?
+    
+    main.o: main.c
+        gcc -c $< -o $@
+    
+    utils.o: utils.c
+        gcc -c $< -o $@
+    ```
+
+#### 5.2.4 $^变量
+
+* 在 Makefile 中，`$^` 是一个自动化变量，它表示当前规则的所有依赖文件的列表，以空格分隔
+
+#### 5.2.5 $+变量
+
+* 在 Makefile 中，`$+` 是一个非标准的自动化变量。它与 `$^` 类似，表示当前规则的所有依赖文件的列表，以空格分隔。
+  * 与 `$^` 不同的是，`$+` 保留了依赖文件在 Makefile 中出现的顺序。这意味着它会按照你在规则中写的顺序列出依赖文件，而不考虑依赖文件中是否存在重复的文件
+
+#### 5.2.6 $(@D)变量
+
+* 在 Makefile 中，`$(@D)` 是一个自动化变量，表示当前目标文件的目录部分
+
+#### 5.2.7 $(@F)变量
+
+* 在 Makefile 中，`$(@F)` 是一个自动化变量，表示当前目标文件的文件名部分（不包含目录）
+
+#### 5.2.8 $(<D)变量
+
+* 在 Makefile 中，`$(<D)` 是一个自动化变量，表示第一个依赖文件（输入文件）的目录部分
+
+#### 5.2.9 $(<F)变量
+
+* 在 Makefile 中，`$(<F)` 是一个自动化变量，表示第一个依赖文件（输入文件）的文件名部分
+
+#### 5.2.10 $(?D)变量
+
+* 在 Makefile 中，`$(?D)` 是一个自动化变量，用于表示所有已修改的依赖文件的目录部分
+
+#### 5.2.11 $(?F)变量
+
+* 在 Makefile 中， `$(?F)`是一个自动化变量。这个变量用来表示所有已修改的依赖文件的文件名部分
