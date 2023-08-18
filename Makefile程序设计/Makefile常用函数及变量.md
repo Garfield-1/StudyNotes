@@ -35,12 +35,11 @@
 
 
 
-
 ## 2. 文本处理函数
 
 ### 2.1 字符串替换函数—subst
 
-* 函数原型：**$(subst FROM,TO,TEXT)** 
+* 函数原型：**$(subst FROM,TO,TEXT)**
 
 * 函数功能：把字串“TEXT”中的“FROM”字符替换为“TO”
 
@@ -54,9 +53,6 @@
   # 示例
   $(subst ee, EE , test ee)    #test EE
   ```
-
-
-
 
 ### 2.2 模式替换函数—patsubst
 
@@ -72,16 +68,14 @@
 * 示例：
 
   ```makefile
-  $(patsubst %.c,%.o,x.c.c bar.c)  		#x.c.o bar.o
+  $(patsubst %.c,%.o,x.c.c bar.c)     #x.c.o bar.o
   
   # 把字串“x.c.c bar.c”中以.c 结尾的单词替换成以.o 结尾的字符。函数的返回结果是“x.c.o bar.o”
   ```
 
-  
-
 ### 2.3 去空格函数—strip
 
-* 函数原型：**$(strip STRINT)** 
+* 函数原型：**$(strip STRINT)**
 
 * 函数功能：去掉字符串`STRINT`的开头和结尾的空字符，并将其中多个连续空字符合并为一个空字符
 
@@ -92,16 +86,14 @@
 * 示例：
 
   ```makefile
-  STR =        a			 b  c 
+  STR =        a          b  c 
   LOSTR = $(strip $(STR))
   all:
-  	$(info $(STR))					#        a			 b  c
-  	$(info $(LOSTR))				#a b c
+  	$(info $(STR))              #        a          b  c
+  	$(info $(LOSTR))            #a b c
   
   # strip”函数经常用在条件判断语句的表达式中，确保表达式比较的可靠和健壮
   ```
-
-  
 
 ### 2.4 查找字符串函数—findstring
 
@@ -122,11 +114,9 @@
   # 第一个函数结果是字“a”；第二个值为空字符
   ```
 
-  
-
 ### 2.5 过滤函数—filter
 
-* 函数原型：**$(filter PATTERN…,TEXT)** 
+* 函数原型：**$(filter PATTERN…,TEXT)**
 
 * 函数功能：过滤掉字串`TEXT`中所有不符合模式`PATTERN`的单词，保留所有符合此模式的单词。可以使用多个模式。模式中一般需要包含模式字符`%`；存在多个模式时，模式表达式之间使用空格分割
 
@@ -138,15 +128,13 @@
   sources := foo.c bar.c baz.s ugh.h 
   
   all :
-  	$(info $(filter %.c %.s,$(sources)))		
+  	$(info $(filter %.c %.s,$(sources)))
   # 返回值为：foo.c bar.c baz.s
   ```
-  
-  
 
 ### 2.6 反过滤函数—filter-out
 
-* 函数原型：**$(filter-out PATTERN...,TEXT)** 
+* 函数原型：**$(filter-out PATTERN...,TEXT)**
 
 * 函数功能：和`filter`函数实现的功能相反。过滤掉字串`TEXT`中所有符合模式`PATTERN`的单词，保留所有不符合此模式的单词。可以有多个模式。存在多个模式时，模式表达式之间使用空格分割
 
@@ -160,11 +148,9 @@
   sources := foo.c bar.c baz.s ugh.h 
   
   all :
-  	$(info $(filter-out %.c %.s,$(sources)))		
+  	$(info $(filter-out %.c %.s,$(sources)))
   # 返回值为：ugh.h
   ```
-  
-  
 
 ### 2.7 排序函数—sort
 
@@ -179,12 +165,10 @@
 * 示例：
 
   ```makefile
-  $(sort foo bar lose foo)			
+  $(sort foo bar lose foo)
   # 返回值为：bar foo lose
   ```
   
-  
-
 ### 2.8 取单词函数—word
 
 * 函数原型：**$(word N,TEXT)**
@@ -198,15 +182,13 @@
 * 示例：
 
   ```makefile
-  $(word 2, foo bar baz)				
+  $(word 2, foo bar baz)
   # 返回值为：bar
   ```
-  
-  
 
 ### 2.9 取字串函数—wordlist
 
-* 函数原型： **$(wordlist S,E,TEXT)** 
+* 函数原型： **$(wordlist S,E,TEXT)**
 
 * 函数功能：从字符串`TEXT`中取出从`S`开始到`E`的单词串。**`S`和`E`表示单词在字符串中位置的数字**
 
@@ -221,15 +203,13 @@
 * 示例：
 
   ```makefile
-  $(wordlist 2, 3, foo bar baz)				
+  $(wordlist 2, 3, foo bar baz)
   # 返回值为：bar baz
   ```
-  
-  
 
 ### 2.10 统计单词数目函数—words
 
-* 函数原型：**$(words TEXT)** 
+* 函数原型：**$(words TEXT)**
 
 * 函数功能：字算字符串`TEXT`中单词的数目
 
@@ -241,11 +221,9 @@
   sources := foo.c bar.c baz.s ugh.h 
   
   all :
-  	$(info $(words $(sources)))				
+  	$(info $(words $(sources)))
   # 返回值为：4
   ```
-  
-  
 
 ### 2.11 取首单词函数—firstword
 
@@ -260,17 +238,17 @@
 * 示例：
 
   ```makefile
-  $(firstword foo bar)				
+  $(firstword foo bar)
   # 返回值为：foo
   ```
-  
-  
+
+
 
 ## 3. 文件名处理函数
 
 ### 3.1 取目录函数—dir
 
-* 函数原型：**$(dir NAMES…)** 
+* 函数原型：**$(dir NAMES…)**
 
 * 函数功能：从文件名序列`NAMES…`中取出各个文件名的目录部分。将路径字符串中的文件名部分去除，只返回目录部分
 
@@ -280,14 +258,12 @@
 
 * 函数说明：如果文件名中没有斜线，认为此文件为当前目录`./`下的文件
 
-* 示例： 
+* 示例：
 
   ```makefile
-  $(dir /path/to/file.txt)		
+  $(dir /path/to/file.txt)
   # 返回值为：/path/to/
   ```
-  
-  
 
 ### 3.2 取文件名函数—notdir
 
@@ -302,15 +278,13 @@
 * 示例：
 
   ```makefile
-  $(dir /path/to/file.txt)		
+  $(dir /path/to/file.txt)
   # 返回值为：/file.txt
   ```
-  
-  
 
 ### 3.3 取后缀函数—suffix
 
-* 函数原型：**$(suffix NAMES…)** 
+* 函数原型：**$(suffix NAMES…)**
 
 * 函数功能：从文件名序列`NAMES…`中取出各个文件名的后缀。后缀是文件名中最后一个以点`.`开始的（包含点号）部分，如果文件名中不包含一个点号，则为空
 
@@ -321,11 +295,9 @@
 * 示例：
 
   ```makefile
-  $(suffix src/foo.c src-1.0/bar.c)			
+  $(suffix src/foo.c src-1.0/bar.c)
   # 返回值为：.c .c
   ```
-  
-  
 
 ### 3.4 取前缀函数—basename
 
@@ -344,11 +316,9 @@
   # 返回值为：src/foo src-1.0/bar /home/jack/.font
   ```
 
-  
-
 ### 3.5 加后缀函数—addsuffix
 
-* 函数原型：**$(addsuffix SUFFIX,NAMES…)** 
+* 函数原型：**$(addsuffix SUFFIX,NAMES…)**
 
 * 函数功能：为`NAMES…`中的每一个文件名添加后缀`SUFFIX`。参数`NAMES…`为空格分割的文件名序列，将`SUFFIX`追加到此序列的每一个文件名的末尾
 
@@ -361,11 +331,9 @@
   # 返回值为：foo.c bar.c
   ```
 
-  
-
 ### 3.6 加前缀函数—addprefix
 
-* 函数原型：**$(addprefix PREFIX,NAMES…)** 
+* 函数原型：**$(addprefix PREFIX,NAMES…)**
 
 * 函数功能：为`NAMES…`中的每一个文件名添加前缀`PREFIX`。参数`NAMES…`是空格分割的文件名序列，将`SUFFIX`添加到此序列的每一个文件名之前
 
@@ -377,8 +345,6 @@
   $(addprefix src/,foo bar)
   # 返回值为：src/foo src/bar
   ```
-
-  
 
 ### 3.7 单词连接函数—join
 
@@ -403,8 +369,6 @@
   # 返回值为：a.c b.o c
   ```
 
-
-
 ### 3.8 获取匹配模式文件名函数—wildcard
 
 * 函数原型：**$(wildcard PATTERN)**
@@ -420,9 +384,6 @@
   # 返回值foo.c bar.c；返回当前目录下所有.c文件列表
   ```
 
-
-
-
 ### 3.9 相对路径转化绝对路径函数—abspath
 
 * 函数原型：**$(abspath FILE_PATH)**
@@ -437,10 +398,8 @@
   name = ../openwrt/COPYING
   
   all:
-  	$(info $(abspath $(name)))		#COPYING文件的绝对路径
+  	$(info $(abspath $(name)))      #COPYING文件的绝对路径
   ```
-
-  
 
 
 
@@ -479,9 +438,6 @@
     # 所以此函数所实现的功能就和一下语句等价
     files := a/ b/ c/ d/
     ```
-  
-
-
 
 ### 4.2 if函数
 
@@ -503,8 +459,6 @@
   SUBDIR = $(if $(SRC_DIR), $(SRC_DIR), /home/src)
   ```
 
-  
-
 ### 4.3 call函数
 
 `call函数`是唯一一个可以创建定制化参数函数的引用函数。使用这个函数可以实现对用户自己定义函数引用。我们可以将一个变量定义为一个复杂的表达式，用`call函数`根据不同的参数对它进行展开来获得不同的结果
@@ -525,8 +479,8 @@
 
      ```makefile
      define Print_test
-     	info = $(1)				#错误用法
-     	$(eval info = $(1))		#正确用法
+     	info = $(1)                #错误用法
+     	$(eval info = $(1))        #正确用法
      endef
      
      all:
@@ -545,10 +499,8 @@
   foo = $(call reverse, a, b)
   
   all :
-  	$(info $(foo))			#b a
+  	$(info $(foo))        #b a
   ```
-
-  
 
 ### 4.4 value函数
 
@@ -566,11 +518,9 @@
   FOO = $PATH 
   
   all: 
-  @echo $(FOO) 			#ATH
-  @echo $(value FOO)		#当前系统环境变量“PATH”的值
+  @echo $(FOO)                   #ATH
+  @echo $(value FOO)             #当前系统环境变量“PATH”的值
   ```
-
-  
 
 ### 4.5 eval函数
 
@@ -599,8 +549,6 @@ all:
 # 当eval函数被执行时结果为：var: 123, arg: pointer
 ```
 
-
-
 ### 4.6 origin函数
 
 函数`origin`和其他函数不同，函数`origin`的动作不是操作变量（它的参数）。它只是获取此变量（参数）相关的信息，告诉我们这个变量的出处（定义方式）
@@ -610,24 +558,22 @@ all:
 * 函数功能：查询参数`VARIABLE`（一个变量名）的出处
 * 函数说明：`VARIABLE`是一个变量名而不是一个变量的引用。因此通常它不包含`$`（计算的变量名例外）
 * 返回值：
-  * **undefined** 
+  * **undefined**
     * 变量`VARIABLE`没有被定义
   * **default**
     * 变量`VARIABLE`是一个默认定义（内嵌变量）。如`CC`、`MAKE`、`RM`等变量
   * **environment**
     * 变量`VARIABLE`是一个系统环境变量，并且`make`没有使用命令行选项`-e`（启用环境变量的覆盖功能）
-  * **environment override** 
+  * **environment override**
     * 变量`VARIABLE`是一个系统环境变量，并且`make`使用了命令行选项`-e`（启用环境变量的覆盖功能）
-  * **file** 
+  * **file**
     * 变量`VARIABLE`在某一个 `makefile` 文件中定义
-  * **command line** 
+  * **command line**
     * 变量`VARIABLE`在命令行中定义
   * **override**
     * 变量`VARIABLE`在 `makefile` 文件中定义并使用`override`指示符声明
   * **automatic**
     * 变量`VARIABLE`是自动化变量
-
-
 
 ### 4.7 shell函数
 
@@ -640,18 +586,17 @@ all:
 * 函数说明：`make`仅仅对它的回返结果进行处理；`make`将函数返回结果中的所有换行符`\n`或者一对`\n\r`替换为单空格；并去掉末尾的回车符号`\n`或者`\n\r`。进行函数展开式时，它所调用的命令（它的参数）得到执行。
 
 * ```makefile
-  $(shell pwd)			#当前路径
+  $(shell pwd)           #当前路径
   ```
-
   
 
-## 4. 流程控制语句
+
+
+## 5. 流程控制语句
 
 * **需要特别注意的时在一个目标内使用时，前面不可以有`[tab]符号`，否则会被认为是`shell语句`；相关语句会传给shell解释器使用shell语法解析，导致报错**
 
-
-
-### 4.1 ifeq函数
+### 5.1 ifeq函数
 
 * 判断参数是否不相等；相等为 true，不相等为 false
 
@@ -663,10 +608,7 @@ all:
   endif
   ```
 
-
-
-
-### 4.2 ifneq函数
+### 5.2 ifneq函数
 
 * 判断参数是否不相等；不相等为 true，相等为 false
 
@@ -678,10 +620,7 @@ all:
   endif
   ```
 
-
-
-
-### 4.3 ifdef函数
+### 5.3 ifdef函数
 
 * 判断变量的值是不是为空；有值为 true，没有值为 false
 
@@ -693,10 +632,7 @@ all:
   endif
   ```
 
-
-
-
-### 4.4 ifndef函数
+### 5.4 ifndef函数
 
 * 判断变量的值是不是为空；没有值为 true，有值为 false
 
@@ -710,23 +646,21 @@ all:
 
 
 
-## 5. 特殊变量
+## 6. 特殊变量
 
 * makefile中内置了一些特殊的变量，巧妙的使用他们可以极大的提升我们的开发效率
 
+### 6.1 环境变量
 
-
-### 5.1 环境变量
-
-#### 5.1.1 MAKEFILES变量
+#### 6.1.1 MAKEFILES变量
 
 * `MAKEFILES` 是一个特殊的 Makefile 变量，在 Makefile 中使用它可以指定其他要包含的 Makefile 文件
 
-#### 5.1.2 MAKEFILES_LIST变量
+#### 6.1.2 MAKEFILES_LIST变量
 
 * 在 Makefile 中，`MAKEFILES_LIST` 是一个特殊的变量，它包含了当前构建过程中所有被包含的 Makefile 文件的列表。`MAKEFILES_LIST` 变量是一个只读变量，它按照 `Makefile` 文件被包含的顺序存储了这些文件的路径
 
-#### 5.1.3 VPATH变量 
+#### 6.1.3 VPATH变量
 
 * `VPATH` 是一个特殊的 Makefile 变量，用于指定在构建过程中搜索源文件的路径。通常情况下，Make 工具会在当前目录下搜索依赖项中指定的源文件。但是，有时源文件可能位于其他目录中，这时就可以使用 `VPATH` 变量来告诉 Make 工具在指定目录中搜索源文件
 
@@ -737,21 +671,21 @@ all:
   
   test : main.c
   	gcc -o $@ $<
-  	
+  
   # 文件目录结构如下
   ├── src
   │   └── main.c
   ```
 
-#### 5.1.4 SHELL变量
+#### 6.1.4 SHELL变量
 
 * `SHELL` 是一个环境变量，用于指定在运行 Makefile 规则中的命令时使用的 shell 程序。在 Makefile 中，默认情况下，`SHELL` 变量的值为 `/bin/sh`，表示使用标准的 Bourne shell 或兼容的 shell 解析执行命令
 
-#### 5.1.5 MAKE_SHELL变量
+#### 6.1.5 MAKE_SHELL变量
 
 * `MAKE_SHELL`用于指定在运行 Makefile 规则中的命令时使用的 shell 程序。可以通过设置 `MAKE_SHELL` 变量来指定要使用的 shell 解释器。例如，使用 `Bash shell` 来执行命令，可以将 `MAKE_SHELL` 设置为 `/bin/bash`
 
-#### 5.1.6 MAKE变量
+#### 6.1.6 MAKE变量
 
 * `MAKE` 是一个预定义的环境变量，在 Makefile 中表示正在使用的 Make 工具的名称
 
@@ -765,15 +699,15 @@ all:
       $(MAKE) -C path/to/other/directory
   ```
 
-#### 5.1.7 MAKELEVEL变量
+#### 6.1.7 MAKELEVEL变量
 
 * `MAKELEVEL` 是一个预定义的 Makefile 变量，用于表示当前 Make 的递归层级。在 Make 的递归构建过程中，当进行嵌套调用时，每次调用都会递增 `MAKELEVEL` 的值。这个值最初为 0，表示最外层的 Makefile。每当进行一次嵌套调用时，`MAKELEVEL` 的值就会增加
 
-#### 5.1.8 MAKEFLAGS变量 
+#### 6.1.8 MAKEFLAGS变量
 
 * `MAKEFLAGS` 是一个预定义的 Makefile 变量，用于指定 Make 工具的参数和标志。如果执行总控 `Makefile` 时，`make` 命令带有参数或者在上层的 `Makefile` 中定义了这个变量，那么 `MAKEFLAGS` 变量的值将会是 `make` 命令传递的参数，并且会传递到下层的 `Makefile` 中，这是一个系统级别的环境变量
 
-#### 5.1.9 MAKECMDGOALS变量 
+#### 6.1.9 MAKECMDGOALS变量
 
 * `MAKECMDGOALS` 是一个预定义的 Makefile 变量，用于表示在命令行中指定的目标列表。
 
@@ -786,38 +720,36 @@ all:
     # 命令行中运行 make target1 target2 时，打印target1 target2
     ```
 
-#### 5.1.10 CURDIR变量
+#### 6.1.10 CURDIR变量
 
 * `CURDIR` 是一个预定义的 Makefile 变量，用于表示当前工作目录的路径。在 Makefile 中，`CURDIR` 变量会被设置为执行 Make 命令时所在的当前工作目录的绝对路径
 
-#### 5.1.11 TOPDIR变量
+#### 6.1.11 TOPDIR变量
 
 * `TOPDIR`表示项目的顶级目录路径。通常用于构建相关的路径变量，例如源文件路径、目标文件路径等
-  * `CURDIR`表示当前*Makefile *的工作目录路径。当前Makefile 指的是正在执行的Makefile 文件的所在目录。这个变量的值通常由Makefile 解析时自动设置。注意，在包含其他Makefile 时，`CURDIR`可能会改变
+  * `CURDIR`表示当前*Makefile*的工作目录路径。当前Makefile 指的是正在执行的Makefile 文件的所在目录。这个变量的值通常由Makefile 解析时自动设置。注意，在包含其他Makefile 时，`CURDIR`可能会改变
 
+### 6.2 自动化变量
 
-
-### 5.2 自动化变量
-
-#### 5.2.1 $@变量
+#### 6.2.1 $@变量
 
 * `$@` 是一个在 Makefile 中使用的自动化变量，它表示当前规则的目标（target）
 
   ```makefile
   test : main.c
-  	gcc -o $@ $<		# $@是test
+  	gcc -o $@ $<        # $@是test
   ```
 
-#### 5.2.2 $<变量
+#### 6.2.2 $<变量
 
 * 在 Makefile 中，`$<` 是一个自动化变量，它表示当前规则的第一个依赖文件
 
   ```makefile
   test : main.c
-  	gcc -o $@ $<		# $<是main.c
+  	gcc -o $@ $<           # $<是main.c
   ```
 
-#### 5.2.3 $?变量
+#### 6.2.3 $?变量
 
 * 在 Makefile 中，`$?` 是一个自动化变量，它表示比目标文件更新的所有依赖文件的列表，以空格分隔。
 
@@ -838,35 +770,35 @@ all:
         gcc -c $< -o $@
     ```
 
-#### 5.2.4 $^变量
+#### 6.2.4 $^变量
 
 * 在 Makefile 中，`$^` 是一个自动化变量，它表示当前规则的所有依赖文件的列表，以空格分隔
 
-#### 5.2.5 $+变量
+#### 6.2.5 $+变量
 
 * 在 Makefile 中，`$+` 是一个非标准的自动化变量。它与 `$^` 类似，表示当前规则的所有依赖文件的列表，以空格分隔。
   * 与 `$^` 不同的是，`$+` 保留了依赖文件在 Makefile 中出现的顺序。这意味着它会按照你在规则中写的顺序列出依赖文件，而不考虑依赖文件中是否存在重复的文件
 
-#### 5.2.6 $(@D)变量
+#### 6.2.6 $(@D)变量
 
 * 在 Makefile 中，`$(@D)` 是一个自动化变量，表示当前目标文件的目录部分
 
-#### 5.2.7 $(@F)变量
+#### 6.2.7 $(@F)变量
 
 * 在 Makefile 中，`$(@F)` 是一个自动化变量，表示当前目标文件的文件名部分（不包含目录）
 
-#### 5.2.8 $(<D)变量
+#### 6.2.8 $(<D)变量
 
 * 在 Makefile 中，`$(<D)` 是一个自动化变量，表示第一个依赖文件（输入文件）的目录部分
 
-#### 5.2.9 $(<F)变量
+#### 6.2.9 $(<F)变量
 
 * 在 Makefile 中，`$(<F)` 是一个自动化变量，表示第一个依赖文件（输入文件）的文件名部分
 
-#### 5.2.10 $(?D)变量
+#### 6.2.10 $(?D)变量
 
 * 在 Makefile 中，`$(?D)` 是一个自动化变量，用于表示所有已修改的依赖文件的目录部分
 
-#### 5.2.11 $(?F)变量
+#### 6.2.11 $(?F)变量
 
 * 在 Makefile 中， `$(?F)`是一个自动化变量。这个变量用来表示所有已修改的依赖文件的文件名部分

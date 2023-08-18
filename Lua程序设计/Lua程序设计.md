@@ -2,7 +2,7 @@
 
 参考文档
 
-1. 《Lua程序设计（第二版）》 																											--电子工业出版社  [巴西]Roberto Ierusalimschy 著  周惟迪 译
+1. 《Lua程序设计（第二版）》 --电子工业出版社  [巴西]Roberto Ierusalimschy 著  周惟迪 译
 2. 菜鸟教程(RUNOOB.COM)
 
 
@@ -14,25 +14,25 @@
 * `nil`空
 
   ```lua
-  print(type(nil))					--->nil
+  print(type(nil))                --->nil
   ```
   
 * `boolean`布尔
 
   ```lua
-  print(type(true))					--->boolean
+  print(type(true))                --->boolean
   ```
   
 * `number`数字
 
   ```lua
-  print(type(10))						--->number
+  print(type(10))                  --->number
   ```
   
 * `string`字符串
 
   ```lua
-  print(type("Hello world"))			--->string
+  print(type("Hello world"))       --->string
   ```
   
 * `userdata`自定义类型
@@ -40,7 +40,7 @@
 * `function`函数
 
   ```lua
-  print(type(print))					--->function
+  print(type(print))        --->function
   ```
   
 * `thread`线程
@@ -49,33 +49,27 @@
 
   ```lua
   local a ={}
-  print(type(a))						--->table
+  print(type(a))            --->table
   ```
 
 * 如果一个变量没有初始化，它的类型为nil
 
     ```lua
     local a
-    print(type(a))							--->nil
+    print(type(a))           --->nil
     ```
 
 ### 1.1 nil（空）
 
 * `nil`类型是一种特殊的类型，仅有一个值`nil`；其主要功能就是用于区分其他任何值，一个全局变量在第一次赋值前的默认值就是`nil`，将`nil`赋予一个全局变量等同于删除它，`Lua`将`nil`用于表述一种无效值的情况
 
-
-
 ### 1.2 Boolean（布尔）
 
 * `boolean`类型有两个值可以选择`false`和`true`；`Lua`将`false`和`nil`视为“假”，其余之外的其他值视为“真”
 
-
-
 ### 1.3 number（数字）
 
 * `Lua`中对于整数和浮点数不进行区分，全部使用`number`类型表示
-
-
 
 ### 1.4 string（字符串）
 
@@ -93,8 +87,8 @@
     a = "\97\97"
     b = [[\97\97]]
     
-    print(a)				--->aa
-    print(b)				--->\97\97
+    print(a)          --->aa
+    print(b)          --->\97\97
     ```
 
 * 字符串连接操作符`..`，当直接在一个数字后面输入它时必须要用一个空格来分隔它们，不然`Lua`会将第一个点理解为小数点，或者直接报错
@@ -103,8 +97,8 @@
   a = "abc"
   b = 123
   
-  print(a..123)				--->abc123
-  print(123 ..456)			--->123456
+  print(a..123)         --->abc123
+  print(123 ..456)      --->123456
   ```
 
 * 在字符串前放置操作符`#`可以获得该字符串的长度
@@ -112,10 +106,8 @@
   ```lua
   a = "abc"
   
-  print(#a)					--->3
+  print(#a)          --->3
   ```
-
-
 
 ### 1.5 table(表)
 
@@ -188,7 +180,6 @@
   table_test.a = nil
   table_test[1] = nil 
   ```
-
 
 #### 1.5.3 table遍历
 
@@ -276,10 +267,8 @@
     ```lua
     x, y = 10, 10*10
     
-    print(x.. "：" ..y)				--->10:100
+    print(x.. "：" ..y)        --->10:100
     ```
-
-    
 
 ### 2.2 局部变量和块
 
@@ -313,8 +302,6 @@
   end
   ```
 
-
-
 ### 3.2 while循环
 
 * 先判断`while`的条件是否为真，如果条件为假那么结束循环，不然执行循环体并重复这一过程
@@ -326,8 +313,6 @@
       i = i + 1
   end
   ```
-
-
 
 ### 3.3 repeat循环
 
@@ -342,8 +327,6 @@
   until line ~= ""
   print(line)
   ```
-
-  
 
 ### 3.4 for循环
 
@@ -479,7 +462,7 @@
     end
     ```
 
-    
+
 
 ## 4. 函数
 
@@ -504,8 +487,6 @@
 * Lua具有一项非常与众不同的特征，允许函数返回多个结果，只需在`return`关键字后列出所有的返回值即可
 * 如果一个函数没有返回值或者没有返回足够多的返回值，那么Lua会用`nil`来补充缺失的值
 * `table`构造式可以完整地接收一个函数调用的所有结果，即不会有任何数量方面的调整：
-
-
 
 ### 4.2 变长参数
 
@@ -532,8 +513,8 @@
       return string.format(fmt, ...)
   end
   
-  local a, b, c = foo("a")            		--->a,nil,nil
-  local a, b, c = foo("%d, %d", 4, 5)			--->4,5,nil,nil
+  local a, b, c = foo("a")                 --->a,nil,nil
+  local a, b, c = foo("%d, %d", 4, 5)      --->4,5,nil,nil
   ```
 
 * 通常一个函数在遍历其变长参数时只需使用表达式{..},这就像访问一个table一样，访问所有的变长参数
@@ -591,8 +572,6 @@
   * 内部函数中的变量生命周期与外部接收闭包的变量相同
 
   * 每次形成闭包后内部函数中的变量会单独申请一块内存
-
-
 
 ### 5.2 尾调用消除
 
