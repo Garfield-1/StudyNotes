@@ -380,7 +380,7 @@
 
   
 
-### 3.7 单词连接函数——join
+### 3.7 单词连接函数—join
 
 * 函数原型：**$(join LIST1,LIST2)**
 
@@ -423,7 +423,7 @@
 
 
 
-### 3.9 abspath函数
+### 3.9 相对路径转化绝对路径函数—abspath
 
 * 函数原型：**$(abspath FILE_PATH)**
 
@@ -518,8 +518,22 @@
   1. 函数中`VARIBLE`是一个变量名，而不是变量引用。因此，通常`call`函数中的`VARIABLE`中包含`$`（当然，除非此变量名是一个计算的变量名）
 
   2. 当变量`VARIBLE`是一个 `make` 内嵌的函数名时（如`if`、`foreach`、`strip`等），对`PARAM`参数的使用需要注意，因为不合适或者不正确的参数将会导致函数的返回值难以预料。
+
   3. 函数中多个`PARAM`之间使用逗号分割
-  4.  变量`VARIABLE`在定义时**不能定义为直接展开式！只能定义为递归展开式**
+
+  4. **如果使用`define`定义变量并使用`call`调用，`define`中的变量不能直接使用赋值语句，需要使用eval函数执行**
+
+     ```makefile
+     define Print_test
+     	info = $(1)				#错误用法
+     	$(eval info = $(1))		#正确用法
+     endef
+     
+     all:
+     	$(call Print_test, 111)
+     ```
+
+  5. 当`call`函数执行没有变量接收返回值时，`VARIBLE`的内容会在函数调用时执行。如果有变量接收`call`函数的返回值则`VARIBLE`在变量调用时执行（例如使用`eval`函数时）
 
 * 返回值：参数值`PARAM`依次替换`$(1)`、`$(2)`…… 之后变量`VARIABLE`定义的表达式的计算值
 
@@ -741,6 +755,16 @@ all:
 
 * `MAKE` 是一个预定义的环境变量，在 Makefile 中表示正在使用的 Make 工具的名称
 
+* `MAKE`后可以携带后缀已达到调用其他效果，最常见的一种方式就是`$(MAKE) -C` 的意思是调用make命令，并切换到指定路径下执行Makefile
+
+* 示例：
+
+  ```makefile
+  # 使用make执行path/to/other/directory文件
+  all:
+      $(MAKE) -C path/to/other/directory
+  ```
+
 #### 5.1.7 MAKELEVEL变量
 
 * `MAKELEVEL` 是一个预定义的 Makefile 变量，用于表示当前 Make 的递归层级。在 Make 的递归构建过程中，当进行嵌套调用时，每次调用都会递增 `MAKELEVEL` 的值。这个值最初为 0，表示最外层的 Makefile。每当进行一次嵌套调用时，`MAKELEVEL` 的值就会增加
@@ -765,8 +789,6 @@ all:
 #### 5.1.10 CURDIR变量
 
 * `CURDIR` 是一个预定义的 Makefile 变量，用于表示当前工作目录的路径。在 Makefile 中，`CURDIR` 变量会被设置为执行 Make 命令时所在的当前工作目录的绝对路径
-
-
 
 #### 5.1.11 TOPDIR变量
 
