@@ -5,7 +5,7 @@
 1. 《Lua程序设计（第二版）》 --电子工业出版社  [巴西]Roberto Ierusalimschy 著  周惟迪 译
 2. 菜鸟教程(RUNOOB.COM)
 
-
+[TOC]
 
 ## 1. 类型与值
 
