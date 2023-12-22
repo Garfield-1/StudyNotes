@@ -14,11 +14,11 @@ VScode插件市场
 
 * 下载下图中的`Remote - SSH`和`Remote - SSH: Editing Configuration Files`插件并安装,配置对应ssh连接
 
-![image-20230518235552688](./image/%E5%9B%BE8%20VS%20Code%20SSH%E6%8F%92%E4%BB%B6.png)
+![图8_VSCode SSH插件](./image/图8_VSCode SSH插件.png)
 
 * 连接建立后会在~/.vscode-server目录下生成一个与本地VS Code提交序号名称相同的文件夹,内部存放着远程SSH连接相关配置文件
 
-![](./image/%E5%9B%BE9_%20vscode%E5%85%B3%E4%BA%8E.png)
+![图9_ VSCode关于](./image/图9_ VSCode关于.png)
 
 * 若出现连接时一直处于加载状态
 
@@ -51,19 +51,19 @@ VScode插件市场
 
   为VS Code提供本地汉化界面
 
-  ![简体中文](./image/%E5%9B%BE1_%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87%E6%B1%89%E5%8C%96%E5%8C%85.png)
+  ![图1_简体中文汉化包](./image/图1_简体中文汉化包.png)
 
 * Git History
 
   查看Git提交历史记录
 
-  ![git history插件](./image/%E5%9B%BE2_Git%20History%E6%8F%92%E4%BB%B6.png)
+  ![图2_Git History插件](./image/图2_Git History插件.png)
 
 * GitLens
 
   提供强大的Git管理功能
 
-![图3_GitLens](./image/%E5%9B%BE3_GitLens.png)
+![图3_GitLens](./image/图3_GitLens.png)
 
 ##  6.vscode使用图形化界面GDB调试
 
@@ -110,7 +110,7 @@ VScode插件市场
 
    * 在调试时如果单步执行遇到库函数`srand(time(NULL));`则GDB会提示无法加载源文件
 
-     ![无法加载源文件](./image/%E5%9B%BE4_%E6%97%A0%E6%B3%95%E5%8A%A0%E8%BD%BD%E6%BA%90%E6%96%87%E4%BB%B6.png)
+     ![图4_无法加载源文件](./image/图4_无法加载源文件.png)
 
    * 此时代码中的`time(NULL)`函数指向libc.so.6库，由于在GDB配置路径中不存在对应版本的glibc源代码所以无法正常跳转至函数定义处
 
@@ -124,4 +124,4 @@ VScode插件市场
 
    * 下载对应版本的glibc源代码，并将源代码目录放在配置文件中的`"cwd": "${workspaceFolder}/glibc-2.31",`中，此时再使用gdb调试遇到库函数时便会跳转至glibc源码中对应的函数实现
 
-![图10_time函数](./image/%E5%9B%BE10_time%E5%87%BD%E6%95%B0.png)
+![图10_time函数](./image/图10_time函数.png)
