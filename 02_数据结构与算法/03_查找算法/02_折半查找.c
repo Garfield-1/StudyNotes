@@ -13,7 +13,7 @@
 
 void PrintArr(int arr[], int len);
 void bubbleSort(int arr[], int len);
-void binarySearch(int arrr[], int len, int target);
+int binarySearch(int r[],int n,int k);
 
 int main()
 {
@@ -29,37 +29,30 @@ int main()
     printf("原始序列: ");
 	PrintArr(arr, len);
 
-    binarySearch(arr, len, TARGET);
+    int a = binarySearch(arr, len, TARGET);
+
+    printf("a = %d\n", a);
 
     return 0;
 }
 
-void binarySearch(int arr[], int len, int target)
+int binarySearch(int r[], int n, int k)
 {
-    int low = 0, high = len-1 , mid;
-    int target_num = 0;
+    int low = 0, high = n-1 , mid;
 
 	while (low <= high) {
 		mid = (low + high)/2;
-		if (arr[mid] == target) {
-            target_num++;
-            printf("匹配到元素的下标为 %d\n", mid);
+		if (r[mid] == k) {
+            return mid;
         }
 
-		if (arr[mid] > target) {
-            high = mid - 1;  //前半区间 
+		if (r[mid] > k) {
+            high = mid - 1;  //左半区间 
         } else {
-            low = mid + 1;   //后半区间 
+            low = mid + 1;   //右半区间 
         }
 	}
-
-    if (target_num == 0) {
-        printf("查找元素不存在\n");
-    } else {
-        printf("匹配到元素的个数为 %d\n", target_num);
-    }
-	
-    return; 
+	return -1; 
 }
 
 void bubbleSort(int arr[], int len)
