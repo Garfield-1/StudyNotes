@@ -1,14 +1,20 @@
 CC := gcc
 SRCS := $(wildcard ./src/*.c)
-TARGETS := $(notdir $(patsubst %.c, %.so, $(SRCS)))
+TARGETS := $(patsubst %.c, %.o, $(SRCS))
+MYLIBS := $(notdir $(patsubst %.c, %.o, $(SRCS)))
 INC_DIR = -I ./inc/
 CFLAGS := -Wall -fPIC -shared
+PRODUCT := mylib.so						#编译产物
 
-$(TARGETS):
-	$(CC) $(SRCS) $(INC_DIR) -o $(TARGETS) $(CFLAGS)
+all :$(PRODUCT)
 
-all :$(TARGETS)
+$(PRODUCT) : $(TARGETS)
+	$(CC) -shared -o $(PRODUCT) $(TARGETS)
+	rm $(TARGETS)
+
+$(TARGETS) : $(SRCS)
+	$(CC) -c $(patsubst %.o, %.c, $@) -o  $@ $(INC_DIR)
 
 .PHONY : clean
 clean :
-	rm $(TARGETS)
+	rm $(PRODUCT) $(TARGETS)

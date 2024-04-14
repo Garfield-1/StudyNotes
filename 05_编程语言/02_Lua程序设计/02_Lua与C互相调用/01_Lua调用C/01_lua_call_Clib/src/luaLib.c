@@ -1,5 +1,5 @@
 #include <stdio.h>
-#include "mylib.h"
+#include "luaLib.h"
  
 /**
  * 定义在lua中可调用的函数，要遵循规范：返回值必须为int，需传入lua_State
@@ -10,14 +10,16 @@ int addDemo(lua_State *L)
 	int num_a = luaL_checkinteger(L, 1);
 	int num_b = luaL_checkinteger(L, 2);
 	int num_c = num_a + num_b;
-	printf("a = %d b = %d\n", num_a, num_b);
+
+	num_c = luaLibAdd(num_a, num_b);
 	lua_pushnumber(L, num_c);
+	
 	return 1;
 }
 
 int printDemo(lua_State *L)
 {
-	printf("Hello World\n");
+	luaLibPrint();
 	return 0;
 }
 
