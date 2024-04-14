@@ -6,10 +6,9 @@
  */
 int addDemo(lua_State *L)
 {
-	size_t len = 0;
 	int num_a = luaL_checkinteger(L, 1);
 	int num_b = luaL_checkinteger(L, 2);
-	int num_c = num_a + num_b;
+	int num_c;
 
 	num_c = luaLibAdd(num_a, num_b);
 	lua_pushnumber(L, num_c);

@@ -5,7 +5,7 @@ INC_DIR = -I ./inc/
 CFLAGS := -Wall -fPIC -shared
 PRODUCT := mylib.so						#编译产物
 
-all :$(PRODUCT)
+all : $(PRODUCT)
 
 $(PRODUCT) : $(TARGETS)
 	$(CC) -shared -o $(PRODUCT) $(TARGETS)
