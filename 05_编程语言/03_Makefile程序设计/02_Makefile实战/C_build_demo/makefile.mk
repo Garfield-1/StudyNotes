@@ -13,7 +13,7 @@ $(PRODUCT) : $(TARGETS)
 	rm $(TARGETS)
 
 $(TARGETS) : $(SRCS)
-	$(CC) -c $(patsubst %.o, %.c, $@) -o  $@ $(INC_DIR)
+	$(CC) -c $(CFLAGS) $(patsubst %.o, %.c, $@) -o  $@ $(INC_DIR)
 
 .PHONY : clean
 clean :
