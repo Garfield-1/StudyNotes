@@ -21,7 +21,7 @@ typedef struct
 static void initStack(SqStack *S);
 static bool checkStackEmpty(const SqStack *S);
 static void getTop(SqStack *S, ElementType *e);
-static int pushStack(SqStack *S, ElementType e);
+static void pushStack(SqStack *S, ElementType e);
 static void popStack(SqStack *S);
 
 static void initStack(SqStack *S)
@@ -61,13 +61,14 @@ static void getTop(SqStack *S, ElementType *e)
 }
 
 //插入元素e为新的栈顶元素
-static int pushStack(SqStack *S, ElementType e)
+static void pushStack(SqStack *S, ElementType e)
 {
     if ((int)(S->top - S->base) >= S->stacksize)//判断栈是否为满
     {
         S->base = (ElementType *)realloc(S->base, (S->stacksize + STACK_INCR_EMRNT) * sizeof(ElementType));//栈满,追加内存空间
         if (!S->base) {
-            return 0; 
+            printf("realloc fail\n");
+            return; 
         }
         S->top = (ElementType *)(S->base + S->stacksize);
         S->stacksize += STACK_INCR_EMRNT;
@@ -76,7 +77,7 @@ static int pushStack(SqStack *S, ElementType e)
     *(S->top) = e;
     S->top = (ElementType *)((S->top) + 1);
 
-    return 1;
+    return;
 }
 
 //若栈不为空,则删除栈顶元素,用e返回其值,并返回OK;否则返回ERROR
