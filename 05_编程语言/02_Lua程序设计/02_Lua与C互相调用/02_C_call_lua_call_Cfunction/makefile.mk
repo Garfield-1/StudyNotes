@@ -7,7 +7,7 @@ LIB := -llua -lm -ldl
 all : $(PRODUCT)
 
 $(PRODUCT) : $(SRCS)
-	$(CC) $^ -o $(PRODUCT) $(LIB)
+	$(CC) $^ $(CFLAGS) -o $(PRODUCT) $(LIB)
 
 .PHONY : clean
 clean :
