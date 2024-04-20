@@ -2,17 +2,23 @@
 
 > 源码下载链接https://sourceforge.net/projects/cjson/
 
+
+
 ## 核心数据结构
+
+相同等级的元素使用双向链表链接，不同等级的元素使用`child`指针连接。例如：多个`object`并列时或着`object`内部的成员使用双向链表连接，`object`名称与其内部的成员通过`child`连接
+
+上述可得`cjson`底层维护的数据结构实际是一个桶结构而非树结构
 
 ```c
 typedef struct cJSON {
 	struct cJSON *next,*prev;	// 双向链表头节点和尾节点
-	struct cJSON *child;		
+	struct cJSON *child;		// 存放低一级元素
 	int type;					// 节点类型
-	char *valuestring;			// 本节点字符串
+	char *valuestring;			// 本节前半段的值，可能是object或array的名称或键值对的前半段
 	int valueint;
 	double valuedouble;
-	char *string;				// 存储父节点值
+	char *string;				// 本节点后半段的值
 } cJSON;
 
 /* cJSON Types: */
@@ -25,9 +31,13 @@ typedef struct cJSON {
 #define cJSON_Object 6
 ```
 
+
+
 ## 全局变量
 
 `char *ep;`记录内部错误码通过`cJSON_GetErrorPtr()`获取
+
+
 
 ## 关键函数接口及实现逻辑
 
@@ -80,61 +90,70 @@ typedef struct cJSON {
 
 3. `parse_object()`函数
 
-   函数将输入值当作一个非常长的字符串，不断的分割字符串；
-
-   将`item`作为根节点，创建一个树状结构存储解析出的`json`内容
+   创建一个`json`对象、
 
    **核心逻辑如下**
+
+   * 函数将输入值当作一个非常长的字符串，通过`parse_*`系列函数不断的分割字符串；
+
+   * 将`item`作为根节点，创建新的子节点并填充。最终将整个json的数据，存储在一个树状结构中
+
+   * 
 
    ```c
    /* Build an object from the text. */
    static const char *parse_object(cJSON *item,const char *value)
    {
+   	// child在函数前半段为新增节点，函数后半段为链表哨兵位指针
    	cJSON *child;
-   	//创建新的child节点
-   	item->type = cJSON_Object;
-   	item->child = child = cJSON_New_Item();
+       child = cJSON_New_Item();
+   	item->child = child;
+       item->type = cJSON_Object;
    	
-   	/* 解析字符串并填充cJSON树 */
-   	value = skip(parse_string(child, skip(value + 1)));//value+1是为了跳过{符号
+       // 取出前半部分存入string,可能是对象或数组的名称，或是键值对的前半部分
+   	value = skip(parse_string(child, skip(value + 1)));
    	child->string = child->valuestring;
        child->valuestring = NULL;
-   	if (*value != ':') {//json每个键值对使用“:”分割
-   		return 0;
+   	if (*value != ':') {
+   		return NULL;
    	}	/* fail! */
+   	
+       /*
+        * 此处可能造成递归调用
+        * 递归的出口: value开头到第一个“,”的部分是普通键值对,不包含object或array深层嵌套
+   	 */
+   	value = skip(parse_value(child, skip(value + 1)));
    
-   	value=skip(parse_value(child,skip(value+1)));
-   	if (!value) {
-   		return 0;
-   	}
-   	//每个键值对的结束已”,“为标志
    	while (*value == ',') {
    		cJSON *new_item;
    		new_item = cJSON_New_Item();
-   		
-           //创建双向链表，并使child指向双向链表头节点
+   
+           /*
+            * 创建双向不循环链表，保存之前的解析结果。链表中仅保存同级元素
+            * 此处child视为链表的哨兵位指针而不是新增节点指针
+            */
    		child->next = new_item;
    		new_item->prev = child;
-   		child = new_item;
-           
-   		value = skip(parse_string(child, skip(value+1)));
+           child = new_item;
+   
+   		value = skip(parse_string(child, skip(value + 1)));
    		child->string = child->valuestring;
    		child->valuestring = NULL;
    		if (*value != ':') {
-   			return 0;
+   			return NULL;
    		}	/* fail! */
    
-   		value = skip(parse_value(child,skip(value+1)));
+   		value = skip(parse_value(child, skip(value + 1)));
    	}
    	
    	if (*value == '}') {
    		return value + 1;	/* end of array */
    	}
        
-   	return 0;	/* malformed. */
+   	return NULL;	/* malformed. */
    }
    ```
-
+   
    
 
 ## 字符串处理接口
@@ -143,24 +162,32 @@ typedef struct cJSON {
 
 1. `skip`函数
 
-函数通过`while`循环遍历整个字符串，首先判断指针不为空，指针指向的值不为空
+   跳过空格和无用字符
 
-不断向后偏移，直到指向的字符的`ACSII`码大于`32`;函数作者非常巧妙的利用了`ASCII`码表的排列的规则，将前`32`位在字符串解析时无法用到的字符舍弃，只保留了有效字符
+   **原函数实现：**
 
-![ACSII码表](.\img\ACSII码表.jpg)
+   ```c
+   static const char *skip(const char *in) 
+   {
+   	while (in && *in && (unsigned char)*in <= 32) {
+   		in++;
+   	}
+   
+   	return in;
+   }
+   ```
 
-**原函数实现：**
+   **函数核心思想**
 
-```c
-static const char *skip(const char *in) 
-{
-	while (in && *in && (unsigned char)*in <= 32) {
-		in++;
-	}
+   函数通过`while`循环遍历整个字符串，首先判断指针不为空，指针指向的值不为空
 
-	return in;
-}
-```
+   不断向后偏移，直到指向的字符的`ACSII`码大于`32`;函数作者非常巧妙的利用了`ASCII`码表的排列的规则，将前`32`位在字符串解析时无法用到的字符舍弃，只保留了有效字符
+
+   ![ACSII码表](.\img\ACSII码表.jpg)
+
+
+
+
 
 
 
