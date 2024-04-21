@@ -68,6 +68,11 @@ typedef struct cJSON {
    ```c
    static const char *parse_value(cJSON *item,const char *value)
    {
+       if (!strncmp(value,"null",4)) {
+           item->type = cJSON_NULL;
+           return value + 4;
+       }
+   
    	if (*value=='\"') {
    		return parse_string(item,value);
    	}
