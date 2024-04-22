@@ -131,14 +131,14 @@ static const char *parse_number(cJSON *item, const char *num)
 	int subscale=0, signsubscale=1;
 
 	if (*num == '-') {
-		sign=-1,num++;	/* Has sign? */
+		sign=-1, num++;	/* Has sign? */
 	}
 
-	if (*num=='0') {
+	if (*num == '0') {
 		num++;			/* is zero */
 	}
 
-	if (*num>='1' && *num<='9')	{
+	if (*num >= '1' && *num <= '9')	{
 		do {
 			n=(n*10.0)+(*num++ -'0');
 		} while (*num>='0' && *num<='9');	/* Number? */
@@ -151,16 +151,16 @@ static const char *parse_number(cJSON *item, const char *num)
 		} while (*num>='0' && *num<='9');
 	}	/* Fractional part? */
 
-	if (*num=='e' || *num=='E') {		/* Exponent? */
+	if (*num = ='e' || *num == 'E') {		/* Exponent? */
 		num++;
-		if (*num=='+') {
-			num++;
-		} else if (*num=='-') {
-			signsubscale=-1,num++;		/* With sign? */
+		if (*num == '+') {
+			num ++;
+		} else if (*num == '-') {
+			signsubscale = -1, num++;		/* With sign? */
 		}
 
-		while (*num>='0' && *num<='9') {
-			subscale=(subscale*10)+(*num++ - '0');	/* Number? */
+		while (*num >= '0' && *num <= '9') {
+			subscale = (subscale * 10) + (*num++ - '0');	/* Number? */
 		}
 	}
 
