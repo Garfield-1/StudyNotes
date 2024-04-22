@@ -1,8 +1,10 @@
 # cjson源码解析
 
 > 源码下载链接https://sourceforge.net/projects/cjson/
+>
+> 笔者注：文中出现的**核心逻辑**是指函数简化处理后只的逻辑，去除了校验和边界条件处理，只保留了关键逻辑便于读者理解
 
-笔者注：**核心逻辑**是指函数简化处理后只的逻辑，去除了校验和边界条件处理，只保留了关键逻辑便于读者理解
+
 
 ## 核心数据结构
 
@@ -35,7 +37,9 @@ typedef struct cJSON {
 
 ## 全局变量
 
-`char *ep;`记录内部错误码通过`cJSON_GetErrorPtr()`获取
+`char *ep;`
+
+在记录出错时是在哪个字符，以错误码的方式返回；通过`cJSON_GetErrorPtr()`获取
 
 
 
@@ -43,7 +47,7 @@ typedef struct cJSON {
 
 参考`cjson`源代码中给出`demo`的流程
 
-核心函数为`cJSON_Parse`
+核心函数为`cJSON_Parse`和`cJSON_Print`
 
 **核心逻辑如下**
 
@@ -69,7 +73,6 @@ int main (int argc, const char * argv[])
 	
 	return 0;
 }
-
 ```
 
 
@@ -85,7 +88,7 @@ int main (int argc, const char * argv[])
 ```c
 cJSON *cJSON_New_Item(void)
 {
-	cJSON* node = (cJSON*)cJSON_malloc(sizeof(cJSON));
+	cJSON* node = (cJSON*)malloc(sizeof(cJSON));
 	return node;
 }
 ```
@@ -103,25 +106,25 @@ cJSON *cJSON_New_Item(void)
 ```c
 static const char *parse_value(cJSON *item,const char *value)
 {
-    if (!strncmp(value,"null",4)) {
+    if (!strncmp(value, "null", 4)) {
         item->type = cJSON_NULL;
         return value + 4;
     }
 
-	if (*value=='\"') {
+	if (*value == '\"') {
 		return parse_string(item,value);
 	}
 
-	if (*value=='-' || (*value>='0' && *value<='9')) {
-		return parse_number(item,value);
+	if (*value == '-' || (*value >= '0' && *value <= '9')) {
+		return parse_number(item, value);
 	}
 
-	if (*value=='[') {
-		return parse_array(item,value);
+	if (*value == '[') {
+		return parse_array(item, value);
 	}
 
-	if (*value=='{') {
-		return parse_object(item,value);
+	if (*value == '{') {
+		return parse_object(item, value);
 	}
 
 	return 0;	/* failure. */
@@ -246,7 +249,9 @@ static const char *parse_array(cJSON *item,const char *value)
 
 跳过空格和无用字符
 
-**原函数实现：**
+**源代码中函数实现如下**
+
+> 笔者注：代码已做格式化处理
 
 ```c
 static const char *skip(const char *in) 
@@ -271,59 +276,35 @@ static const char *skip(const char *in)
 
 将字符串解析为一个数字，同时支持复数，浮点数，可解析科学记数法的特性。
 
-**原函数实现如下**
+**源代码中函数实现如下**
 
 ```c
 /* Parse the input text to generate a number, and populate the result into item. */
-static const char *parse_number(cJSON *item, const char *num)
+static const char *parse_number(cJSON *item,const char *num)
 {
-	double n=0, sign=1, scale=0;
-	int subscale=0, signsubscale=1;
+	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
 
-	if (*num == '-') {
-		sign=-1,num++;	/* Has sign? */
-	}
-
-	if (*num=='0') {
-		num++;			/* is zero */
-	}
-
-	if (*num>='1' && *num<='9')	{
-		do {
-			n=(n*10.0)+(*num++ -'0');
-		} while (*num>='0' && *num<='9');	/* Number? */
-	}
-
-	if (*num=='.' && num[1]>='0' && num[1]<='9') {
-		num++;
-		do {
-			n=(n*10.0)+(*num++ -'0'),scale--;
-		} while (*num>='0' && *num<='9');
-	}	/* Fractional part? */
-
-	if (*num=='e' || *num=='E') {		/* Exponent? */
-		num++;
-		if (*num=='+') {
-			num++;
-		} else if (*num=='-') {
-			signsubscale=-1,num++;		/* With sign? */
-		}
-
-		while (*num>='0' && *num<='9') {
-			subscale=(subscale*10)+(*num++ - '0');	/* Number? */
-		}
+	if (*num=='-') sign=-1,num++;	/* Has sign? */
+	if (*num=='0') num++;			/* is zero */
+	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');	/* Number? */
+	if (*num=='.' && num[1]>='0' && num[1]<='9') {num++;		do	n=(n*10.0)+(*num++ -'0'),scale--; while (*num>='0' && *num<='9');}	/* Fractional part? */
+	if (*num=='e' || *num=='E')		/* Exponent? */
+	{	num++;if (*num=='+') num++;	else if (*num=='-') signsubscale=-1,num++;		/* With sign? */
+		while (*num>='0' && *num<='9') subscale=(subscale*10)+(*num++ - '0');	/* Number? */
 	}
 
 	n=sign*n*pow(10.0,(scale+subscale*signsubscale));	/* number = +/- number.fraction * 10^+/- exponent */
 	
-	item->valuedouble = n;
-	item->valueint = (int)n;
-	item->type = cJSON_Number;
+	item->valuedouble=n;
+	item->valueint=(int)n;
+	item->type=cJSON_Number;
 	return num;
 }
 ```
 
 **函数核心思想**
+
+> 笔者注：下文代码已做格式化处理
 
 首先申请数个变量存储不同的特性值
 
@@ -421,4 +402,97 @@ static const char *parse_number(cJSON *item, const char *num)
 	return num;
 }
 ```
+
+### `parse_string`函数
+
+此函数用于处理形式为`"XXXXXX"`的字符串。函数会处理字符串中的转义字符，并将`Unicode`转义序列转换为对应的`UTF-8`字符
+
+该函数的主要功能包括：
+
+- 解析字符串中的转义字符，如`\n`、`\t`等。
+- 将`Unicode`转义序列`\uXXXX`转换为`UTF-8`字符。
+- 处理`UTF-16`代理对（surrogate pairs）。
+
+**源代码中函数实现如下**
+
+```c
+/* parse_hex4用于解析一个4位十六进制数，并将其转换为对应的无符号整数 */
+static unsigned parse_hex4(const char *str)
+{
+	unsigned h=0;
+	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+	h=h<<4;str++;
+	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+	h=h<<4;str++;
+	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+	h=h<<4;str++;
+	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+	return h;
+}
+
+/* Parse the input text into an unescaped cstring, and populate item. */
+static const unsigned char firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
+static const char *parse_string(cJSON *item,const char *str)
+{
+	const char *ptr=str+1;char *ptr2;char *out;int len=0;unsigned uc,uc2;
+	if (*str!='\"') {ep=str;return 0;}	/* not a string! */
+	
+	while (*ptr!='\"' && *ptr && ++len) if (*ptr++ == '\\') ptr++;	/* Skip escaped quotes. */
+	
+	out=(char*)cJSON_malloc(len+1);	/* This is how long we need for the string, roughly. */
+	if (!out) return 0;
+	
+	ptr=str+1;ptr2=out;
+	while (*ptr!='\"' && *ptr)
+	{
+		if (*ptr!='\\') *ptr2++=*ptr++;
+		else
+		{
+			ptr++;
+			switch (*ptr)
+			{
+				case 'b': *ptr2++='\b';	break;
+				case 'f': *ptr2++='\f';	break;
+				case 'n': *ptr2++='\n';	break;
+				case 'r': *ptr2++='\r';	break;
+				case 't': *ptr2++='\t';	break;
+				case 'u':	 /* transcode utf16 to utf8. */
+					uc=parse_hex4(ptr+1);ptr+=4;	/* get the unicode char. */
+
+					if ((uc>=0xDC00 && uc<=0xDFFF) || uc==0)	break;	/* check for invalid.	*/
+
+					if (uc>=0xD800 && uc<=0xDBFF)	/* UTF16 surrogate pairs.	*/
+					{
+						if (ptr[1]!='\\' || ptr[2]!='u')	break;	/* missing second-half of surrogate.	*/
+						uc2=parse_hex4(ptr+3);ptr+=6;
+						if (uc2<0xDC00 || uc2>0xDFFF)		break;	/* invalid second-half of surrogate.	*/
+						uc=0x10000 + (((uc&0x3FF)<<10) | (uc2&0x3FF));
+					}
+
+					len=4;if (uc<0x80) len=1;else if (uc<0x800) len=2;else if (uc<0x10000) len=3; ptr2+=len;
+					
+					switch (len) {
+						case 4: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
+						case 3: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
+						case 2: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
+						case 1: *--ptr2 =(uc | firstByteMark[len]);
+					}
+					ptr2+=len;
+					break;
+				default:  *ptr2++=*ptr; break;
+			}
+			ptr++;
+		}
+	}
+	*ptr2=0;
+	if (*ptr=='\"') ptr++;
+	item->valuestring=out;
+	item->type=cJSON_String;
+	return ptr;
+}
+```
+
+**函数核心思想**
+
+> 笔者注：下文代码已做格式化处理
 
