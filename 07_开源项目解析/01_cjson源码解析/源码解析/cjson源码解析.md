@@ -302,7 +302,7 @@ static const char *parse_number(cJSON *item,const char *num)
 }
 ```
 
-**函数核心思想**
+**函数核心逻辑**
 
 > 笔者注：下文代码已做格式化处理
 
@@ -336,7 +336,7 @@ static const char *parse_number(cJSON *item, const char *num)
 	}
 	
     /* 跳过多余的0 */
-	if (*num=='0') {
+	if (*num == '0') {
 		num++;
 	}
 
@@ -492,7 +492,86 @@ static const char *parse_string(cJSON *item,const char *str)
 }
 ```
 
-**函数核心思想**
+**函数核心逻辑**
 
-> 笔者注：下文代码已做格式化处理
+> 笔者注：下文代码已格式化并删除冗余流程保留核心逻辑
+
+```c
+static const unsigned char firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
+static const char *parse_string(cJSON *item, const char *str)
+{
+	const char *ptr = str+1;
+	char *ptr2;
+	char *out;
+	int len = 0;
+	unsigned uc, uc2;
+
+	if (*str != '\"') {
+		ep = str;
+		return 0;
+	}
+	
+    /*
+     * 此处对'\\'特殊处理是考虑到后续字符串处理流程中'\'可能会被误认为转义字符
+     * 所以遇到'\\'时需要额外偏移一位
+     */
+	while (*ptr != '\"' && *ptr && ++len) {
+		if (*ptr++ == '\\') {
+			ptr++;
+		}
+	}
+	
+    /* 申请内存，防止出现野指针 */
+	out = (char*)malloc(len + 1);
+	
+	ptr = str + 1;
+	ptr2 = out;
+	while (*ptr!='\"' && *ptr) {
+		if (*ptr!='\\') {
+			*ptr2++ = *ptr++;
+		} else {
+			ptr++;
+			switch (*ptr) {
+				case 'b':
+					*ptr2++ = '\b';
+					break;
+				case 'f':
+					*ptr2++ = '\f';
+					break;
+				case 'n':
+					*ptr2++ = '\n';
+					break;
+				case 'r':
+					*ptr2++ = '\r';
+					break;
+				case 't':
+					*ptr2++ = '\t';
+					break;
+				case 'u':	 /* transcode utf16 to utf8. */
+						...
+                        /* 此处篇幅限制，对 utf16转utf8的处理后文中讨论*/
+                        ...
+				default:
+					*ptr2++ = *ptr;
+					break;
+			}
+			ptr++;
+		}
+	}
+	*ptr2 = 0;
+
+	if (*ptr == '\"') {
+		ptr++;
+	}
+	
+    /*
+     * 此处不能free(out)
+     * 结构体定义中valuestring是一个char*类型，该指针指向的内存的生命周期应当与valuestring指针保持一致
+     * 此处内存应当在valuestring指针置NULL时再free，否则可能出现内存踩空或野指针的问题
+     */
+	item->valuestring = out;
+	item->type = cJSON_String;
+	return ptr;
+}
+```
 
