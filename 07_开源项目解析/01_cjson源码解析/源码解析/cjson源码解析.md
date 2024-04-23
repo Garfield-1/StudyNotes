@@ -6,7 +6,7 @@
 
 
 
-## 核心数据结构
+## 1. 核心数据结构
 
 相同等级的元素使用双向链表链接，不同等级的元素使用`child`指针连接。例如：多个`object`并列时或着`object`内部的成员使用双向链表连接，`object`名称与其内部的成员通过`child`连接
 
@@ -35,7 +35,7 @@ typedef struct cJSON {
 
 
 
-## 全局变量
+## 2. 全局变量
 
 `char *ep;`
 
@@ -43,13 +43,15 @@ typedef struct cJSON {
 
 
 
-## json解析流程
+## 3. json解析流程
 
 参考`cjson`源代码中给出`demo`的流程
 
 核心函数为`cJSON_Parse`和`cJSON_Print`
 
 **核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
 
 ```c
 void doit(char *text)
@@ -77,13 +79,15 @@ int main (int argc, const char * argv[])
 
 
 
-## 关键函数接口及实现逻辑
+### 3.1 关键函数接口及实现逻辑
 
-### `cJSON_New_Item()`函数
+#### `cJSON_New_Item()`函数
 
 内部构造函数，创建一个`cjson`节点，并返回节点地址
 
 **核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
 
 ```c
 cJSON *cJSON_New_Item(void)
@@ -93,7 +97,7 @@ cJSON *cJSON_New_Item(void)
 }
 ```
 
-### `parse_value()`函数
+#### `parse_value()`函数
 
 文本解析处理函数，对文本进行初步分类。对不同的情况使用不同的处理流程
 
@@ -103,14 +107,11 @@ cJSON *cJSON_New_Item(void)
 
 **核心逻辑如下**
 
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+
 ```c
 static const char *parse_value(cJSON *item,const char *value)
 {
-    if (!strncmp(value, "null", 4)) {
-        item->type = cJSON_NULL;
-        return value + 4;
-    }
-
 	if (*value == '\"') {
 		return parse_string(item,value);
 	}
@@ -127,17 +128,19 @@ static const char *parse_value(cJSON *item,const char *value)
 		return parse_object(item, value);
 	}
 
-	return 0;	/* failure. */
+	return NULL;	/* failure. */
 }
 ```
 
-### `parse_object()`函数
+#### `parse_object()`函数
 
 `object`解析函数，将传入的value当作一个非常长的字符串，不断的分割字符串。将解析出来的数据用来填充item，同级别元素填充在双向链表中，低级别元素填充在child节点中。使用递归的方式实现
 
 实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`
 
 **核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
 
    * 将`item`作为根节点，创建一个桶结构存储解析出的`json`内容
    * 函数前半段创建并新增`child`节点。
@@ -196,11 +199,13 @@ static const char *parse_object(cJSON *item,const char *value)
 }
 ```
 
-### `parse_array()`函数
+#### `parse_array()`函数
 
 其核心逻辑与`parse_object()`函数非常相似，最大的区别在于在函数前半段不需要取出`:`负号的前半部分
 
 **核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
 
 ```c
 /* Build an array from input text. */
@@ -235,17 +240,17 @@ static const char *parse_array(cJSON *item,const char *value)
 		return value + 1;	
 	}
 
-	return 0;
+	return NULL;
 }
 ```
 
 
 
-## 字符串处理接口
+### 3.2 字符串处理接口
 
 `cjson`中设计大量的字符串处理逻辑，其中有许多设计可以学习借鉴，在此列出
 
-### `skip`函数
+#### `skip`函数
 
 跳过空格和无用字符
 
@@ -272,7 +277,7 @@ static const char *skip(const char *in)
 
 ![ACSII码表](.\img\ACSII码表.jpg)
 
-### `parse_number`函数
+#### `parse_number`函数
 
 将字符串解析为一个数字，同时支持复数，浮点数，可解析科学记数法的特性。
 
@@ -304,7 +309,7 @@ static const char *parse_number(cJSON *item,const char *num)
 
 **函数核心逻辑**
 
-> 笔者注：下文代码已做格式化处理
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
 
 首先申请数个变量存储不同的特性值
 
@@ -332,7 +337,7 @@ static const char *parse_number(cJSON *item, const char *num)
     ...
     /* 取出符号位，使用sign记录 */
 	if (*num == '-') {
-		sign=-1,num++;
+		sign =- 1, num++;
 	}
 	
     /* 跳过多余的0 */
@@ -403,7 +408,7 @@ static const char *parse_number(cJSON *item, const char *num)
 }
 ```
 
-### `parse_string`函数
+#### `parse_string`函数
 
 此函数用于处理形式为`"XXXXXX"`的字符串。函数会处理字符串中的转义字符，并将`Unicode`转义序列转换为对应的`UTF-8`字符
 
@@ -494,10 +499,11 @@ static const char *parse_string(cJSON *item,const char *str)
 
 **函数核心逻辑**
 
-> 笔者注：下文代码已格式化并删除冗余流程保留核心逻辑
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+
+将传入的字符串进行遍历，对于其中的转义字符和`Unicode`字符做专门转化处理，将转化后的结果存入一块申请好的内存中。使用`item->valuestring`指向这块内存用作出参，函数返回遍历字符串的结尾
 
 ```c
-static const unsigned char firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
 static const char *parse_string(cJSON *item, const char *str)
 {
 	const char *ptr = str+1;
@@ -508,7 +514,7 @@ static const char *parse_string(cJSON *item, const char *str)
 
 	if (*str != '\"') {
 		ep = str;
-		return 0;
+		return NULL;
 	}
 	
     /*
@@ -520,12 +526,14 @@ static const char *parse_string(cJSON *item, const char *str)
 			ptr++;
 		}
 	}
-	
-    /* 申请内存，防止出现野指针 */
+
 	out = (char*)malloc(len + 1);
-	
+
 	ptr = str + 1;
 	ptr2 = out;
+    /*
+     * 将ptr拷贝到ptr2中，对于转义字符和
+     */
 	while (*ptr!='\"' && *ptr) {
 		if (*ptr!='\\') {
 			*ptr2++ = *ptr++;
@@ -549,7 +557,10 @@ static const char *parse_string(cJSON *item, const char *str)
 					break;
 				case 'u':	 /* transcode utf16 to utf8. */
 						...
-                        /* 此处篇幅限制，对 utf16转utf8的处理后文中讨论*/
+                        /*
+                         * \u 后面跟着四个十六进制数字（0-9、a-f 或 A-F），表示一个 Unicode 字符的代码点
+                         * 此处篇幅限制，对 utf16转utf8的处理后文中讨论
+                         */
                         ...
 				default:
 					*ptr2++ = *ptr;
@@ -567,11 +578,82 @@ static const char *parse_string(cJSON *item, const char *str)
     /*
      * 此处不能free(out)
      * 结构体定义中valuestring是一个char*类型，该指针指向的内存的生命周期应当与valuestring指针保持一致
-     * 此处内存应当在valuestring指针置NULL时再free，否则可能出现内存踩空或野指针的问题
+     * 此处out持有的内存应当在valuestring指针置NULL时再free，否则可能出现内存踩空或野指针的问题
      */
 	item->valuestring = out;
 	item->type = cJSON_String;
 	return ptr;
 }
+```
+
+对于 `\u`转义字符的处理
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+
+此处对`Unicode`字符处理流程中作者利用`Unicode`字符本身的特点进行针对性处理，流程中使用了大量`Macgic Number`，在此列出并注解。
+
+* `firstByteMark[7]`
+
+  * `{ 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC }`数组元素对应不同长度的`UTF-8`字符的起始字节标记
+  * `0x00`：保留
+  * `0xC0`：用于 2 字节 UTF-8 编码的起始字节
+  * `0xE0`：用于 3 字节 UTF-8 编码的起始字节
+  * `0xF0`：用于 4 字节 UTF-8 编码的起始字节
+  * `0xF8`：用于 5 字节 UTF-8 编码的起始字节
+  * `0xFC`：用于 6 字节 UTF-8 编码的起始字节
+
+* `Unicode`编码划分了许多不同的区间；其中有几个特殊的区间，低位专用区间、高位替代区间、高位专用替代区间。这些区间的字符不具有实际含义
+
+  > [Unicode编码区间表查询](https://www.fuhaoku.net/blocks)
+
+```c
+static const unsigned char firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
+
+case 'u':	 /* transcode utf16 to utf8. */
+    uc = parse_hex4(ptr + 1);
+    ptr += 4;
+
+	/* Unicoded 低位专用区间 */
+    if ((uc >= 0xDC00 && uc <= 0xDFFF) || uc == 0) {
+        break;
+    }
+
+	/* Unicoded 高位替代区间、高位替代专用区间 */
+    if (uc >= 0xD800 && uc <= 0xDBFF) {
+        uc2 = parse_hex4(ptr + 3);
+        ptr += 6;
+        /* 根据 UTF-16 编码规则，将两个代理项组合成一个 Unicode 码点 */
+        uc = 0x10000 + (((uc&0x3FF)<<10) | (uc2&0x3FF));
+    }
+
+	/* 根据 Unicode 码点的范围确定字符所占的字节数 */
+    len = 4;
+    if (uc < 0x80) {
+        len = 1;
+    } else if (uc < 0x800) {
+        len = 2;
+    } else if (uc < 0x10000) {
+        len = 3;
+        ptr2 += len;
+    }
+	
+	/* 将 Unicode 码点按照 UTF-8 编码规则转换为对应的字节序列 */
+    switch (len) {
+        case 4:
+            *--ptr2 =((uc | 0x80) & 0xBF);
+            uc >>= 6;
+        case 3:
+            *--ptr2 =((uc | 0x80) & 0xBF);
+            uc >>= 6;
+        case 2:
+            *--ptr2 =((uc | 0x80) & 0xBF);
+            uc >>= 6;
+        case 1:
+            *--ptr2 =(uc | firstByteMark[len]);
+    }
+    ptr2 += len;
+    break;
 ```
 
