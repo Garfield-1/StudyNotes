@@ -99,6 +99,29 @@ cJSON *cJSON_New_Item(void)
 }
 ```
 
+#### `cJSON_Parse`()函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/* Parse an object - create a new root, and populate. */
+cJSON *cJSON_ParseWithOpts(const char *value)
+{
+	cJSON *c = cJSON_New_Item();
+	parse_value(c, skip(value));
+
+	return c;
+}
+
+/* Default options for cJSON_Parse */
+cJSON *cJSON_Parse(const char *value)
+{
+	return cJSON_ParseWithOpts(value);
+}
+```
+
 #### `parse_value()`函数
 
 文本解析处理函数，对文本进行初步分类。对不同的情况使用不同的处理流程
