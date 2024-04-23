@@ -10,7 +10,7 @@
 
 相同等级的元素使用双向链表链接，不同等级的元素使用`child`指针连接。例如：多个`object`并列时或着`object`内部的成员使用双向链表连接，`object`名称与其内部的成员通过`child`连接
 
-上述可得`cjson`底层维护的数据结构实际是一个桶结构而非树结构
+上述可得`cjson`底层维护的数据结构实际是一个类似桶的数据结构而非树结构
 
 ```c
 typedef struct cJSON {
@@ -44,6 +44,8 @@ typedef struct cJSON {
 
 
 ## 3. 从字符串解析json流程
+
+**`cJSON`提供的一个关键的功能便是，对`json`文本的解析。对于树状结构的`json`格式`cJSON`创建了`struct cJSON`数据结构，其中使用了使用双向链表存储同级别节点，创建`struct cJSON *child`元素，存储低级别节点。解析流程中使用双层递归的设计从根节点开始由外至内一层层解析，对字符串的处理和整体架构设计有许多精妙优雅的设计，在阅读源码时可以学习借鉴。本章节从字符串解析流程切入，对`cJSON`中的名称以`Parse_`开头的一组接口进行剖析，在源码学习中感受`Dave Gamble`等人在`cJSON`中设计的巧思。**
 
 参考`cjson`源代码中给出`demo`的流程
 
@@ -652,6 +654,38 @@ case 'u':	 /* transcode utf16 to utf8. */
     break;
 ```
 
+### 3.3 解析json格式文件
+
+`cJSON`源码中给出了一个解析`json`文件的示例，从文件中读取内容然后存放在内存中，本质上与从字符串中解析`json`没有区别
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/* Read a file, parse, render back, etc. */
+void dofile(char *filename)
+{
+	FILE *f;
+    long len;
+    char *data;
+	
+	f = fopen(filename, "rb");
+    fseek(f, 0, SEEK_END);
+    
+    len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+	
+    data = (char*)malloc(len + 1);
+    fread(data, 1, len, f);
+    
+    fclose(f);
+	
+    doit(data);
+	free(data);
+}
+```
+
 
 
 ## 4. json构造
@@ -662,6 +696,8 @@ case 'u':	 /* transcode utf16 to utf8. */
 
 ## 5. cJSON输出
 
+**`cJSON`输出时相关函数返回值类型为`char*`然后由调用者接收。这便带来了一个问题，如何保证调用者接收到的指针指向的内存地址空或垃圾内存。在对于`Struct cJSON`的解析过程结果的持久化与内存管理，便是`cJSON`不可避免的问题。对于`cJSON`如何处理这个问题上，在下文中对`cJSON`源码的一步步剖析中可窥见一二。**
+
 ### `print_value()`函数
 
 **核心逻辑如下**
@@ -671,6 +707,12 @@ case 'u':	 /* transcode utf16 to utf8. */
 根据节点类型针对不同类型针对处理，**其中函数入参`depth,fmt,p`会影响后续处理逻辑**
 
 ```c
+/* Render a cJSON item/entity/structure to text. */
+char *cJSON_Print(cJSON *item)
+{
+	return print_value(item, 0, 1, 0);
+}
+
 /* Render a value to text. */
 static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 {
@@ -704,13 +746,17 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 
 ### `print_number()`函数
 
+取出`valuedouble`后根据值的不同申请不同长度的内存
+
+根据不同的精度将结果写入之前申请的内存中
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 /* Render the number nicely from the given item into a string. */
-static char *print_number(cJSON *item,printbuffer *p)
+static char *print_number(cJSON *item, printbuffer *p)
 {
 	char *str = 0;
 	double d = item->valuedouble;
@@ -736,15 +782,13 @@ static char *print_number(cJSON *item,printbuffer *p)
 			str = (char*)malloc(64);	/* This is a nice tradeoff. */
 		}
 
-		if (str) {
-			if (fabs(floor(d) - d) <= DBL_EPSILON && fabs(d) < 1.0e60) {
-				sprintf(str, "%.0f", d);
-			} else if (fabs(d) < 1.0e-6 || fabs(d) > 1.0e9)	{
-				sprintf(str, "%e", d);
-			} else {
-				sprintf(str, "%f", d);
-			}
-		}
+        if (fabs(floor(d) - d) <= DBL_EPSILON && fabs(d) < 1.0e60) {
+            sprintf(str, "%.0f", d);
+        } else if (fabs(d) < 1.0e-6 || fabs(d) > 1.0e9)	{
+            sprintf(str, "%e", d);
+        } else {
+            sprintf(str, "%f", d);
+        }
 	}
 	return str;
 }
