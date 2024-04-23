@@ -51,7 +51,7 @@ typedef struct cJSON {
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 void doit(char *text)
@@ -87,7 +87,7 @@ int main (int argc, const char * argv[])
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 cJSON *cJSON_New_Item(void)
@@ -107,7 +107,7 @@ cJSON *cJSON_New_Item(void)
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 static const char *parse_value(cJSON *item,const char *value)
@@ -140,7 +140,7 @@ static const char *parse_value(cJSON *item,const char *value)
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
    * 将`item`作为根节点，创建一个桶结构存储解析出的`json`内容
    * 函数前半段创建并新增`child`节点。
@@ -205,7 +205,7 @@ static const char *parse_object(cJSON *item,const char *value)
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 /* Build an array from input text. */
@@ -309,7 +309,7 @@ static const char *parse_number(cJSON *item,const char *num)
 
 **函数核心逻辑**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 首先申请数个变量存储不同的特性值
 
@@ -499,7 +499,7 @@ static const char *parse_string(cJSON *item,const char *str)
 
 **函数核心逻辑**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 将传入的字符串进行遍历，对于其中的转义字符和`Unicode`字符做专门转化处理，将转化后的结果存入一块申请好的内存中。使用`item->valuestring`指向这块内存用作出参，函数返回遍历字符串的结尾
 
@@ -511,11 +511,6 @@ static const char *parse_string(cJSON *item, const char *str)
 	char *out;
 	int len = 0;
 	unsigned uc, uc2;
-
-	if (*str != '\"') {
-		ep = str;
-		return NULL;
-	}
 	
     /*
      * 此处对'\\'特殊处理是考虑到后续字符串处理流程中'\'可能会被误认为转义字符
@@ -590,7 +585,7 @@ static const char *parse_string(cJSON *item, const char *str)
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 此处对`Unicode`字符处理流程中作者利用`Unicode`字符本身的特点进行针对性处理，流程中使用了大量`Macgic Number`，在此列出并注解。
 
@@ -661,7 +656,102 @@ case 'u':	 /* transcode utf16 to utf8. */
 
 ## 4. json构造
 
+待后续完善
+
+
+
 ## 5. cJSON输出
+
+### `print_value()`函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+根据节点类型针对不同类型针对处理，**其中函数入参`depth,fmt,p`会影响后续处理逻辑**
+
+```c
+/* Render a value to text. */
+static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
+{
+	char *out = NULL;
+    printbuffer *str = NULL;
+
+	if (p) {
+        str = p;
+    } else {
+        str = NULL;
+    }
+
+    switch ((item->type) & 255) {
+        case cJSON_Number:
+            out = print_number(item, str);
+            break;
+        case cJSON_String:
+            out = print_string(item, str);
+            break;
+        case cJSON_Array:
+            out = print_array(item, depth, fmt, str);
+            break;
+        case cJSON_Object:
+            out = print_object(item, depth, fmt, str);
+            break;
+    }
+
+	return out;
+}
+```
+
+### `print_number()`函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/* Render the number nicely from the given item into a string. */
+static char *print_number(cJSON *item,printbuffer *p)
+{
+	char *str = 0;
+	double d = item->valuedouble;
+
+	if (d == 0) {
+		if (p) {
+			str = ensure(p, 2);
+		} else {
+			str = (char*)malloc(2);	/* special case for 0. */
+		}
+		strcpy(str, "0");
+	} else if (fabs(((double)item->valueint)-d) <= DBL_EPSILON && d<=INT_MAX && d >= INT_MIN) {
+		if (p) {
+			str = ensure(p, 21);
+		} else {
+			str = (char*)malloc(21);	/* 2^64+1 can be represented in 21 chars. */
+		}
+		sprintf(str, "%d", item->valueint);
+	} else {
+		if (p) {
+			str = ensure(p, 64);
+		} else {
+			str = (char*)malloc(64);	/* This is a nice tradeoff. */
+		}
+
+		if (str) {
+			if (fabs(floor(d) - d) <= DBL_EPSILON && fabs(d) < 1.0e60) {
+				sprintf(str, "%.0f", d);
+			} else if (fabs(d) < 1.0e-6 || fabs(d) > 1.0e9)	{
+				sprintf(str, "%e", d);
+			} else {
+				sprintf(str, "%f", d);
+			}
+		}
+	}
+	return str;
+}
+
+```
+
+
 
 ## 6. cJSON销毁
 
@@ -671,7 +761,7 @@ case 'u':	 /* transcode utf16 to utf8. */
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 遍历整个链表，对于链表上的孩子节点做递归处理
 
