@@ -43,11 +43,11 @@ typedef struct cJSON {
 
 
 
-## 3. json解析流程
+## 3. 从字符串解析json流程
 
 参考`cjson`源代码中给出`demo`的流程
 
-核心函数为`cJSON_Parse`和`cJSON_Print`
+核心函数为`cJSON_Parse`、`cJSON_Print`和`cJSON_Delete`
 
 **核心逻辑如下**
 
@@ -655,5 +655,49 @@ case 'u':	 /* transcode utf16 to utf8. */
     }
     ptr2 += len;
     break;
+```
+
+
+
+## 4. json构造
+
+## 5. cJSON输出
+
+## 6. cJSON销毁
+
+在`cjson`流程中通常会创建`struct cJSON`的结构体用于存储解析或构造的`json`内容。在流程解释后则需要销毁对应的数据结构
+
+函数接口为`void cJSON_Delete(cJSON *c)`
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并只保留核心逻辑
+
+遍历整个链表，对于链表上的孩子节点做递归处理
+
+```c
+/* Delete a cJSON structure. */
+void cJSON_Delete(cJSON *c)
+{
+	cJSON *next;
+
+	while (c) {
+		next = c->next;
+		if (!(c->type & cJSON_IsReference) && c->child) {
+			cJSON_Delete(c->child);
+		}
+
+		if (!(c->type & cJSON_IsReference) && c->valuestring) {
+			cJSON_free(c->valuestring);
+		}
+
+		if (!(c->type & cJSON_StringIsConst) && c->string) {
+			cJSON_free(c->string);
+		}
+
+		cJSON_free(c);
+		c = next;
+	}
+}
 ```
 
