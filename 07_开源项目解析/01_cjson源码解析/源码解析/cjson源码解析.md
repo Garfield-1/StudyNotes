@@ -842,7 +842,7 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 
 
 
-### `print_number()`函数
+### `print_number(item, 0)`函数
 
 取出`item->valuedouble`后根据值的，根据不同的精度将结果写入之前申请的内存中
 
@@ -863,10 +863,12 @@ static char *print_number(cJSON *item)
 	if (d == 0) {
 		str = (char*)malloc(2);
 		strcpy(str, "0");
-	} else if (fabs(((double)item->valueint) - d) <= DBL_EPSILON && (d <= INT_MAX && d >= INT_MIN)) {
+
+    } else if (fabs(((double)item->valueint) - d) <= DBL_EPSILON && (d <= INT_MAX && d >= INT_MIN)) {
 		str = (char*)malloc(21);	/* 2^64+1 can be represented in 21 chars. */
 		sprintf(str, "%d", item->valueint);
-	} else {
+
+    } else {
 		str = (char*)malloc(64);	/* This is a nice tradeoff. */
 
         if (fabs(floor(d) - d) <= DBL_EPSILON && fabs(d) < 1.0e60) {
@@ -891,7 +893,7 @@ static char *print_number(cJSON *item)
 
 
 
-### `print_string()`函数
+### `print_string(item, 0)`函数
 
 读取`item`中旧字符串，申请内存存放新字符串，然后将一个字符一个字符的旧字符串中的元素填充到新字符串中，对于转义字符则需要特殊处理
 
@@ -919,9 +921,9 @@ static char *print_string_ptr(const char *str)
 	while ((token =* ptr) && ++len) {
 		if (strchr("\"\\\b\f\n\r\t", token)) {
 			len++;
-        /* 当前字符的ASCII值小于32，这些字符会被转义为类似\uXXXX 的形式，占据了5个字符的空间 */
 		} else if (token < 32) {
-			len+=5;
+         	/* 当前字符的ASCII值小于32，这些字符会被转义为类似\uXXXX 的形式，占据了5个字符的空间 */
+			len += 5;
 		}
 		ptr++;
 	}
@@ -974,8 +976,8 @@ static char *print_string_ptr(const char *str)
 			}
 		}
 	}
-	*ptr2++='\"';
-	*ptr2++=0;
+	*ptr2++ = '\"';
+	*ptr2++ = 0;
 
 	return out;
 }
@@ -987,7 +989,7 @@ static char *print_string_ptr(const char *str)
 
 
 
-### `print_array()`函数
+### `print_array(item, 0, 1, 0)`函数
 
 **核心逻辑如下**
 
