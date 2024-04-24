@@ -17,10 +17,10 @@ typedef struct cJSON {
 	struct cJSON *next,*prev;	// 双向链表头节点和尾节点
 	struct cJSON *child;		// 存储子项
 	int type;					// 节点类型
-	char *valuestring;			// string值的内容
+	char *valuestring;			// 存储对象数组或键值对的内容
 	int valueint;				// number值的整形存储
 	double valuedouble;			// number值的浮点型存储
-	char *string;				// 存储子项的名称
+	char *string;				// 存储对象数组或键值对的名称
 } cJSON;
 
 /* cJSON Types: */
@@ -45,7 +45,7 @@ typedef struct cJSON {
 
 ## 3. 从字符串解析json流程
 
-**`cJSON`提供的一个关键的功能便是，对`json`文本的解析。对于树状结构的`json`格式`cJSON`创建了`struct cJSON`数据结构，其中使用了使用双向链表存储同级别节点，创建`struct cJSON *child`元素，存储低级别节点。解析流程中使用双层递归的设计从根节点开始由外至内一层层解析，对字符串的处理和整体架构设计有许多精妙优雅的设计，在阅读源码时可以学习借鉴。本章节从字符串解析流程切入，对`cJSON`中的名称以`Parse_`开头的一组接口进行剖析，在源码学习中感受`Dave Gamble`等人在`cJSON`中设计的巧思。**
+**`cJSON`提供的一个关键的功能便是，对`json`文本的解析。对于树状结构的`json`格式`cJSON`创建了`struct cJSON`数据结构，其中使用了使用双向链表存储同级别节点，创建`struct cJSON *child`元素，存储低级别节点。解析流程中使用双层递归的设计从根节点开始由外至内一层层解析，对字符串的处理和整体架构设计有许多精妙优雅的设计，在阅读源码时可以学习借鉴。本章节从字符串解析流程切入，对`cJSON`中的名称以`Parse_`开头的一组接口进行剖析，在源码学习中感受`cJSON`中设计的巧思。**
 
 参考`cjson`源代码中给出`demo`的流程
 
@@ -99,7 +99,13 @@ cJSON *cJSON_New_Item(void)
 }
 ```
 
+**函数核心思想**
+
+申请内存返回内存指针，创建链表或其他数据结构节点的常规操作，无需多言
+
 #### `cJSON_Parse`()函数
+
+创建新的`cJSON`节点，调用`parse_value()`填充节点
 
 **核心逻辑如下**
 
@@ -121,6 +127,10 @@ cJSON *cJSON_Parse(const char *value)
 	return cJSON_ParseWithOpts(value);
 }
 ```
+
+**函数核心思想**
+
+本质是对`parse_value()`的一层封装
 
 #### `parse_value()`函数
 
@@ -157,11 +167,13 @@ static const char *parse_value(cJSON *item,const char *value)
 }
 ```
 
+**函数核心思想**
+
+根据待解析字符串的前几位字符来判断，此段数据对于`json`中的哪种类型。`cJSON`还对字符串为`null`、`true`、`false`这三种特殊情况有处理，本文中并未体现这一点
+
 #### `parse_object()`函数
 
-`object`解析函数，将传入的value当作一个非常长的字符串，不断的分割字符串。将解析出来的数据用来填充item，同级别元素填充在双向链表中，低级别元素填充在child节点中。使用递归的方式实现
-
-实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`
+`object`解析函数，将传入的value当作一个非常长的字符串，不断的分割字符串。将解析出来的数据用来填充item，同级别元素填充在双向链表中，低级别元素填充在child节点中。
 
 **核心逻辑如下**
 
@@ -223,6 +235,26 @@ static const char *parse_object(cJSON *item,const char *value)
 	return NULL;
 }
 ```
+
+**函数核心思想**
+
+此函数最主要的作用便是填充`cJSON`结构体，`struct cJSON`是`cJSON`中最为核心和基础的数据结构，其核心结构是两个链表节点和一个`child`节点。在解析`json`文件时将其中成员视为具有不同的等级；**相同缩进的成员为同一等级，将同一等级的元素使用双向链表连接，低等级元素则存放在`child`节点中**；填充的`struct cJSON`实现的方式，使用了双层递归的方式去实现。
+
+**双层递归的函数设计**
+
+对于`object`来说其至少包含两层等级，即`object`名称和成员；对于将名称作为字符串处理。首先提取`object`名称部分，对于后半段成员的处理则是调用`parse_value()`去处理，此时如果内部成员是`object`则会触发**第一层递归**，此时**child**节点便作为一个新的根节点，**直到遇到普通的键值对递归结束**，这便是函数前半段的处理。
+
+![02_parse_object函数思想_一层递归](.\img\02_parse_object函数思想_一层递归.png)
+
+当一层递归结束后，函数后半段创建一个循环遍历`json`文件的每一行，循环中创建一个新节点添加在双向链表后，并提取下个元素的名称填充`child->valuestring`。接着继续调用`parse_value()`如果此时解析的元素是`object`便是**第二层递归**，递归出口与第一层相同。整个循环中会将相同级别成员添加至双向链表，低级别元素添加至`child`节点
+
+![02_parse_object函数思想_二层递归](.\img\02_parse_object函数思想_二层递归.png)
+
+二层递归结束后，函数调用栈返回。继续处理一层递归未处理的部分
+
+![02_parse_object函数思想_一层递归结束](.\img\02_parse_object函数思想_一层递归结束.png)
+
+实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`因此对这个函数的理解，对整个`cJSON`解析流程的理解至关重要
 
 #### `parse_array()`函数
 
@@ -723,11 +755,11 @@ void dofile(char *filename)
 
 ### `print_value()`函数
 
+根据节点类型针对不同类型针对处理，**其中函数入参`depth,fmt,p`会影响后续处理逻辑**
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
-
-根据节点类型针对不同类型针对处理，**其中函数入参`depth,fmt,p`会影响后续处理逻辑**
 
 ```c
 /* Render a cJSON item/entity/structure to text. */
@@ -775,35 +807,26 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 
 **核心逻辑如下**
 
-> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；此处仅列出`cJSON_Print`接口的逻辑，即`print_number`第二个参数`printbuffer *p`为`NULL`的逻辑，故删除部分冗余代码
 
 ```c
 /* Render the number nicely from the given item into a string. */
-static char *print_number(cJSON *item, printbuffer *p)
+static char *print_number(cJSON *item)
 {
 	char *str = 0;
 	double d = item->valuedouble;
 
+    /*
+     * 根据valuedouble值的不同，分配不同长度的内存空间存储
+     */
 	if (d == 0) {
-		if (p) {
-			str = ensure(p, 2);
-		} else {
-			str = (char*)malloc(2);	/* special case for 0. */
-		}
+		str = (char*)malloc(2);
 		strcpy(str, "0");
-	} else if (fabs(((double)item->valueint)-d) <= DBL_EPSILON && d<=INT_MAX && d >= INT_MIN) {
-		if (p) {
-			str = ensure(p, 21);
-		} else {
-			str = (char*)malloc(21);	/* 2^64+1 can be represented in 21 chars. */
-		}
+	} else if (fabs(((double)item->valueint)-d) <= DBL_EPSILON && (d <= INT_MAX && d >= INT_MIN)) {
+		str = (char*)malloc(21);	/* 2^64+1 can be represented in 21 chars. */
 		sprintf(str, "%d", item->valueint);
 	} else {
-		if (p) {
-			str = ensure(p, 64);
-		} else {
-			str = (char*)malloc(64);	/* This is a nice tradeoff. */
-		}
+		str = (char*)malloc(64);	/* This is a nice tradeoff. */
 
         if (fabs(floor(d) - d) <= DBL_EPSILON && fabs(d) < 1.0e60) {
             sprintf(str, "%.0f", d);
@@ -815,7 +838,109 @@ static char *print_number(cJSON *item, printbuffer *p)
 	}
 	return str;
 }
+```
 
+### `print_string()`函数
+
+读取item中旧字符串，申请内存存放新字符串，然后将一个字符一个字符的旧字符串中的元素填充到新字符串中，对于转义字符则需要特殊处理
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；此处仅列出`cJSON_Print`接口的逻辑，即`print_string`第二个参数`printbuffer *p`为`NULL`的逻辑，故删除部分冗余代码
+
+```c
+/* Invote print_string_ptr (which is useful) on an item. */
+static char *print_string(cJSON *item, printbuffer *p)
+{
+	return print_string_ptr(item->valuestring, p);
+}
+
+/* Render the cstring provided to an escaped version that can be printed. */
+static char *print_string_ptr(const char *str)
+{
+	const char *ptr;
+	char *ptr2, *out;
+	int len = 0;
+	unsigned char token;
+
+	ptr = str;
+    /* 计算待输出字符串的长度 */
+	while ((token =* ptr) && ++len) {
+		if (strchr("\"\\\b\f\n\r\t", token)) {
+			len++;
+        /* 当前字符的ASCII值小于32，这些字符会被转义为类似\uXXXX 的形式，占据了5个字符的空间 */
+		} else if (token < 32) {
+			len+=5;
+		}
+		ptr++;
+	}
+	
+	out = (char*)malloc(len + 3);
+
+    /*
+     * *ptr2++ = '\\';等价于
+     * *ptr2 = '\\';
+     *  ptr2++;
+     */
+	ptr2 = out;
+    ptr = str;
+    /*
+     * 向之前已申请的内存空间一个字符一个字符的填充字符串
+     * 开头与结尾填充'\"'中间部分遍历旧字符串填充到新字符串中，对于转义字符特殊处理
+     */
+	*ptr2++ = '\"';
+	while (*ptr) {
+		if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') {
+			*ptr2++ = *ptr++;
+		} else {
+			*ptr2++ = '\\';
+			switch (token = *ptr++) {
+				case '\\':
+					*ptr2++ = '\\';
+					break;
+				case '\"':
+					*ptr2++ ='\"';
+					break;
+				case '\b':
+					*ptr2++ = 'b';
+					break;
+				case '\f':
+					*ptr2++ = 'f';
+					break;
+				case '\n':
+					*ptr2++ ='n';
+					break;
+				case '\r':
+					*ptr2++ = 'r';
+					break;
+				case '\t':
+					*ptr2++ = 't';
+					break;
+				default:
+					sprintf(ptr2, "u%04x", token);
+					ptr2 += 5;
+					break;	/* escape and print */
+			}
+		}
+	}
+	*ptr2++='\"';
+	*ptr2++=0;
+
+	return out;
+}
+```
+
+### `print_array()`函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；此处仅列出`cJSON_Print`接口的逻辑，即`print_array`第二个参数`int depth`为`0`；第三个参数`int fmt`为`1`；第四个参数`printbuffer *p`为`NULL`的逻辑，故删除部分冗余代码
+
+```c
+/* Render an array to text */
+static char *print_array(cJSON *item,int depth,int fmt,printbuffer *p)
+{
+}
 ```
 
 
@@ -826,11 +951,13 @@ static char *print_number(cJSON *item, printbuffer *p)
 
 函数接口为`void cJSON_Delete(cJSON *c)`
 
+### `cJSON_Delete()`函数
+
+遍历整个链表，对于链表上的孩子节点做递归处理
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
-
-遍历整个链表，对于链表上的孩子节点做递归处理
 
 ```c
 /* Delete a cJSON structure. */
