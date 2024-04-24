@@ -287,7 +287,7 @@ static const char *parse_array(cJSON *item,const char *value)
      * 此处可能造成递归调用
      * 递归的出口: value开头到第一个“,”的部分是普通键值对,不包含object或array深层嵌套
 	 */
-	value = skip(parse_value(child, skip(value)));
+	value = skip(parse_value(child, skip(value + 1)));
 
 	while (*value == ',') {
 		cJSON *new_item;
@@ -308,6 +308,14 @@ static const char *parse_array(cJSON *item,const char *value)
 	return NULL;
 }
 ```
+
+**函数核心思想**
+
+此函数整体结构设计与`parse_object()`高度相似，同样采取双层递归的设计在此不做赘述。但与`parse_object()`又存在一处非常大的不同，即不对`item->string`进行赋值
+
+**消失的名字**
+
+由于`json`中的`array`结构往往是嵌套在`object`中，`parse_array()`函数只会被`parse_object()`函数调用。所以在解析`array`时名称的部分会在进入`parse_array()`函数前就会在`parse_object()`中解析处理
 
 
 
