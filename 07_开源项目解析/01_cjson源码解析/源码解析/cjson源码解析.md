@@ -321,7 +321,9 @@ static const char *parse_array(cJSON *item,const char *value)
 
 ### 3.2 字符串处理接口
 
-`cjson`中设计大量的字符串处理逻辑，其中有许多设计可以学习借鉴，在此列出
+`cjson`中设计大量的字符串处理逻辑，其中有许多设计可以学习借鉴，在此列出；
+
+本文列出的几个函数基本上**可直接复制粘贴在其他项目中使用**，是非常优质的轮子，故贴出函数源代码
 
 #### `skip`函数
 
@@ -349,6 +351,8 @@ static const char *skip(const char *in)
 不断向后偏移，直到指向的字符的`ACSII`码大于`32`;函数作者非常巧妙的利用了`ASCII`码表的排列的规则，将前`32`位在字符串解析时无法用到的字符舍弃，只保留了有效字符
 
 ![ACSII码表](.\img\ACSII码表.jpg)
+
+
 
 #### `parse_number`函数
 
@@ -480,6 +484,10 @@ static const char *parse_number(cJSON *item, const char *num)
 	return num;
 }
 ```
+
+**函数核心思想**
+
+
 
 #### `parse_string`函数
 
@@ -724,6 +732,8 @@ case 'u':	 /* transcode utf16 to utf8. */
     ptr2 += len;
     break;
 ```
+
+
 
 ### 3.3 解析json格式文件
 
