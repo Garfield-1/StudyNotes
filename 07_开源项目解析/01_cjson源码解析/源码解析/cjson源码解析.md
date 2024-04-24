@@ -487,6 +487,17 @@ static const char *parse_number(cJSON *item, const char *num)
 
 **函数核心思想**
 
+可使用字符串表示一个数字例如`"-1.23e10"`表示负一百二十三
+
+其中从左到右依次为
+
+* `"-"`符号位
+* `"1"`数字整数位
+* `".23"`整数后的小数
+* `"e10"`科学计数法
+
+`parse_number()`的核心思想在于将字符串的每一部分取出，最后通过数学计算获得字符串代表的数字
+
 
 
 #### `parse_string`函数
@@ -650,7 +661,6 @@ static const char *parse_string(cJSON *item, const char *str)
 	if (*ptr == '\"') {
 		ptr++;
 	}
-	
     /*
      * 此处不能free(out)
      * 结构体定义中valuestring是一个char*类型，该指针指向的内存的生命周期应当与valuestring指针保持一致
@@ -658,6 +668,7 @@ static const char *parse_string(cJSON *item, const char *str)
      */
 	item->valuestring = out;
 	item->type = cJSON_String;
+
 	return ptr;
 }
 ```
@@ -732,6 +743,10 @@ case 'u':	 /* transcode utf16 to utf8. */
     ptr2 += len;
     break;
 ```
+
+**函数核心思想**
+
+对转义字符和`Unicode`编码字符的转换
 
 
 
@@ -825,11 +840,11 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 }
 ```
 
+
+
 ### `print_number()`函数
 
-取出`valuedouble`后根据值的不同申请不同长度的内存
-
-根据不同的精度将结果写入之前申请的内存中
+取出`item->valuedouble`后根据值的，根据不同的精度将结果写入之前申请的内存中
 
 **核心逻辑如下**
 
@@ -848,7 +863,7 @@ static char *print_number(cJSON *item)
 	if (d == 0) {
 		str = (char*)malloc(2);
 		strcpy(str, "0");
-	} else if (fabs(((double)item->valueint)-d) <= DBL_EPSILON && (d <= INT_MAX && d >= INT_MIN)) {
+	} else if (fabs(((double)item->valueint) - d) <= DBL_EPSILON && (d <= INT_MAX && d >= INT_MIN)) {
 		str = (char*)malloc(21);	/* 2^64+1 can be represented in 21 chars. */
 		sprintf(str, "%d", item->valueint);
 	} else {
@@ -866,9 +881,19 @@ static char *print_number(cJSON *item)
 }
 ```
 
+**函数核心思想**
+
+根据不同的数据范围分配不同长度的内存
+
+* `valuedouble = 0`时，分配内存长度为2字节
+*  `INT_MIN <= valuedouble <= INT_MAX`时，分配21字节
+* 更大的范围时，分配64字节
+
+
+
 ### `print_string()`函数
 
-读取item中旧字符串，申请内存存放新字符串，然后将一个字符一个字符的旧字符串中的元素填充到新字符串中，对于转义字符则需要特殊处理
+读取`item`中旧字符串，申请内存存放新字符串，然后将一个字符一个字符的旧字符串中的元素填充到新字符串中，对于转义字符则需要特殊处理
 
 **核心逻辑如下**
 
@@ -955,6 +980,12 @@ static char *print_string_ptr(const char *str)
 	return out;
 }
 ```
+
+**函数核心思想**
+
+对转义字符特殊处理
+
+
 
 ### `print_array()`函数
 
