@@ -103,6 +103,8 @@ cJSON *cJSON_New_Item(void)
 
 申请内存返回内存指针，创建链表或其他数据结构节点的常规操作，无需多言
 
+
+
 #### `cJSON_Parse`()函数
 
 创建新的`cJSON`节点，调用`parse_value()`填充节点
@@ -131,6 +133,8 @@ cJSON *cJSON_Parse(const char *value)
 **函数核心思想**
 
 本质是对`parse_value()`的一层封装
+
+
 
 #### `parse_value()`函数
 
@@ -170,6 +174,8 @@ static const char *parse_value(cJSON *item,const char *value)
 **函数核心思想**
 
 根据待解析字符串的前几位字符来判断，此段数据对于`json`中的哪种类型。`cJSON`还对字符串为`null`、`true`、`false`这三种特殊情况有处理，本文中并未体现这一点
+
+
 
 #### `parse_object()`函数
 
@@ -255,6 +261,8 @@ static const char *parse_object(cJSON *item,const char *value)
 ![02_parse_object函数思想_一层递归结束](.\img\02_parse_object函数思想_一层递归结束.png)
 
 实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`因此对这个函数的理解，对整个`cJSON`解析流程的理解至关重要
+
+
 
 #### `parse_array()`函数
 
