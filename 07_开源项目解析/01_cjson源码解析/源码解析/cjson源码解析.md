@@ -179,14 +179,14 @@ static const char *parse_value(cJSON *item,const char *value)
 
 #### `parse_object()`函数
 
-`object`解析函数，将传入的value当作一个非常长的字符串，不断的分割字符串。将解析出来的数据用来填充item，同级别元素填充在双向链表中，低级别元素填充在child节点中。
+`object`解析函数，将传入的`value`当作一个非常长的字符串，不断的分割字符串。将解析出来的数据用来填充`item`，同级别元素填充在双向链表中，低级别元素填充在`child`节点中。
 
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
    * 将`item`作为根节点，创建一个桶结构存储解析出的`json`内容
-   * 函数前半段创建并新增`child`节点。
+   * 函数使用双层递归设计
 
 ```c
 /* Build an object from the text. */
@@ -315,7 +315,7 @@ static const char *parse_array(cJSON *item,const char *value)
 
 **消失的名字**
 
-由于`json`中的`array`结构往往是嵌套在`object`中，`parse_array()`函数只会被`parse_object()`函数调用。所以在解析`array`时名称的部分会在进入`parse_array()`函数前就会在`parse_object()`中解析处理
+由于`json`中的`array`结构是嵌套在`object`中，`parse_array()`函数只会被`parse_object()`函数调用。所以在解析`array`时名称的部分会在进入`parse_array()`函数前就会在`parse_object()`中解析处理，`array`内部的元素是以`,`分隔的，所有的键值对都只会被嵌套在另一个`object`中
 
 
 
