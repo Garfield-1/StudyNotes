@@ -803,12 +803,6 @@ void dofile(char *filename)
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-/* Render a cJSON item/entity/structure to text. */
-char *cJSON_Print(cJSON *item)
-{
-	return print_value(item, 0, 1, 0);
-}
-
 /* Render a value to text. */
 static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 {
@@ -842,6 +836,134 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 
 
 
+### `cJSON_Print()`函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；
+
+```c
+/* Render a cJSON item/entity/structure to text. */
+char *cJSON_Print(cJSON *item)
+{
+	return print_value(item, 0, 1, 0);
+}
+
+```
+
+
+
+### `print_object(item, 0, 1, 0)`函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；此处仅列出`cJSON_Print`接口的逻辑，即`print_number`第二个参数`printbuffer *p`为`NULL`的逻辑，故删除部分冗余代码
+
+```c
+/* Render an object to text. */
+static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
+{
+	char *out=  NULL, *ptr, *ret, *str;
+	int len = 7, i = 0, j;
+	size_t tmplen = 0;
+	cJSON *child;
+	child = item->child;
+
+	/* 计算本层元素的个数，使用numentries记录 */
+	int numentries = 0;
+	while (child) {
+		numentries++, child = child->next;
+	}
+
+	/* 此处entries和names可视为char entries[][]和char names[][] */
+	char **entries = NULL, **names = NULL;
+
+	entries = (char**)malloc(numentries * sizeof(char*));
+	names = (char**)malloc(numentries * sizeof(char*));
+	memset(entries, 0, sizeof(char*) * numentries);
+	memset(names, 0, sizeof(char*) * numentries);
+
+	/* depth记录当前层数深度 */
+	child = item->child;
+	depth ++;
+	len += depth;
+
+	/* 循环中仅搜索本层节点，对于深层的child节点，在print_value()中递归处理 */
+	while (child) {
+		str = print_string_ptr(child->string, 0);
+		ret = print_value(child, depth, fmt, 0);
+
+		names[i] = str;
+		entries[i++] = ret;
+
+		len += strlen(ret) + strlen(str) + 2 + (fmt ? 2 + depth : 0);
+		child = child->next;
+	}
+
+	out = (char*)malloc(len);
+
+	/* Compose the output: */
+	*out = '{';
+	ptr = out + 1;
+	*ptr++ = '\n';
+	*ptr = 0;
+
+	for (i = 0; i < numentries; i++) {
+		for (j = 0; j < depth; j++) {
+			*ptr++ = '\t';
+		}
+
+		tmplen = strlen(names[i]);
+		memcpy(ptr, names[i], tmplen);
+		ptr += tmplen;
+		*ptr++ = ':';
+		*ptr++ = '\t';
+
+		strcpy(ptr, entries[i]);
+		ptr += strlen(entries[i]);
+
+		if (i != numentries - 1) {
+			*ptr++ = ',';
+		}
+	
+		*ptr++ = '\n';
+		*ptr = 0;
+
+		cJSON_free(names[i]);
+		cJSON_free(entries[i]);
+	}
+	
+	cJSON_free(names);
+	cJSON_free(entries);
+
+	for (i = 0; i < depth - 1; i++) {
+		*ptr++ = '\t';
+	}
+
+	*ptr++ = '}';
+	*ptr++ = 0;
+
+	return out;	
+}
+```
+
+
+
+### `print_array(item, 0, 1, 0)`函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；此处仅列出`cJSON_Print`接口的逻辑，即`print_array`第二个参数`int depth`为`0`；第三个参数`int fmt`为`1`；第四个参数`printbuffer *p`为`NULL`的逻辑，故删除部分冗余代码
+
+```c
+/* Render an array to text */
+static char *print_array(cJSON *item,int depth,int fmt,printbuffer *p)
+{
+}
+```
+
+
+
 ### `print_number(item, 0)`函数
 
 取出`item->valuedouble`后根据值的，根据不同的精度将结果写入之前申请的内存中
@@ -852,7 +974,7 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 
 ```c
 /* Render the number nicely from the given item into a string. */
-static char *print_number(cJSON *item)
+static char *print_number(cJSON *item, printbuffer *p)
 {
 	char *str = 0;
 	double d = item->valuedouble;
@@ -989,18 +1111,7 @@ static char *print_string_ptr(const char *str)
 
 
 
-### `print_array(item, 0, 1, 0)`函数
 
-**核心逻辑如下**
-
-> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑；此处仅列出`cJSON_Print`接口的逻辑，即`print_array`第二个参数`int depth`为`0`；第三个参数`int fmt`为`1`；第四个参数`printbuffer *p`为`NULL`的逻辑，故删除部分冗余代码
-
-```c
-/* Render an array to text */
-static char *print_array(cJSON *item,int depth,int fmt,printbuffer *p)
-{
-}
-```
 
 
 
