@@ -848,7 +848,6 @@ char *cJSON_Print(cJSON *item)
 {
 	return print_value(item, 0, 1, 0);
 }
-
 ```
 
 
@@ -924,7 +923,6 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 		memcpy(ptr, names[i], tmplen);
 		ptr += tmplen;
 		*ptr++ = ':';
-		*ptr++ = '\t';
 
 		strcpy(ptr, entries[i]);
 		ptr += strlen(entries[i]);
@@ -954,6 +952,31 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 	return out;	
 }
 ```
+
+**函数核心思想**
+
+**获取`json`解析的关键元素**
+
+输出一个`object`时，需要获取层数、当前层有多少个元素这两个关键信息
+
+* 当前是在哪一层，与递归的深度相同，获取递归深度即可，存储在`depth`变量中
+
+* 本层元素数量，通过遍历当前`cJSON`节点所在双向链表上有多少个成员得到，存储在`numentries`变量中；
+
+**存储关键元素**
+
+要输出`json`还需要得到，本层`json`元素的名称和内容这两项关键内容
+
+* 元素的名称，通过`print_string_ptr(child->string)`获取，存放在`char *`数组`names`中
+* 元素的内容，通过`print_value()`获取，存放在`char *`数组`entries`中
+
+**元素拼接**
+
+**首先创建左侧大括号**
+
+使用一个`for`循环遍历当前层的所有元素，按照`"名称:内容,"`的形式将当前层的元素拼接起来；需要注意的是在此前**解析关键元素**时，对于所有类型的元素已经全部转化成了字符串。即便当前元素是一个`object`或是`array`，也不需要进行特殊处理
+
+**最后创建右侧大括号**
 
 
 
