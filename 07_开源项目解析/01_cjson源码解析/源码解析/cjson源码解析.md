@@ -875,7 +875,11 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 		numentries++, child = child->next;
 	}
 
-	/* 此处entries和names可视为char entries[][]和char names[][] */
+	/*
+	 * 此处entries和names可视为char entries[][]和char names[][]
+	 * names存储":"前半段的值，即object、array或键值对的名称
+	 * entries存储“:”后半段的值，即object、array或键值对的内容
+	 */
 	char **entries = NULL, **names = NULL;
 
 	entries = (char**)malloc(numentries * sizeof(char*));
@@ -894,7 +898,8 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 		ret = print_value(child, depth, fmt, 0);
 
 		names[i] = str;
-		entries[i++] = ret;
+		entries[i] = ret;
+        i++;
 
 		len += strlen(ret) + strlen(str) + 2 + (fmt ? 2 + depth : 0);
 		child = child->next;
@@ -902,13 +907,15 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 
 	out = (char*)malloc(len);
 
-	/* Compose the output: */
+	/* 构造object的左大括号 */
 	*out = '{';
 	ptr = out + 1;
 	*ptr++ = '\n';
 	*ptr = 0;
 
+    /* 遍历搜索整个json */
 	for (i = 0; i < numentries; i++) {
+        /* 填充每一行左侧的tab */
 		for (j = 0; j < depth; j++) {
 			*ptr++ = '\t';
 		}
@@ -925,17 +932,18 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 		if (i != numentries - 1) {
 			*ptr++ = ',';
 		}
-	
+
 		*ptr++ = '\n';
 		*ptr = 0;
 
-		cJSON_free(names[i]);
-		cJSON_free(entries[i]);
+		free(names[i]);
+		free(entries[i]);
 	}
-	
-	cJSON_free(names);
-	cJSON_free(entries);
 
+	free(names);
+	free(entries);
+
+    /* 填充每一行左侧的tab */
 	for (i = 0; i < depth - 1; i++) {
 		*ptr++ = '\t';
 	}
@@ -1108,10 +1116,6 @@ static char *print_string_ptr(const char *str)
 **函数核心思想**
 
 对转义字符特殊处理
-
-
-
-
 
 
 
