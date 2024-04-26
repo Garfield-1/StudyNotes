@@ -248,7 +248,7 @@ static const char *parse_object(cJSON *item,const char *value)
 
 **双层递归的函数设计**
 
-对于`object`来说其至少包含两层等级，即`object`名称和成员；对于将名称作为字符串处理。首先提取`object`名称部分，对于后半段成员的处理则是调用`parse_value()`去处理，此时如果内部成员是`object`则会触发**第一层递归**，此时**child**节点便作为一个新的根节点，**直到遇到普通的键值对递归结束**，这便是函数前半段的处理。
+对于`object`来说其至少包含两层等级，即`object`名称和成员；对于将名称作为字符串处理。首先提取`object`名称部分，对于后半段成员的处理则是调用`parse_value()`去处理，此时如果内部成员是`object`则会触发**第一层递归**，此时**`child`**节点便作为一个新的根节点，**直到遇到普通的键值对递归结束**，这便是函数前半段的处理。
 
 ![02_parse_object函数思想_一层递归](.\img\02_parse_object函数思想_一层递归.png)
 
@@ -266,7 +266,7 @@ static const char *parse_object(cJSON *item,const char *value)
 
 #### `parse_array()`函数
 
-其核心逻辑与`parse_object()`函数非常相似，最大的区别在于在函数前半段不需要取出`:`负号的前半部分
+其核心逻辑与`parse_object()`函数非常相似，最大的区别在于在函数前半段不需要取出`:`符号的前半部分
 
 **核心逻辑如下**
 
@@ -496,7 +496,7 @@ static const char *parse_number(cJSON *item, const char *num)
 * `".23"`整数后的小数
 * `"e10"`科学计数法
 
-`parse_number()`的核心思想在于将字符串的每一部分取出，最后通过数学计算获得字符串代表的数字
+`parse_number()`的核心思想在于将字符串的每一部分取出，最后通过计算获得字符串代表的数字
 
 
 
@@ -508,7 +508,7 @@ static const char *parse_number(cJSON *item, const char *num)
 
 - 解析字符串中的转义字符，如`\n`、`\t`等。
 - 将`Unicode`转义序列`\uXXXX`转换为`UTF-8`字符。
-- 处理`UTF-16`代理对（surrogate pairs）。
+- 处理`UTF-16`代理对`surrogate pairs`
 
 **源代码中函数实现如下**
 
@@ -1047,7 +1047,7 @@ static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 
 **`print_array()`函数`print_object()`函数与不同点**
 
-* `print_array()`函数不记录当前层数；在`print_object()`函数中记录层数，主要是为了在拼接元素时在每一行开头输出对应数量的tab
+* `print_array()`函数不记录当前层数；在`print_object()`函数中记录层数，主要是为了在拼接元素时在每一行开头输出对应数量的`tab`
 
 * `print_array()`函数记录每个成员的名称，由于`array`中的元素并不以键值对的形式存在而是一个个独立的字符串或数字，所以并不需要区分元素的名称和内容；
 
