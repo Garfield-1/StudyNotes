@@ -988,10 +988,68 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 
 ```c
 /* Render an array to text */
-static char *print_array(cJSON *item,int depth,int fmt,printbuffer *p)
+static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 {
+	char **entries;
+	char *out=0, *ptr, *ret;
+	int len = 5;
+	cJSON *child;
+	child = item->child;
+	int numentries=0, i=0;
+	size_t tmplen=0;
+
+	while (child) {
+		numentries++,child = child->next;
+	}
+
+	entries=(char**)malloc(numentries * sizeof(char*));
+	memset(entries, 0, numentries * sizeof(char*));
+
+	child = item->child;
+	while (child) {
+		ret = print_value(child, depth + 1, fmt, 0);
+		entries[i] = ret;
+		i++;
+
+		len += strlen(ret) + 2 + (fmt ? 1 : 0);
+		child = child->next;
+	}
+	
+	out=(char*)malloc(len);
+
+	*out = '[';
+	ptr = out + 1;
+	*ptr = 0;
+
+	for (i = 0; i < numentries; i++) {
+		tmplen = strlen(entries[i]);
+		memcpy(ptr, entries[i], tmplen);
+		ptr += tmplen;
+
+		if (i != numentries - 1) {
+			*ptr++=',';
+			*ptr++=' ';
+			*ptr = 0;
+		}
+		free(entries[i]);
+	}
+	free(entries);
+	*ptr++ = ']';
+	*ptr++ = 0;
+
+	return out;	
 }
 ```
+
+**函数核心思想**
+
+`print_array()`函数的设计与`print_object()`函数的设计，如出一辙。均是**解析关键元素**、**存储关键元素**、**拼接关键元素**三步走。
+
+**`print_array()`函数`print_object()`函数与不同点**
+
+* `print_array()`函数不记录当前层数；在`print_object()`函数中记录层数，主要是为了在拼接元素时在每一行开头输出对应数量的tab
+
+* `print_array()`函数记录每个成员的名称，由于`array`中的元素并不以键值对的形式存在而是一个个独立的字符串或数字，所以并不需要区分元素的名称和内容；
 
 
 
