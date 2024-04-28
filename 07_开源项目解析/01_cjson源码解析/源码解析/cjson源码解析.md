@@ -60,7 +60,7 @@ void doit(char *text)
 {
 	char *out;
     cJSON *json;
-	
+
 	json = cJSON_Parse(text);
 	out = cJSON_Print(json);
 	cJSON_Delete(json);
@@ -74,7 +74,7 @@ int main (int argc, const char * argv[])
 
     doit(text1);
 	create_objects();
-	
+
 	return 0;
 }
 ```
@@ -149,10 +149,10 @@ cJSON *cJSON_Parse(const char *value)
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-static const char *parse_value(cJSON *item,const char *value)
+static const char *parse_value(cJSON *item, const char *value)
 {
 	if (*value == '\"') {
-		return parse_string(item,value);
+		return parse_string(item, value);
 	}
 
 	if (*value == '-' || (*value >= '0' && *value <= '9')) {
@@ -190,14 +190,14 @@ static const char *parse_value(cJSON *item,const char *value)
 
 ```c
 /* Build an object from the text. */
-static const char *parse_object(cJSON *item,const char *value)
+static const char *parse_object(cJSON *item, const char *value)
 {
 	/* child在函数前半段为新增节点，函数后半段为链表哨兵位指针 */
 	cJSON *child;
     child = cJSON_New_Item();
 	item->child = child;
     item->type = cJSON_Object;
-	
+
     /* 取出前半部分存入string,可能是对象或数组的名称，或是键值对的前半部分 */
 	value = skip(parse_string(child, skip(value + 1)));
 	child->string = child->valuestring;
@@ -205,7 +205,7 @@ static const char *parse_object(cJSON *item,const char *value)
 	if (*value != ':') {
 		return NULL;
 	}
-	
+
     /*
      * 此处可能造成递归调用
      * 递归的出口: value开头到第一个“,”的部分是普通键值对,不包含object或array深层嵌套
@@ -233,11 +233,11 @@ static const char *parse_object(cJSON *item,const char *value)
 
 		value = skip(parse_value(child, skip(value + 1)));
 	}
-	
+
 	if (*value == '}') {
 		return value + 1;
 	}
-    
+
 	return NULL;
 }
 ```
@@ -274,11 +274,11 @@ static const char *parse_object(cJSON *item,const char *value)
 
 ```c
 /* Build an array from input text. */
-static const char *parse_array(cJSON *item,const char *value)
+static const char *parse_array(cJSON *item, const char *value)
 {
     /* child在函数前半段为新增节点，函数后半段为链表哨兵位指针 */
     cJSON *child;
-    
+
     child = cJSON_New_Item();
 	item->child = child;
     item->type = cJSON_Array;
@@ -376,7 +376,7 @@ static const char *parse_number(cJSON *item,const char *num)
 	}
 
 	n=sign*n*pow(10.0,(scale+subscale*signsubscale));	/* number = +/- number.fraction * 10^+/- exponent */
-	
+
 	item->valuedouble=n;
 	item->valueint=(int)n;
 	item->type=cJSON_Number;
@@ -400,8 +400,14 @@ static const char *parse_number(cJSON *item, const char *num)
      * subscale：存储科学计数法部分的值
      * signsubscale：存储科学计数法的正负号
      */
-	double n=0, sign=1, scale=0;
-	int subscale=0, signsubscale=1;
+	double n, sign, scale;
+    n = 0;
+    sign = 1;
+    scale = 0;
+	
+    int subscale, signsubscale;
+    subscale = 0;
+    signsubscale = 1;
 	...
 }
 ```
@@ -416,7 +422,7 @@ static const char *parse_number(cJSON *item, const char *num)
 	if (*num == '-') {
 		sign =- 1, num++;
 	}
-	
+
     /* 跳过多余的0 */
 	if (*num == '0') {
 		num++;
@@ -435,7 +441,7 @@ static const char *parse_number(cJSON *item, const char *num)
      * 与上述流程区别在于使用scale变量记录小数点后数字位数
      */
 	if (*num == '.' && num[1] >= '0' && num[1] <= '9') {
-		num ++;
+		num++;
 		do {
             /* *num++ -'0';等价于*num-'0';num++;*/
 			n = (n * 10.0) + (*num++ -'0'), scale--;
@@ -476,7 +482,7 @@ static const char *parse_number(cJSON *item, const char *num)
      * 此处计算的是科学计数法所以底数是10
      */
 	n = sign * n * pow(10.0, (scale + subscale * signsubscale));
-	
+
 	item->valuedouble = n;
 	item->valueint = (int)n;
 	item->type = cJSON_Number;
@@ -538,7 +544,7 @@ static const char *parse_string(cJSON *item,const char *str)
 	
 	out=(char*)cJSON_malloc(len+1);	/* This is how long we need for the string, roughly. */
 	if (!out) return 0;
-	
+
 	ptr=str+1;ptr2=out;
 	while (*ptr!='\"' && *ptr)
 	{
@@ -603,7 +609,7 @@ static const char *parse_string(cJSON *item, const char *str)
 	char *out;
 	int len = 0;
 	unsigned uc, uc2;
-	
+
     /*
      * 此处对'\\'特殊处理是考虑到后续字符串处理流程中'\'可能会被误认为转义字符
      * 所以遇到'\\'时需要额外偏移一位
@@ -673,7 +679,7 @@ static const char *parse_string(cJSON *item, const char *str)
 }
 ```
 
-对于 `\u`转义字符的处理
+**对于 `\u`转义字符的处理**
 
 **核心逻辑如下**
 
@@ -725,7 +731,7 @@ case 'u':	 /* transcode utf16 to utf8. */
         len = 3;
         ptr2 += len;
     }
-	
+
 	/* 将 Unicode 码点按照 UTF-8 编码规则转换为对应的字节序列 */
     switch (len) {
         case 4:
@@ -759,24 +765,36 @@ case 'u':	 /* transcode utf16 to utf8. */
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
+void doit(char *text)
+{
+	char *out;
+    cJSON *json;
+
+	json = cJSON_Parse(text);
+	out = cJSON_Print(json);
+	cJSON_Delete(json);
+	printf("%s\n", out);
+	free(out);
+}
+
 /* Read a file, parse, render back, etc. */
 void dofile(char *filename)
 {
 	FILE *f;
     long len;
     char *data;
-	
+
 	f = fopen(filename, "rb");
     fseek(f, 0, SEEK_END);
-    
+
     len = ftell(f);
     fseek(f, 0, SEEK_SET);
-	
+
     data = (char*)malloc(len + 1);
     fread(data, 1, len, f);
-    
+
     fclose(f);
-	
+
     doit(data);
 	free(data);
 }
@@ -991,7 +1009,7 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 {
 	char **entries;
-	char *out=0, *ptr, *ret;
+	char *out = 0, *ptr, *ret;
 	int len = 5;
 	cJSON *child;
 	child = item->child;
@@ -999,7 +1017,7 @@ static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 	size_t tmplen=0;
 
 	while (child) {
-		numentries++,child = child->next;
+		numentries++, child = child->next;
 	}
 
 	entries=(char**)malloc(numentries * sizeof(char*));
@@ -1027,8 +1045,8 @@ static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 		ptr += tmplen;
 
 		if (i != numentries - 1) {
-			*ptr++=',';
-			*ptr++=' ';
+			*ptr++ = ',';
+			*ptr++ = ' ';
 			*ptr = 0;
 		}
 		free(entries[i]);
