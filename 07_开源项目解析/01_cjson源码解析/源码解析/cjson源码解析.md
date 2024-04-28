@@ -804,7 +804,104 @@ void dofile(char *filename)
 
 ## 4. json构造
 
-待后续完善
+从`cJSON`源代码中给出的测试`demo`中，可以找到关于的关于构造`json`字符串的示例函数
+
+### 关键接口
+
+* `cJSON_CreateObject()`创建`object`对象节点
+* `cJSON_AddItemToObject()`向`object`中添加`cJSON`对象
+* `cJSON_AddNumberToObject()`向`object`中添加`number`对象
+* `cJSON_AddStringToObject()`向`object`中添加`string`对象
+* `cJSON_CreateIntArray()`创建`array`对象节点
+
+**核心逻辑如下**
+
+```c
+void create_objects()
+{
+	cJSON *root, *img, *thm, *IDs;
+	char *name_str, *out;;
+	int ids[4] = {116, 943, 234, 38793};
+
+	root = cJSON_CreateObject();
+	img = cJSON_CreateObject();
+	cJSON_AddItemToObject(root, "Image", img);
+	cJSON_AddNumberToObject(img, "Width", 800);
+	cJSON_AddNumberToObject(img, "Height", 600);
+	cJSON_AddStringToObject(img, "Title", "View from 15th Floor");
+	thm = cJSON_CreateObject();
+	cJSON_AddItemToObject(img, "Thumbnail", thm);
+	cJSON_AddStringToObject(thm, "Url", "http:/*www.example.com/image/481989943");
+	cJSON_AddNumberToObject(thm, "Height", 125);
+	cJSON_AddStringToObject(thm, "Width", "100");
+	IDs = cJSON_CreateIntArray(ids, 4);
+	cJSON_AddItemToObject(img, "IDs", IDs);
+
+	out = cJSON_Print(root);
+	cJSON_Delete(root);
+	printf("%s\n", out);
+	free(out);
+}
+
+输出结果为
+{
+        "Image":        {
+                "Width":        800,
+                "Height":       600,
+                "Title":        "View from 15th Floor",
+                "Thumbnail":    {
+                        "Url":  "http:/*www.example.com/image/481989943",
+                        "Height":       125,
+                        "Width":        "100"
+                },
+                "IDs":  [116, 943, 234, 38793]
+        }
+}
+```
+
+### `cJSON_CreateObject()`函数
+
+创建新的`cJSON`节点，并将`type`设置为`cJSON_Object`
+
+**核心逻辑如下**
+
+```c
+cJSON *cJSON_CreateObject(void)
+{
+	cJSON *item = cJSON_New_Item();
+
+	if(item) {
+		item->type = cJSON_Object;
+	}
+
+	return item;
+}
+```
+
+### `cJSON_AddItemToObject()`函数
+
+**核心逻辑如下**
+
+```c
+static char* cJSON_strdup(const char* str)
+{
+	size_t len;
+	char* copy;
+
+	len = strlen(str) + 1;
+	copy = (char*)cJSON_malloc(len)
+
+	memcpy(copy, str, len);
+
+	return copy;
+}
+
+void cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item)
+{
+	item->string = cJSON_strdup(string);
+	cJSON_AddItemToArray(object, item);
+}
+```
 
 
 
