@@ -865,6 +865,8 @@ void create_objects()
 
 **核心逻辑如下**
 
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
 ```c
 cJSON *cJSON_CreateObject(void)
 {
@@ -878,30 +880,86 @@ cJSON *cJSON_CreateObject(void)
 }
 ```
 
+
+
 ### `cJSON_AddItemToObject()`函数
+
+填充新节点的`string`元素，然后调用`cJSON_AddItemToArray()`函数。
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+void cJSON_AddItemToObject(cJSON *object, onst char *string, JSON *item)
+{
+    size_t len;
+	char* copy;
+
+	len = strlen(string) + 1;
+	copy = (char*)malloc(len)
+
+	memcpy(copy, string, len);
+	item->string = copy;
+
+    cJSON_AddItemToArray(object, item);
+}
+```
+
+**函数核心思想**
+
+本质是对`cJSON_AddItemToArray()`函数的一层封装
+
+
+
+### `cJSON_AddItemToArray()`函数
+
+向`array`中添加新节点
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/* Add item to array/object. */
+void cJSON_AddItemToArray(cJSON *array, cJSON *item)
+{
+	cJSON *c = array->child;
+
+	if (!c) {
+		array->child = item;
+	} else {
+		while (c && c->next) {
+			c = c->next;
+		}
+        c->next = item;
+        item->prev = c;
+	}
+}
+```
+
+**函数核心思想**
+
+若`array`没有孩子节点，则将新节点作为`array`的孩子节点
+
+若`array`有孩子节点，则将找到该节点的双向链表尾部插入，将新节点作为`array`的孩子节点
+
+
+
+### `cJSON_AddItemToArray()`函数和`cJSON_AddStringToObject()`函数
+
+本质是对`cJSON_AddItemToObject()`函数的一层封装
 
 **核心逻辑如下**
 
 ```c
-static char* cJSON_strdup(const char* str)
-{
-	size_t len;
-	char* copy;
-
-	len = strlen(str) + 1;
-	copy = (char*)cJSON_malloc(len)
-
-	memcpy(copy, str, len);
-
-	return copy;
-}
-
-void cJSON_AddItemToObject(cJSON *object,const char *string,cJSON *item)
-{
-	item->string = cJSON_strdup(string);
-	cJSON_AddItemToArray(object, item);
-}
+#define cJSON_AddNumberToObject(object,name,n)	cJSON_AddItemToObject(object, name, cJSON_CreateNumber(n))
+#define cJSON_AddStringToObject(object,name,s)	cJSON_AddItemToObject(object, name, cJSON_CreateString(s))
 ```
+
+**函数核心思想**
+
+对于`cJSON`来说不管节点类型是`object`或是`array`其存储类型均为`struct cJSON`所以添加新的成员时，底层接口均可使用`cJSON_AddItemToObject()`
 
 
 
