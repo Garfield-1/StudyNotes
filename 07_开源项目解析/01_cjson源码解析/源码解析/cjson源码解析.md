@@ -802,7 +802,7 @@ void dofile(char *filename)
 
 
 
-## 4. json构造
+## 4. 构造json
 
 从`cJSON`源代码中给出的测试`demo`中，可以找到关于的关于构造`json`字符串的示例函数
 
@@ -971,6 +971,8 @@ void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 
 **核心逻辑如下**
 
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
 ```c
 /* 创建新的array节点 */
 cJSON *cJSON_CreateArray(void)
@@ -1005,7 +1007,8 @@ cJSON *cJSON_CreateIntArray(const int *numbers, int count)
 
 	for(i = 0; a && i < count; i++) {
 		n = cJSON_CreateNumber(numbers[i]);
-		if(!i) {
+		/* 第一个元素放在child节点中 */
+        if(!i) {
 			a->child = n;
 		} else {
             p->next = n;
