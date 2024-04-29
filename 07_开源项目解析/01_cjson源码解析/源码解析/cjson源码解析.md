@@ -39,7 +39,7 @@ typedef struct cJSON {
 
 `char *ep;`
 
-在记录出错时是在哪个字符，以错误码的方式返回；通过`cJSON_GetErrorPtr()`获取
+在记录出错时是在哪个字符，以错误码的方式返回；通过`cJSON_GetErrorPtr()`获取。本文的示例代码中不涉及此接口，后文中也不深入讨论此机制，在此提出仅用于向读者补充`cJSON`整体架构设计。
 
 
 
@@ -804,6 +804,8 @@ void dofile(char *filename)
 
 ## 4. 构造json
 
+**概括的说`cJSON`构造`json`的过程是，创建一个`struct cJSON`类型的节点，首先将需要的数据填充这个新建的节点。然后将这个新节点添加到已有的旧节点的合适的位置中，而旧节点的类型也是一个`struct cJSON`类型的节点。所以`cJSON`构造`json`的过程便是一层层的嵌套`struct cJSON`节点的过程，对于孩子节点和兄弟节点的处理和新节点的创建和嵌套便是本章讨论的重点。**
+
 从`cJSON`源代码中给出的测试`demo`中，可以找到关于的关于构造`json`字符串的示例函数
 
 ### 关键接口
@@ -1446,9 +1448,7 @@ static char *print_string_ptr(const char *str)
 
 ## 6. cJSON销毁
 
-在`cjson`流程中通常会创建`struct cJSON`的结构体用于存储解析或构造的`json`内容。在流程解释后则需要销毁对应的数据结构
-
-函数接口为`void cJSON_Delete(cJSON *c)`
+**在`cjson`流程中通常会创建`struct cJSON`的结构体用于存储解析或构造的`json`内容。在流程结束后则需要销毁对应的数据结构函数接口为`void cJSON_Delete(cJSON *c)`**
 
 ### `cJSON_Delete()`函数
 
