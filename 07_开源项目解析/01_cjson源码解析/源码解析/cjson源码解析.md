@@ -859,6 +859,8 @@ void create_objects()
 }
 ```
 
+
+
 ### `cJSON_CreateObject()`函数
 
 创建新的`cJSON`节点，并将`type`设置为`cJSON_Object`
@@ -960,6 +962,66 @@ void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 **函数核心思想**
 
 对于`cJSON`来说不管节点类型是`object`或是`array`其存储类型均为`struct cJSON`所以添加新的成员时，底层接口均可使用`cJSON_AddItemToObject()`
+
+
+
+### `cJSON_CreateIntArray()`函数
+
+新建`array`元素，并填充整形数组`numbers`的元素
+
+**核心逻辑如下**
+
+```c
+/* 创建新的array节点 */
+cJSON *cJSON_CreateArray(void)
+{
+	cJSON *item = cJSON_New_Item();
+	item->type = cJSON_Array;
+
+	return item;
+}
+
+/* 创建新的number节点 */
+cJSON *cJSON_CreateNumber(double num)
+{
+	cJSON *item = cJSON_New_Item();
+
+    item->type = cJSON_Number;
+    item->valuedouble = num;
+    item->valueint = (int)num;
+
+	return item;
+}
+
+/* Create Arrays: */
+cJSON *cJSON_CreateIntArray(const int *numbers, int count)
+{
+	int i;
+    cJSON *n, *p, *a;
+
+	*n = 0;
+    *p = 0;
+    *a = cJSON_CreateArray();
+
+	for(i = 0; a && i < count; i++) {
+		n = cJSON_CreateNumber(numbers[i]);
+		if(!i) {
+			a->child = n;
+		} else {
+            p->next = n;
+			n->prev = p;
+		}
+        /* p始终指向链表的尾部 */
+		p = n;
+	}
+
+	return a;
+}
+```
+
+**函数核心思想**
+
+创建`array`元素，利用循环将待目标数组的内容填入；首先将第一个元素防在`child`节点中，再将后续元素依次放入新创建的`child`的兄弟节点中
 
 
 
