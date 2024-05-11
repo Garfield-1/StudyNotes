@@ -1,0 +1,1 @@
+/usr/bin/cc  -ffunction-sections -fdata-sections -Werror -Wall -Wcast-qual -Wno-error=deprecated-declarations -Wextra -Wwrite-strings -Wno-unused-parameter -Wstrict-prototypes -g   CMakeFiles/test_util_file.dir/test_util_file.c.o  -o test_util_file -Wl,-rpath,/home/qiujian/only_test/ubus/jsonC_build ../libjson-c.so.5.3.0 -lm 

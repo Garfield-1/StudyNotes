@@ -1,0 +1,213 @@
+Determining if the include file xlocale.h exists failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_b9b36/fast"
+/usr/bin/make -f CMakeFiles/cmTC_b9b36.dir/build.make CMakeFiles/cmTC_b9b36.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_b9b36.dir/CheckIncludeFile.c.o
+/usr/bin/cc -D_GNU_SOURCE  -fPIE   -o CMakeFiles/cmTC_b9b36.dir/CheckIncludeFile.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckIncludeFile.c:1:10: fatal error: xlocale.h: 没有那个文件或目录
+ #include <xlocale.h>
+          ^~~~~~~~~~~
+compilation terminated.
+CMakeFiles/cmTC_b9b36.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_b9b36.dir/CheckIncludeFile.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_b9b36.dir/CheckIncludeFile.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_b9b36/fast' failed
+make: *** [cmTC_b9b36/fast] Error 2
+
+
+Determining if the _isnan exist failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_dd173/fast"
+/usr/bin/make -f CMakeFiles/cmTC_dd173.dir/build.make CMakeFiles/cmTC_dd173.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_dd173.dir/CheckSymbolExists.c.o
+/usr/bin/cc -D_GNU_SOURCE  -fPIE   -o CMakeFiles/cmTC_dd173.dir/CheckSymbolExists.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c: In function ‘main’:
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: ‘_isnan’ undeclared (first use in this function)
+   return ((int*)(&_isnan))[argc];
+                   ^~~~~~
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: each undeclared identifier is reported only once for each function it appears in
+CMakeFiles/cmTC_dd173.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_dd173.dir/CheckSymbolExists.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_dd173.dir/CheckSymbolExists.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_dd173/fast' failed
+make: *** [cmTC_dd173/fast] Error 2
+
+File /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _isnan
+  return ((int*)(&_isnan))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the _finite exist failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_f05ff/fast"
+/usr/bin/make -f CMakeFiles/cmTC_f05ff.dir/build.make CMakeFiles/cmTC_f05ff.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_f05ff.dir/CheckSymbolExists.c.o
+/usr/bin/cc -D_GNU_SOURCE  -fPIE   -o CMakeFiles/cmTC_f05ff.dir/CheckSymbolExists.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c: In function ‘main’:
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: ‘_finite’ undeclared (first use in this function)
+   return ((int*)(&_finite))[argc];
+                   ^~~~~~~
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: each undeclared identifier is reported only once for each function it appears in
+CMakeFiles/cmTC_f05ff.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_f05ff.dir/CheckSymbolExists.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_f05ff.dir/CheckSymbolExists.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_f05ff/fast' failed
+make: *** [cmTC_f05ff/fast] Error 2
+
+File /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <float.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _finite
+  return ((int*)(&_finite))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the _doprnt exist failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_8377c/fast"
+/usr/bin/make -f CMakeFiles/cmTC_8377c.dir/build.make CMakeFiles/cmTC_8377c.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_8377c.dir/CheckSymbolExists.c.o
+/usr/bin/cc -D_GNU_SOURCE  -fPIE   -o CMakeFiles/cmTC_8377c.dir/CheckSymbolExists.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c: In function ‘main’:
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: ‘_doprnt’ undeclared (first use in this function); did you mean ‘fdopen’?
+   return ((int*)(&_doprnt))[argc];
+                   ^~~~~~~
+                   fdopen
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: each undeclared identifier is reported only once for each function it appears in
+CMakeFiles/cmTC_8377c.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_8377c.dir/CheckSymbolExists.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_8377c.dir/CheckSymbolExists.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_8377c/fast' failed
+make: *** [cmTC_8377c/fast] Error 2
+
+File /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stdio.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef _doprnt
+  return ((int*)(&_doprnt))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the arc4random exist failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_589cf/fast"
+/usr/bin/make -f CMakeFiles/cmTC_589cf.dir/build.make CMakeFiles/cmTC_589cf.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_589cf.dir/CheckSymbolExists.c.o
+/usr/bin/cc -D_GNU_SOURCE  -fPIE   -o CMakeFiles/cmTC_589cf.dir/CheckSymbolExists.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c: In function ‘main’:
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: error: ‘arc4random’ undeclared (first use in this function); did you mean ‘srandom’?
+   return ((int*)(&arc4random))[argc];
+                   ^~~~~~~~~~
+                   srandom
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:8:19: note: each undeclared identifier is reported only once for each function it appears in
+CMakeFiles/cmTC_589cf.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_589cf.dir/CheckSymbolExists.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_589cf.dir/CheckSymbolExists.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_589cf/fast' failed
+make: *** [cmTC_589cf/fast] Error 2
+
+File /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckSymbolExists.c:
+/* */
+#include <stdlib.h>
+
+int main(int argc, char** argv)
+{
+  (void)argv;
+#ifndef arc4random
+  return ((int*)(&arc4random))[argc];
+#else
+  (void)argc;
+  return 0;
+#endif
+}
+
+Determining if the include file bsd/stdlib.h exists failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_21800/fast"
+/usr/bin/make -f CMakeFiles/cmTC_21800.dir/build.make CMakeFiles/cmTC_21800.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_21800.dir/CheckIncludeFile.c.o
+/usr/bin/cc -D_GNU_SOURCE  -fPIE   -o CMakeFiles/cmTC_21800.dir/CheckIncludeFile.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckIncludeFile.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/CheckIncludeFile.c:1:10: fatal error: bsd/stdlib.h: 没有那个文件或目录
+ #include <bsd/stdlib.h>
+          ^~~~~~~~~~~~~~
+compilation terminated.
+CMakeFiles/cmTC_21800.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_21800.dir/CheckIncludeFile.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_21800.dir/CheckIncludeFile.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_21800/fast' failed
+make: *** [cmTC_21800/fast] Error 2
+
+
+Performing C SOURCE FILE Test HAS_GNU_WARNING_LONG failed with the following output:
+Change Dir: /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp
+
+Run Build Command:"/usr/bin/make" "cmTC_eb398/fast"
+/usr/bin/make -f CMakeFiles/cmTC_eb398.dir/build.make CMakeFiles/cmTC_eb398.dir/build
+make[1]: 进入目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Building C object CMakeFiles/cmTC_eb398.dir/src.c.o
+/usr/bin/cc -D_GNU_SOURCE  -DHAS_GNU_WARNING_LONG -fPIE   -o CMakeFiles/cmTC_eb398.dir/src.c.o   -c /home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/src.c
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/src.c:3:9: warning: missing terminating " character
+ __asm__(".section .gnu.json_object_get
+         ^
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/src.c:3:9: error: missing terminating " character
+ __asm__(".section .gnu.json_object_get
+         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/src.c:4:2: error: expected string literal before ‘.’ token
+  .ascii "Please link against libjson-c instead of libjson"
+  ^
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/src.c:5:7: warning: missing terminating " character
+  .text");
+       ^
+/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp/src.c:5:7: error: missing terminating " character
+  .text");
+       ^~~
+CMakeFiles/cmTC_eb398.dir/build.make:65: recipe for target 'CMakeFiles/cmTC_eb398.dir/src.c.o' failed
+make[1]: *** [CMakeFiles/cmTC_eb398.dir/src.c.o] Error 1
+make[1]: 离开目录“/home/qiujian/only_test/ubus/jsonC_build/CMakeFiles/CMakeTmp”
+Makefile:126: recipe for target 'cmTC_eb398/fast' failed
+make: *** [cmTC_eb398/fast] Error 2
+
+Source file was:
+
+extern void json_object_get();
+__asm__(".section .gnu.json_object_get
+	.ascii "Please link against libjson-c instead of libjson"
+	.text");
+int main(int c, char *v) { return 0;}
+
