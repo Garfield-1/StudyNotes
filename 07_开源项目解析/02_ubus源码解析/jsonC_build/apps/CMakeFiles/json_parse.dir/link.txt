@@ -1,1 +1,0 @@
-/usr/bin/cc  -ffunction-sections -fdata-sections -Werror -Wall -Wcast-qual -Wno-error=deprecated-declarations -Wextra -Wwrite-strings -Wno-unused-parameter -Wstrict-prototypes -g  -rdynamic CMakeFiles/json_parse.dir/json_parse.c.o  -o json_parse -Wl,-rpath,/home/qiujian/only_test/ubus/jsonC_build ../libjson-c.so.5.3.0 -lm 

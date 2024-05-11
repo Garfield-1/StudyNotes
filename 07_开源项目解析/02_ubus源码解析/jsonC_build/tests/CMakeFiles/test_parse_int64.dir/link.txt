@@ -1,1 +1,0 @@
-/usr/bin/cc  -ffunction-sections -fdata-sections -Werror -Wall -Wcast-qual -Wno-error=deprecated-declarations -Wextra -Wwrite-strings -Wno-unused-parameter -Wstrict-prototypes -g   CMakeFiles/test_parse_int64.dir/test_parse_int64.c.o  -o test_parse_int64 -Wl,-rpath,/home/qiujian/only_test/ubus/jsonC_build ../libjson-c.so.5.3.0 -lm 
