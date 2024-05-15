@@ -3,7 +3,7 @@
 base_path=$(pwd)
 
 jsonC_path=$base_path/json-c
-jsonC_build_path=$base_path/jsonC_build
+jsonC_build_path=$base_path/json
 
 libubox_path=$base_path/libubox
 libubox_build_path=$base_path/libubox_build
@@ -33,7 +33,9 @@ libubox_build() {
     mkdir $libubox_build_path
     cd $libubox_build_path
 
-    cmake -D BUILD_LUA:BOOL=OFF -D BUILD_EXAMPLES:BOLL=OFF -D BUILD_STATIC=ON $libubox_path
+    cmake -D json=libjson-c.so -D CMAKE_C_FLAGS="-I $base_path -I $jsonC_build_path \
+        -I $jsonC_path" -D BUILD_LUA:BOOL=OFF -D BUILD_EXAMPLES:BOLL=OFF\
+        -D BUILD_STATIC=ON $libubox_path
 
     make &
 }
@@ -45,8 +47,12 @@ ubus_build() {
     mkdir $ubus_build_path
     cd $ubus_build_path
 
-    cmake -D BUILD_STATIC=ON -D ubox_library=$depend_libs_path  $ubus_path
+    # cmake -D BUILD_STATIC=ON -D ubox_library=$depend_libs_path  $ubus_path
 #  -D UBOX_LIBRARY_PATH=$libubox_build_path -D BLOB_LIBRARY_PATH=$libubox_build_path -D 
+    cmake -D json=libjson-c.so -D ubox_library=libubox \
+        -D blob_library=libblobmsg-json.so -D ubox_include_dir:PATH=$base_path -D BUILD_LUA=OFF\
+        -D BUILD_STATIC=ON $ubus_path
+
     make &
 }
 
