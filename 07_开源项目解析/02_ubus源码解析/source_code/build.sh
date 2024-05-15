@@ -83,7 +83,6 @@ ubus_build() {
 
     make &&
 
-
     #拷贝编译产物
     if [ ! -d "$depend_libs_path" ]; then
         mkdir -p $depend_libs_path
