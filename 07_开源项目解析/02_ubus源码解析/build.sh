@@ -72,10 +72,17 @@ ubus_build() {
     cd $ubus_build_path
 
     cmake -D json=$depend_libs_path/libjson-c.so -D ubox_library=$depend_libs_path/libubox.so \
-        -D blob_library=$depend_libs_path/libblobmsg_json.so -D ubox_include_dir:PATH=$base_path -D BUILD_LUA=OFF\
+        -D blob_library=$depend_libs_path/libblobmsg_json.so -D ubox_include_dir:PATH=$depend_inc_path -D BUILD_LUA=OFF\
         -D BUILD_STATIC=ON $ubus_path
 
+    #拷贝依赖文件
+    if [ ! -d "$depend_inc_path/libubox" ]; then
+        mkdir -p $depend_inc_path/libubox
+    fi
+    cp $libubox_path/*.h $depend_inc_path/libubox &&
+
     make &&
+
 
     #拷贝编译产物
     if [ ! -d "$depend_libs_path" ]; then
