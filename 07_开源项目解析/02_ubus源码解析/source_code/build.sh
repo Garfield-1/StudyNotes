@@ -25,16 +25,8 @@ jsonC_build() {
     $jsonC_path/cmake-configure --prefix=./ --enable-shared
 
     make &&
-
-    #拷贝依赖文件和编译产物
-    if [ ! -d "$depend_inc_path/json" ]; then
-        mkdir -p $depend_inc_path/json
-    fi
-
-    cp $jsonC_build_path/json.h $depend_inc_path/json &&
-    cp $jsonC_build_path/*.h $depend_inc_path &&
-    cp $jsonC_path/*.h $depend_inc_path &&
     
+    # 拷贝编译产物
     if [ ! -d "$depend_libs_path" ]; then
         mkdir -p $depend_libs_path
     fi
@@ -49,12 +41,21 @@ libubox_build() {
     mkdir $libubox_build_path
     cd $libubox_build_path
 
+    # 拷贝依赖文件
+    if [ ! -d "$depend_inc_path/json" ]; then
+        mkdir -p $depend_inc_path/json
+    fi
+
+    cp $jsonC_build_path/json.h $depend_inc_path/json &&
+    cp $jsonC_build_path/*.h $depend_inc_path &&
+    cp $jsonC_path/*.h $depend_inc_path &&
+
     cmake -D json=$depend_libs_path/libjson-c.so -D CMAKE_C_FLAGS="-I $depend_inc_path"\
         -D BUILD_LUA:BOOL=OFF -D BUILD_EXAMPLES:BOLL=OFF -D BUILD_STATIC=ON $libubox_path
 
     make &&
 
-    #拷贝编译产物
+    # 拷贝编译产物
     if [ ! -d "$depend_libs_path" ]; then
         mkdir -p $depend_libs_path
     fi
@@ -71,19 +72,19 @@ ubus_build() {
     mkdir $ubus_build_path
     cd $ubus_build_path
 
-    cmake -D json=$depend_libs_path/libjson-c.so -D ubox_library=$depend_libs_path/libubox.so \
-        -D blob_library=$depend_libs_path/libblobmsg_json.so -D ubox_include_dir:PATH=$depend_inc_path -D BUILD_LUA=OFF\
-        -D BUILD_STATIC=ON $ubus_path
-
-    #拷贝依赖文件
+    # 拷贝依赖文件
     if [ ! -d "$depend_inc_path/libubox" ]; then
         mkdir -p $depend_inc_path/libubox
     fi
     cp $libubox_path/*.h $depend_inc_path/libubox &&
 
+    cmake -D json=$depend_libs_path/libjson-c.so -D ubox_library=$depend_libs_path/libubox.so \
+        -D blob_library=$depend_libs_path/libblobmsg_json.so -D ubox_include_dir:PATH=$depend_inc_path -D BUILD_LUA=OFF\
+        -D BUILD_STATIC=ON $ubus_path
+
     make &&
 
-    #拷贝编译产物
+    # 拷贝编译产物
     if [ ! -d "$depend_libs_path" ]; then
         mkdir -p $depend_libs_path
     fi
