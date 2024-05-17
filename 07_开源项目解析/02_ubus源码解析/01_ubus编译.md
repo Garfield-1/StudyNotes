@@ -16,9 +16,17 @@
 
 ```
 git clone https://github.com/json-c/json-c.git
-git clone http://git.openwrt.org/project/libubox.git
-git clone https://git.openwrt.org/project/ubus.git或https://github.com/openwrt/ubus
+git clone http://git.openwrt.org/project/libubox.git或https://github.com/openwrt/libubox
+git clone https://github.com/openwrt/ubus或https://github.com/openwrt/ubus
 ```
+
+本文档使用软件版本
+
+`json-c`版本：`json-c-0.17-20230812`
+
+`libubox`版本：`2024-5-17 eb9bcb64185ac155c02cc1a604692c4b00368324`
+
+`ubus`版本：`2023-12-18 65bb027054def3b94a977229fd6ad62ddd32345b`
 
 
 
