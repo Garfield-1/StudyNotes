@@ -25,5 +25,6 @@ int main()
 	uloop_timeout_set(&timeout, frequency * 1000);//设置下次的超时时间
  
 	uloop_run();
+	uloop_done();
 
 }
