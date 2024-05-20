@@ -44,3 +44,40 @@ git clone https://github.com/openwrt/ubus或https://github.com/openwrt/ubus
 └── ubus
 ```
 
+
+
+## 在Ubuntu上运行ubus
+
+### 在Ubuntu上安装相关库
+
+在完成上文中的编译步骤后，依次进入`jsonC_build`、`libubox_build`和`ubus_build`文件夹执行`sudo make install`命令在`Ubuntu`上安装`json-c`、`libubox`和`ubus`
+
+### 测试执行ubus
+
+创建三个终端
+
+* **终端1：**
+
+  `su root` 切换`root`
+
+​	`ubusd`  拉起`ubusd`进程
+
+* **终端2：**
+
+  `su root` 切换`root`
+
+​	`ubus listen test` //监听`ubus`
+
+* **终端3：**
+
+​	`ubus send test '{"hi!":"hello!"}'`
+
+
+
+如上述操作失败，可尝试将`json-c`、`libubox`和`ubus`的动态库库路径添加至系统动态库搜索路径
+
+1. 切换`root`执行 ：`su root` 
+
+2. 将动态库路径添加至系统动态库搜索路径：`echo [依赖库路径] >> /etc/ld.so.conf`
+
+3. 更新动态库搜索路径：`ldconfig`
