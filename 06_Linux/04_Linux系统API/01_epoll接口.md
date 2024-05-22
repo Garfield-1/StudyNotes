@@ -1,6 +1,10 @@
 # epoll接口
 
 > 参考文档：https://www.cnblogs.com/Hijack-you/p/13057792.html
+>
+> [【原创】Linux select/poll机制原理分析 - LoyenWang - 博客园 (cnblogs.com)](https://www.cnblogs.com/LoyenWang/p/12622904.html)
+>
+> [Linux 5.4源码下载](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
 
@@ -31,7 +35,154 @@
 
 
 
+## 可以做什么
+
+简单来说，`select/poll`能监听多个设备的文件描述符，只要有任何一个设备满足条件，`select/poll`就会返回，否则将进行睡眠等待。
+
+
+
 ## select实现原理
+
+`select`系统调用，最终的核心逻辑是在`do_select`函数中处理的，源码如下
+
+```c 
+static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
+{
+	ktime_t expire, *to = NULL;
+	struct poll_wqueues table;
+	poll_table *wait;
+	int retval, i, timed_out = 0;
+	u64 slack = 0;
+	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
+	unsigned long busy_start = 0;
+
+	rcu_read_lock();
+	retval = max_select_fd(n, fds);
+	rcu_read_unlock();
+
+	if (retval < 0)
+		return retval;
+	n = retval;
+
+	poll_initwait(&table);
+	wait = &table.pt;
+	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
+		wait->_qproc = NULL;
+		timed_out = 1;
+	}
+
+	if (end_time && !timed_out)
+		slack = select_estimate_accuracy(end_time);
+
+	retval = 0;
+	for (;;) {
+		unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
+		bool can_busy_loop = false;
+
+		inp = fds->in; outp = fds->out; exp = fds->ex;
+		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
+
+		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
+			unsigned long in, out, ex, all_bits, bit = 1, j;
+			unsigned long res_in = 0, res_out = 0, res_ex = 0;
+			__poll_t mask;
+
+			in = *inp++; out = *outp++; ex = *exp++;
+			all_bits = in | out | ex;
+			if (all_bits == 0) {
+				i += BITS_PER_LONG;
+				continue;
+			}
+
+			for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
+				struct fd f;
+				if (i >= n)
+					break;
+				if (!(bit & all_bits))
+					continue;
+				f = fdget(i);
+				if (f.file) {
+					wait_key_set(wait, in, out, bit,
+						     busy_flag);
+					mask = vfs_poll(f.file, wait);
+
+					fdput(f);
+					if ((mask & POLLIN_SET) && (in & bit)) {
+						res_in |= bit;
+						retval++;
+						wait->_qproc = NULL;
+					}
+					if ((mask & POLLOUT_SET) && (out & bit)) {
+						res_out |= bit;
+						retval++;
+						wait->_qproc = NULL;
+					}
+					if ((mask & POLLEX_SET) && (ex & bit)) {
+						res_ex |= bit;
+						retval++;
+						wait->_qproc = NULL;
+					}
+					/* got something, stop busy polling */
+					if (retval) {
+						can_busy_loop = false;
+						busy_flag = 0;
+
+					/*
+					 * only remember a returned
+					 * POLL_BUSY_LOOP if we asked for it
+					 */
+					} else if (busy_flag & mask)
+						can_busy_loop = true;
+
+				}
+			}
+			if (res_in)
+				*rinp = res_in;
+			if (res_out)
+				*routp = res_out;
+			if (res_ex)
+				*rexp = res_ex;
+			cond_resched();
+		}
+		wait->_qproc = NULL;
+		if (retval || timed_out || signal_pending(current))
+			break;
+		if (table.error) {
+			retval = table.error;
+			break;
+		}
+
+		/* only if found POLL_BUSY_LOOP sockets && not out of time */
+		if (can_busy_loop && !need_resched()) {
+			if (!busy_start) {
+				busy_start = busy_loop_current_time();
+				continue;
+			}
+			if (!busy_loop_timeout(busy_start))
+				continue;
+		}
+		busy_flag = 0;
+
+		/*
+		 * If this is the first loop and we have a timeout
+		 * given, then we convert to ktime_t and set the to
+		 * pointer to the expiry value.
+		 */
+		if (end_time && !to) {
+			expire = timespec64_to_ktime(*end_time);
+			to = &expire;
+		}
+
+		if (!poll_schedule_timeout(&table, TASK_INTERRUPTIBLE,
+					   to, slack))
+			timed_out = 1;
+	}
+
+	poll_freewait(&table);
+
+	return retval;
+}
+```
 
 
 
