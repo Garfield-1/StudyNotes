@@ -70,6 +70,8 @@ git clone https://github.com/openwrt/ubus或https://github.com/openwrt/ubus
 
 * **终端3：**
 
+  `su root` 切换`root`
+
 ​	`ubus send test '{"hi!":"hello!"}'`
 
 
