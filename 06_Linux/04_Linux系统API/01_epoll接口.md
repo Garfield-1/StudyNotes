@@ -8,6 +8,8 @@
 
 
 
+> 笔者注：本文中出现的相关接口源代码均引用自**Linux 5.4**版本源码
+
 ## epoll是什么
 
 `epoll`是一种`I/O`事件通知机制，是`linux`内核实现`IO`多路复用的一个实现。
@@ -41,118 +43,70 @@
 
 
 
-## select实现原理
+## select接口
+
+查看man手册可知select函数的作用
+
+> select() and pselect() allow a program to monitor multiple file descriptors, waiting until one or more of the file descriptors become "ready" for some class of I/O oper‐ation (e.g., input possible).   A file descriptor is considered ready if it is possible to perform a corresponding I/O operation (e.g., read(2)  without  blocking,  or  a sufficiently small write(2)).
+>
+> The timeout argument specifies the interval that select() should block waiting for a file descriptor to become ready.   The call will block until either:
+>
+> *  a file descriptor becomes ready;
+>
+> *  the call is interrupted by a signal handler;  or
+>
+> *  the timeout expires.
+>
+>
+> 译文如下：
+>
+> select()和pselect()允许程序监视多个文件描述符，直到一个或多个文件描述符“准备好”进行某种I/O操作(例如，可能的输入)。如果可以执行相应的I/O操作(例如，无阻塞的读操作(2)或足够小的写操作(2))，则认为文件描述符已准备就绪。
+>
+> timeout参数指定select()应该阻止等待文件描述符准备就绪的时间间隔。调用将被阻塞，直到:
+>
+> 文件描述符准备就绪;
+>
+> 调用被信号处理程序中断;
+>
+> 超时过期
+
+### 源码分析
 
 `select`系统调用，最终的核心逻辑是在`do_select`函数中处理的，源码如下
+
+**函数整体结构**
+
+> 笔者注：此处仅列出函数整体结构，便于快速理解
 
 ```c 
 static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 {
-	ktime_t expire, *to = NULL;
-	struct poll_wqueues table;
-	poll_table *wait;
-	int retval, i, timed_out = 0;
-	u64 slack = 0;
-	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
-	unsigned long busy_start = 0;
+	...
+    // 创建变量，并检验入参合法性
+    unsigned long busy_start = 0;
+    ...
 
-	rcu_read_lock();
-	retval = max_select_fd(n, fds);
-	rcu_read_unlock();
-
-	if (retval < 0)
-		return retval;
-	n = retval;
-
-	poll_initwait(&table);
+    poll_initwait(&table); // 初始化一个等待队列
 	wait = &table.pt;
-	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
-		wait->_qproc = NULL;
-		timed_out = 1;
-	}
 
-	if (end_time && !timed_out)
-		slack = select_estimate_accuracy(end_time);
-
-	retval = 0;
 	for (;;) {
-		unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
-		bool can_busy_loop = false;
-
-		inp = fds->in; outp = fds->out; exp = fds->ex;
-		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
-
+       	...
+        // 创建变量
+        ...
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
-			unsigned long in, out, ex, all_bits, bit = 1, j;
-			unsigned long res_in = 0, res_out = 0, res_ex = 0;
-			__poll_t mask;
-
-			in = *inp++; out = *outp++; ex = *exp++;
-			all_bits = in | out | ex;
-			if (all_bits == 0) {
-				i += BITS_PER_LONG;
-				continue;
-			}
-
+            ...
+            // 此处省略循环体
+            ...
 			for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
-				struct fd f;
-				if (i >= n)
-					break;
-				if (!(bit & all_bits))
-					continue;
-				f = fdget(i);
-				if (f.file) {
-					wait_key_set(wait, in, out, bit,
-						     busy_flag);
-					mask = vfs_poll(f.file, wait);
-
-					fdput(f);
-					if ((mask & POLLIN_SET) && (in & bit)) {
-						res_in |= bit;
-						retval++;
-						wait->_qproc = NULL;
-					}
-					if ((mask & POLLOUT_SET) && (out & bit)) {
-						res_out |= bit;
-						retval++;
-						wait->_qproc = NULL;
-					}
-					if ((mask & POLLEX_SET) && (ex & bit)) {
-						res_ex |= bit;
-						retval++;
-						wait->_qproc = NULL;
-					}
-					/* got something, stop busy polling */
-					if (retval) {
-						can_busy_loop = false;
-						busy_flag = 0;
-
-					/*
-					 * only remember a returned
-					 * POLL_BUSY_LOOP if we asked for it
-					 */
-					} else if (busy_flag & mask)
-						can_busy_loop = true;
-
-				}
+                ...
+                // 此处省略循环体
+                ...
 			}
-			if (res_in)
-				*rinp = res_in;
-			if (res_out)
-				*routp = res_out;
-			if (res_ex)
-				*rexp = res_ex;
-			cond_resched();
-		}
-		wait->_qproc = NULL;
-		if (retval || timed_out || signal_pending(current))
-			break;
-		if (table.error) {
-			retval = table.error;
-			break;
 		}
 
-		/* only if found POLL_BUSY_LOOP sockets && not out of time */
+        /*
+         * 在进行忙等待的情况下，检查是否需要继续忙等待，或者是否已经超时
+         */
 		if (can_busy_loop && !need_resched()) {
 			if (!busy_start) {
 				busy_start = busy_loop_current_time();
@@ -162,25 +116,68 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 				continue;
 		}
 		busy_flag = 0;
-
-		/*
-		 * If this is the first loop and we have a timeout
-		 * given, then we convert to ktime_t and set the to
-		 * pointer to the expiry value.
-		 */
-		if (end_time && !to) {
-			expire = timespec64_to_ktime(*end_time);
-			to = &expire;
-		}
-
-		if (!poll_schedule_timeout(&table, TASK_INTERRUPTIBLE,
-					   to, slack))
-			timed_out = 1;
 	}
 
-	poll_freewait(&table);
-
+	poll_freewait(&table); // 释放初始化申请的队列
 	return retval;
+}
+```
+
+**函数核心思想**
+
+函数中，有几个关键的操作：
+
+1. 初始化`poll_wqueues`结构，包括几个关键函数指针的初始化，用于驱动中进行回调处理；
+2. 循环遍历监测的文件描述符，并且调用`f_op->poll()`函数，如果有监测条件满足，则会跳出循环；
+3. 在监测的文件描述符都不满足条件时，`poll_schedule_timeout`让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒；
+
+**三层循环**
+
+* 第一层循环，即最外层循环
+
+  最外层循环做的事情主要是，创建一个死循环阻塞线程
+
+
+
+### 示例代码
+
+监听标准输入，设置超时时间为5S
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(void)
+{
+	fd_set rfds;
+	struct timeval tv;
+	int retval;
+
+	/* Watch stdin (fd 0) to see when it has input. */
+
+	FD_ZERO(&rfds);
+	FD_SET(0, &rfds);
+
+	/* Wait up to five seconds. */
+
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+
+	retval = select(1, &rfds, NULL, NULL, &tv);
+	/* Don't rely on the value of tv now! */
+
+	if (retval == -1)
+		perror("select()");
+	else if (retval)
+		printf("Data is available now.\n");
+		/* FD_ISSET(0, &rfds) will be true. */
+	else
+		printf("No data within five seconds.\n");
+
+	exit(EXIT_SUCCESS);
 }
 ```
 
