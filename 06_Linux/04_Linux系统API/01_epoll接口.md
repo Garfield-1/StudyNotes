@@ -192,7 +192,7 @@ int main(void)
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 
-	retval = (1, &rfds, NULL, NULL, &tv);
+	retval = select(1, &rfds, NULL, NULL, &tv);
 	/* Don't rely on the value of tv now! */
 
 	if (retval == -1)
