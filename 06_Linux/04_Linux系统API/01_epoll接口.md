@@ -4,6 +4,8 @@
 >
 > [【原创】Linux select/poll机制原理分析 - LoyenWang - 博客园 (cnblogs.com)](https://www.cnblogs.com/LoyenWang/p/12622904.html)
 >
+> [源码解读poll/select内核机制 - Gityuan博客 | 袁辉辉的技术博客](https://gityuan.com/2019/01/05/linux-poll-select/)
+>
 > [Linux 5.4源码下载](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
@@ -70,29 +72,57 @@
 >
 > 超时过期
 
+
+
 ### 源码分析
+
+`select`方法的主要工作可分为3部分：
+
+- 将需要监控的用户空间的`inp`(可读)、`outp`(可写)、`exp`(异常)事件拷贝到内核空间`fds`的`in`、`out`、`ex`；
+- 执行`do_select`()方法，将`in`、`out`、`ex`监控到的事件结果写入到`res_in`、`res_out`、`res_ex`；
+- 将内核空间`fds`的`res_in`、`res_out`、`res_ex`事件结果信息拷贝回用户空间`inp`、`outp`、`exp`。
 
 `select`系统调用，最终的核心逻辑是在`do_select`函数中处理的，源码如下
 
-**函数整体结构**
+## do_select函数
 
-> 笔者注：此处仅列出函数整体结构，便于快速理解
+**函数核心思想**
 
-```c 
+函数中，有几个关键的操作：
+
+1. 初始化`poll_wqueues`结构，包括几个关键函数指针的初始化，用于驱动中进行回调处理；
+2. 循环遍历监测的文件描述符，并且调用`f_op->poll()`函数，如果有监测条件满足，则会跳出循环；
+3. 在监测的文件描述符都不满足条件时，`poll_schedule_timeout`让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒；
+
+**三层循环设计**
+
+* 第一层循环，即最外层循环
+
+  最外层循环做的事情主要是，创建一个循环并设置好这个循环的退出条件即超时时间。
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
 static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 {
 	...
     // 创建变量，并检验入参合法性
     unsigned long busy_start = 0;
+    int retval;
     ...
 
     poll_initwait(&table); // 初始化一个等待队列
 	wait = &table.pt;
 
 	for (;;) {
-       	...
-        // 创建变量
-        ...
+		unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
+		bool can_busy_loop = false;
+
+		inp = fds->in; outp = fds->out; exp = fds->ex;
+		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
+
 		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
             ...
             // 此处省略循环体
@@ -104,38 +134,34 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 			}
 		}
 
-        /*
-         * 在进行忙等待的情况下，检查是否需要继续忙等待，或者是否已经超时
-         */
-		if (can_busy_loop && !need_resched()) {
-			if (!busy_start) {
-				busy_start = busy_loop_current_time();
-				continue;
-			}
-			if (!busy_loop_timeout(busy_start))
-				continue;
-		}
-		busy_flag = 0;
-	}
+		if (retval || timed_out || signal_pending(current))
+			break;
 
+        // 进行忙等待检测,检查是否超时,若未超时则进行新一轮检测
+        if (can_busy_loop) {
+           	busy_start = busy_loop_current_time();
+            if (!busy_loop_timeout(busy_start))
+                continue;
+        }
+
+        /*
+         * 将进程状态置为TASK_INTERRUPTIBLE，启动定时器，直到timeout后将进程状态重新置为TASK_RUNNING
+         * 此处的需要等待的时间是在select调用时传入的，由入参的struct timeval tv结构体中的tv.tv_sec(秒数)和tv.tv_usec(微妙)的相加
+         */
+        if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time))
+            timed_out = 1;
+    }
 	poll_freewait(&table); // 释放初始化申请的队列
-	return retval;
+
+    return retval;
 }
 ```
 
-**函数核心思想**
+**核心思想**
 
-函数中，有几个关键的操作：
+在`for(;;)`循环中利用`busy_loop_timeout`的低精度检测控制内部循环的流程，在内部流程结束后使用`poll_schedule_timeout`高精度定时器阻塞进程进行进程管理
 
-1. 初始化`poll_wqueues`结构，包括几个关键函数指针的初始化，用于驱动中进行回调处理；
-2. 循环遍历监测的文件描述符，并且调用`f_op->poll()`函数，如果有监测条件满足，则会跳出循环；
-3. 在监测的文件描述符都不满足条件时，`poll_schedule_timeout`让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒；
-
-**三层循环**
-
-* 第一层循环，即最外层循环
-
-  最外层循环做的事情主要是，创建一个死循环阻塞线程
+最外层循环中申请的`unsigned long inp, outp, exp`变量分别对应可读、可写、异常事件的文件描述符集合，这些数据的每一位都对应着一个文件描述符，如果某个文件描述符在集合中，则对应的位被设置为 `1`；否则被设置为 `0`
 
 
 
@@ -166,7 +192,7 @@ int main(void)
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 
-	retval = select(1, &rfds, NULL, NULL, &tv);
+	retval = (1, &rfds, NULL, NULL, &tv);
 	/* Don't rely on the value of tv now! */
 
 	if (retval == -1)
@@ -180,6 +206,42 @@ int main(void)
 	exit(EXIT_SUCCESS);
 }
 ```
+### 相关接口
+
+`FD_ZERO` 、`FD_SET`、 `FD_CLR`、`FD_ISSET`是 `POSIX` 标准中定义的宏，用于操作文件描述符集合（`fd_set`）。
+
+1. **FD_ZERO：** 这个宏用于将文件描述符集合清零，即清除集合中的所有文件描述符。通常用于初始化文件描述符集合，使其为空集。其原型如下：
+
+   ```c
+   void FD_ZERO(fd_set *set);
+   ```
+
+   其中，`set` 是一个指向 `fd_set` 结构体的指针，表示要清零的文件描述符集合。
+
+2. **FD_SET：** 这个宏用于将一个文件描述符添加到文件描述符集合中。其原型如下：
+
+   ```c
+   void FD_SET(int fd, fd_set *set);
+   ```
+
+   其中，`fd` 是要添加的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要添加文件描述符的文件描述符集合。
+
+3. **FD_CLR：** 用于从文件描述符集合中清除（移除）一个文件描述符。
+
+   ```c
+   void FD_CLR(int fd, fd_set *set);
+   ```
+
+   其中，`fd` 是要清除的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要清除文件描述符的文件描述符集合。
+
+4. **FD_ISSET：** 用于检查文件描述符集合中是否包含某个文件描述符。
+
+   ```c
+   int FD_ISSET(int fd, const fd_set *set);
+   ```
+
+   其中，`fd` 是要检查的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要检查的文件描述符集合。如果文件描述符集合中包含指定的文件描述符，则返回非零值；否则返回零。
+
 
 
 
