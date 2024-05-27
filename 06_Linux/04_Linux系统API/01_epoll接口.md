@@ -72,7 +72,9 @@
 >
 > 超时过期
 
+### 函数调用栈
 
+![01_select函数调用栈](.\img\01_select函数调用栈.png)
 
 ### 源码分析
 
@@ -94,11 +96,15 @@
 2. 循环遍历监测的文件描述符，并且调用`f_op->poll()`函数，如果有监测条件满足，则会跳出循环；
 3. 在监测的文件描述符都不满足条件时，`poll_schedule_timeout`让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒；
 
-**三层循环设计**
+**第一层循环**
 
 * 第一层循环，即最外层循环
 
-  最外层循环做的事情主要是，创建一个循环并设置好这个循环的退出条件即超时时间。
+  最外层循环做的事情主要是
+  
+  1. 申请和销毁资源，校验传入的参数
+  2. 创建一个高精度，可阻塞当前进程的循环
+  3. 设置循环退出的出口条件
 
 **核心逻辑如下**
 
@@ -107,51 +113,44 @@
 ```c
 static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 {
-	...
-    // 创建变量，并检验入参合法性
+    struct poll_wqueues table;
     unsigned long busy_start = 0;
     int retval;
-    ...
 
     poll_initwait(&table); // 初始化一个等待队列
 	wait = &table.pt;
 
+    slack = select_estimate_accuracy(end_time); // 获取高精度定时的误差范围，用于后续高精度定时器使用
+
 	for (;;) {
-		unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
-		bool can_busy_loop = false;
-
-		inp = fds->in; outp = fds->out; exp = fds->ex;
-		rinp = fds->res_in; routp = fds->res_out; rexp = fds->res_ex;
-
-		for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
-            ...
-            // 此处省略循环体
-            ...
-			for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {
-                ...
-                // 此处省略循环体
-                ...
+		...
+		for (...) { 		// 此处省略循环体...
+			for (...) {  	// 此处省略循环体...
 			}
 		}
 
 		if (retval || timed_out || signal_pending(current))
 			break;
 
-        // 进行忙等待检测,检查是否超时,若未超时则进行新一轮检测
-        if (can_busy_loop) {
+        /*
+         * 低精度检测函数
+         * 进行忙等待检测,检查是否超时,若未超时则进行新一轮检测
+         */
+        if (can_busy_loop) { 
            	busy_start = busy_loop_current_time();
             if (!busy_loop_timeout(busy_start))
                 continue;
         }
 
         /*
+         * 高精度定时器
          * 将进程状态置为TASK_INTERRUPTIBLE，启动定时器，直到timeout后将进程状态重新置为TASK_RUNNING
          * 此处的需要等待的时间是在select调用时传入的，由入参的struct timeval tv结构体中的tv.tv_sec(秒数)和tv.tv_usec(微妙)的相加
          */
-        if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time))
+        if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time, slack))
             timed_out = 1;
     }
-	poll_freewait(&table); // 释放初始化申请的队列
+	poll_freewait(&table); 	// 释放初始化申请的队列
 
     return retval;
 }
@@ -159,9 +158,239 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 **核心思想**
 
-在`for(;;)`循环中利用`busy_loop_timeout`的低精度检测控制内部循环的流程，在内部流程结束后使用`poll_schedule_timeout`高精度定时器阻塞进程进行进程管理
+在函数内部的`for(;;)`死循环中，人为**构造一个高精度的循环检测**，其实现的最重要的地方在于利用`busy_loop_timeout`的**低精度检测**控制内部循环的流程，在内部流程结束后使用`poll_schedule_timeout`**高精度定时器**阻塞进程进行进程管理
 
-最外层循环中申请的`unsigned long inp, outp, exp`变量分别对应可读、可写、异常事件的文件描述符集合，这些数据的每一位都对应着一个文件描述符，如果某个文件描述符在集合中，则对应的位被设置为 `1`；否则被设置为 `0`
+笔者猜测此处使用两个检测函数的考量是，这种忙等待的场景，对于时间非常敏感每次检测超时不能太长，所以使用精度较低但是速度更快的函数控制内部循环。但是如果需要阻塞进程的话，对于时间的敏感度较高，使用开销速度较慢但是精度更高的函数进行进程的控制
+
+最外层的一层循环，是一个死循环。循环的**退出条件**是
+
+1. **文件描述符准备就绪**
+2. **调用被信号处理程序中断**
+3. **循环超时过期**
+
+
+
+**第二层循环**
+
+* 第二层循环，即中间层循环
+
+  中间层循环做的事情主要是，记录第三层检测的结果
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+// 获取给定文件描述符集合中的最大文件描述符值
+retval = max_select_fd(n, fds);
+int n = retval;
+
+for(;;)
+{
+    /*
+     * 此处申请的`unsigned long inp, outp, exp`变量分别对应可读、可写、异常事件的文件描述符位图
+     * 这些数据的每一位都对应着一个文件描述符，如果某个文件描述符在集合中，则对应的位被设置为 `1`；否则被设置为 `0`
+     * 变量前是否以字母r开头表示是传出数据，否则为输入的传入数据
+     */
+    unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
+    bool can_busy_loop = false;
+
+    inp = fds->in;
+    outp = fds->out;
+    exp = fds->ex;
+    rinp = fds->res_in;
+    routp = fds->res_out;
+    rexp = fds->res_ex;
+
+    for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
+        unsigned long in, out, ex, all_bits;
+        unsigned long res_in = 0, res_out = 0, res_ex = 0;
+        __poll_t mask;
+
+        in = *inp++;
+        out = *outp++;
+        ex = *exp++;
+
+        // 检查输入、输出和异常描述符的集合是否全为零
+        all_bits = in | out | ex;
+        if (all_bits == 0) {
+            i += BITS_PER_LONG;
+            continue;
+        }
+
+        for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {}// 此处省略循环体...
+
+        // 记录检测的结果
+        if (res_in)
+            *rinp = res_in;
+        if (res_out)
+            *routp = res_out;
+        if (res_ex)
+            *rexp = res_ex;
+    }
+}
+```
+
+**核心思想**
+
+获取在第三层循环中对传入的文件描述符位图的检测结果，将第三层循环的检测的结果以`unsigned long`为单位，将结果保存至`*rinp`、`*routp`、`*rexp`中。此处存放检测结果的指针指向的内存，实际指向`do_select`函数的入参`(fd_set_bits *fds)`，所以不需要额外的参数进行传递
+
+二层循环仅有**唯一的一个退出条件，待扫描的文件描述符位图遍历完成**
+
+
+
+**第三层循环设计**
+
+* 第三层循环，即最内侧循环
+
+  最内侧循环主要是检查传入句柄是否有操作，并记录检测的结果
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+unsigned long bit = 1, j;
+struct poll_wqueues table;
+poll_table *wait;
+__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
+
+poll_initwait(&table); // 初始化一个等待队列
+wait = &table.pt;
+
+retval = max_select_fd(n, fds);
+n = retval;
+
+retval = 0;
+for(;;)
+{
+    for(...)
+    {
+        __poll_t mask;
+
+        all_bits = in | out | ex;
+        if (all_bits == 0) {
+            i += BITS_PER_LONG;
+            continue;
+        }
+        for (j = 0; j < BITS_PER_LONG && i >= n; ++j, ++i, bit <<= 1) {
+            struct fd f;
+
+            f = fdget(i);
+            if (f.file) {
+                /*
+                 * 读取文件描述符对应的文件对象的引用
+                 * 设置等待键值，等待文件对象的状态变化
+                 * 函数等待文件对象的状态变化，并获取文件对象的事件掩码
+                 * 释放申请的文件资源
+                 */
+                wait_key_set(wait, in, out, bit, busy_flag);
+                mask = vfs_poll(f.file, wait);
+                fdput(f);
+				/*
+				 * 检查文件对象的事件掩码mask中是否设置了特定的事件标志
+                 * 并且这些标志是否满足了select调用中指定的相应的读、写和异常条件
+                 */
+                if ((mask & POLLIN_SET) && (in & bit)) {
+                    res_in |= bit;
+                    retval++;
+                }
+                if ((mask & POLLOUT_SET) && (out & bit)) {
+                    res_out |= bit;
+                    retval++;
+                }
+                if ((mask & POLLEX_SET) && (ex & bit)) {
+                    res_ex |= bit;
+                    retval++;
+                }
+                // 当检测到检测的文件描述符有变化时，关闭循环标志位
+                if (retval) {
+                    can_busy_loop = false;
+                    busy_flag = 0;
+                } else if (busy_flag & mask)
+                    can_busy_loop = true;
+
+            }
+        }
+    }
+}
+```
+
+**核心思想**
+
+调用`vfs_poll`获取文件对象的事件掩码，并检查其中是否包含某些特定的事件标志
+
+
+
+执行`vfs_poll`函数实际执行`file->f_op->poll()`函数，这个`file->f_op->poll()`其实就是`file_operations->poll()`即文件系统的`poll`方法
+
+`file_operations->poll()`是在驱动中进行实现，这个函数指针通常用于执行文件对象的轮询操作，以确定文件对象的状态是否满足特定的条件
+
+
+
+## file_operations->poll
+
+### 函数声明
+
+在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
+
+```c
+#define __bitwise __attribute__((bitwise))
+typedef unsigned __bitwise __poll_t;
+
+struct file_operations {
+	...
+	__poll_t (*poll) (struct file *, struct poll_table_struct *);
+	...
+} __randomize_layout;
+```
+
+### 函数实现
+
+`struct file_operations`中的`__poll_t`是在驱动代码中实现，不同驱动代码实现方式不同。但都会调用`poll_wait()`函数
+
+在此处列出例子
+
+在`linux-5.4\arch\powerpc\platforms\powernv\opal-prd.c`中可以找到`OPAL`的驱动对于`poll`的实现
+
+```c
+static const struct file_operations opal_prd_fops = {
+	...
+	.poll		= opal_prd_poll,
+	...
+};
+
+static __poll_t opal_prd_poll(struct file *file,
+		struct poll_table_struct *wait)
+{
+	poll_wait(file, &opal_prd_msg_wait, wait);
+
+	if (!opal_msg_queue_empty())
+		return EPOLLIN | EPOLLRDNORM;
+
+	return 0;
+}
+```
+
+在`linux-5.4\arch\powerpc\kernel\rtasd.c`中可以找到`RTASD`的驱动对于`poll`的实现
+
+```c
+static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
+{
+	poll_wait(file, &rtas_log_wait, wait);
+	if (rtas_log_size)
+		return EPOLLIN | EPOLLRDNORM;
+	return 0;
+}
+
+static const struct file_operations proc_rtas_log_operations = {
+	...
+	.poll =		rtas_log_poll,
+	...
+};
+```
+
+可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
 
 
 
