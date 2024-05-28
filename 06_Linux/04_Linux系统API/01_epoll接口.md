@@ -72,11 +72,104 @@
 >
 > 超时过期
 
-### 函数调用栈
+
+
+### 示例代码
+
+监听标准输入，设置超时时间为5S
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/time.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+int main(void)
+{
+	fd_set rfds;
+	struct timeval tv;
+	int retval;
+
+	/* Watch stdin (fd 0) to see when it has input. */
+
+	FD_ZERO(&rfds);
+	FD_SET(0, &rfds);
+
+	/* Wait up to five seconds. */
+
+	tv.tv_sec = 5;
+	tv.tv_usec = 0;
+
+	retval = select(1, &rfds, NULL, NULL, &tv);
+	/* Don't rely on the value of tv now! */
+
+	if (retval == -1)
+		perror("select()");
+	else if (retval)
+		printf("Data is available now.\n");
+		/* FD_ISSET(0, &rfds) will be true. */
+	else
+		printf("No data within five seconds.\n");
+
+	exit(EXIT_SUCCESS);
+}
+```
+
+
+
+### 相关接口
+
+`fd_set`结构定义如下
+
+```c
+#define FD_SETSIZE 256
+typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
+```
+
+`FD_ZERO` 、`FD_SET`、 `FD_CLR`、`FD_ISSET`是 `POSIX` 标准中定义的宏，用于操作文件描述符集合（`fd_set`）。
+
+1. **FD_ZERO：** 这个宏用于将文件描述符集合清零，即清除集合中的所有文件描述符。通常用于初始化文件描述符集合，使其为空集。其原型如下：
+
+   ```c
+   void FD_ZERO(fd_set *set);
+   ```
+
+   其中，`set` 是一个指向 `fd_set` 结构体的指针，表示要清零的文件描述符集合。
+
+2. **FD_SET：** 这个宏用于将一个文件描述符添加到文件描述符集合中。其原型如下：
+
+   ```c
+   void FD_SET(int fd, fd_set *set);
+   ```
+
+   其中，`fd` 是要添加的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要添加文件描述符的文件描述符集合。
+
+3. **FD_CLR：** 用于从文件描述符集合中清除（移除）一个文件描述符。
+
+   ```c
+   void FD_CLR(int fd, fd_set *set);
+   ```
+
+   其中，`fd` 是要清除的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要清除文件描述符的文件描述符集合。
+
+4. **FD_ISSET：** 用于检查文件描述符集合中是否包含某个文件描述符。
+
+   ```c
+   int FD_ISSET(int fd, const fd_set *set);
+   ```
+
+   其中，`fd` 是要检查的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要检查的文件描述符集合。如果文件描述符集合中包含指定的文件描述符，则返回非零值；否则返回零。
+
+
+
+### select函数调用栈
 
 ![01_select函数调用栈](.\img\01_select函数调用栈.png)
 
-### 源码分析
+
+
+#### 源码分析
 
 `select`方法的主要工作可分为3部分：
 
@@ -86,15 +179,124 @@
 
 `select`系统调用，最终的核心逻辑是在`do_select`函数中处理的，源码如下
 
-## do_select函数
+### kern_select函数
+
+计算函数超时时间，然后调用`core_sys_select`执行真正的`select`
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
+		       fd_set __user *exp, struct timeval __user *tvp)
+{
+	struct timespec64 end_time, *to = NULL;
+	struct timeval tv;
+	int ret;
+
+	if (tvp) {
+        // 从用户空间读取设置的超时时间
+		if (copy_from_user(&tv, tvp, sizeof(tv)))
+			return -EFAULT;
+
+		to = &end_time;
+        // 设置函数的的超时时间
+		if (poll_select_set_timeout(to,
+				tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),
+				(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
+			return -EINVAL;
+	}
+
+	ret = core_sys_select(n, inp, outp, exp, to);
+	return poll_select_finish(&end_time, tvp, PT_TIMEVAL, ret);
+}
+```
+
+
+
+### core_sys_select函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
+			   fd_set __user *exp, struct timespec64 *end_time)
+{
+	fd_set_bits fds;
+	void *bits;
+	int max_fds;
+	size_t size, alloc_size;
+	struct fdtable *fdt;
+	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
+
+	fdt = files_fdtable(current->files);
+	// select可监控不能大于进程可打开的文件描述上限
+	max_fds = fdt->max_fds;
+	if (n > max_fds)
+		n = max_fds;
+
+	size = FDS_BYTES(n);
+	bits = stack_fds;
+	// 6个bitmaps对应(int/out/ex)
+	alloc_size = 6 * size;
+	bits = kvmalloc(alloc_size, GFP_KERNEL);
+
+	fds.in      = bits;
+	fds.out     = bits +   size;
+	fds.ex      = bits + 2*size;
+	fds.res_in  = bits + 3*size;
+	fds.res_out = bits + 4*size;
+	fds.res_ex  = bits + 5*size;
+
+	/*
+	 * 拷贝传入的inp、outp、exp的值存入fds的in、out、ex
+	 * 此处是将从用户空间传入的保存，后续传入内核空间
+	 */
+	get_fd_set(n, inp, fds.in);
+	get_fd_set(n, outp, fds.out);
+	get_fd_set(n, exp, fds.ex);
+
+	// 将fds的res_in、res_out、res_ex内容清零
+	zero_fd_set(n, fds.res_in);
+	zero_fd_set(n, fds.res_out);
+	zero_fd_set(n, fds.res_ex);
+
+	do_select(n, &fds, end_time);
+
+	/*
+	 * 使用入参的指针变量将执行后的fds结果传出
+	 * 将fds的res_in、res_out、res_ex结果拷贝到用户空间inp、outp、exp
+	 * 此处是将从内核空间的结果拷贝至用户空间
+	 */
+	set_fd_set(n, inp, fds.res_in);
+	set_fd_set(n, outp, fds.res_out);
+	set_fd_set(n, exp, fds.res_ex);
+
+	if (bits != stack_fds)
+		kvfree(bits);
+
+	return -EFAULT;
+}
+```
+
+**核心思想**
+
+`select`接口使用`fd_set_bits`结构保存记录文件描述符，`core_sys_select`函数中创建对应类型的变量。记录从用户空间传入的待检测文件描述符，使用`do_select`执行实际的监听动作，然后将结果传回用户空间。
+
+> 笔者注：严格地说数据在用户空间和内核空间互相传递并不是在这里完成的，经过`SYSCALL_DEFINE5(select)`的调用后已经进入内核态中。这里只是为方便理解而这样表述
+
+
+
+### do_select函数
 
 **函数核心思想**
 
-函数中，有几个关键的操作：
+函数主要做的事情，遍历传入的文件描述符检查哪些有变化
 
-1. 初始化`poll_wqueues`结构，包括几个关键函数指针的初始化，用于驱动中进行回调处理；
-2. 循环遍历监测的文件描述符，并且调用`f_op->poll()`函数，如果有监测条件满足，则会跳出循环；
-3. 在监测的文件描述符都不满足条件时，`poll_schedule_timeout`让当前进程进行睡眠，超时唤醒，或者被所属的等待队列唤醒；
+**函数整体采用了三层循环的设计，在下文中对这三层循环每一次进行讨论**
 
 **第一层循环**
 
@@ -328,9 +530,9 @@ for(;;)
 
 
 
-## file_operations->poll
+### file_operations->poll
 
-### 函数声明
+#### 函数声明
 
 在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
 
@@ -340,12 +542,15 @@ typedef unsigned __bitwise __poll_t;
 
 struct file_operations {
 	...
+    /* read意为读、write意为写、poll意为检测，探询 */
+    ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
 	__poll_t (*poll) (struct file *, struct poll_table_struct *);
 	...
 } __randomize_layout;
 ```
 
-### 函数实现
+#### 函数实现
 
 `struct file_operations`中的`__poll_t`是在驱动代码中实现，不同驱动代码实现方式不同。但都会调用`poll_wait()`函数
 
@@ -394,82 +599,11 @@ static const struct file_operations proc_rtas_log_operations = {
 
 
 
-### 示例代码
+### select接口小结
 
-监听标准输入，设置超时时间为5S
+`select`接口底层使用`fd_set_bits`结构存储文件描述符位图，这个结构实际是`unsigned long`，将多个文件描述符存储在一起，每一位代表一个文件描述符。在用户配置好需要监听的文件描述符后，由用户空间传入内核空间中，调用内核文件系统提供的poll接口检测是否有变化。在获取到结果后将结果存入`fd_set_bits`结构中再从内核空间传回用户空间。
 
-```c
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/time.h>
-#include <sys/types.h>
-#include <unistd.h>
-
-int main(void)
-{
-	fd_set rfds;
-	struct timeval tv;
-	int retval;
-
-	/* Watch stdin (fd 0) to see when it has input. */
-
-	FD_ZERO(&rfds);
-	FD_SET(0, &rfds);
-
-	/* Wait up to five seconds. */
-
-	tv.tv_sec = 5;
-	tv.tv_usec = 0;
-
-	retval = select(1, &rfds, NULL, NULL, &tv);
-	/* Don't rely on the value of tv now! */
-
-	if (retval == -1)
-		perror("select()");
-	else if (retval)
-		printf("Data is available now.\n");
-		/* FD_ISSET(0, &rfds) will be true. */
-	else
-		printf("No data within five seconds.\n");
-
-	exit(EXIT_SUCCESS);
-}
-```
-### 相关接口
-
-`FD_ZERO` 、`FD_SET`、 `FD_CLR`、`FD_ISSET`是 `POSIX` 标准中定义的宏，用于操作文件描述符集合（`fd_set`）。
-
-1. **FD_ZERO：** 这个宏用于将文件描述符集合清零，即清除集合中的所有文件描述符。通常用于初始化文件描述符集合，使其为空集。其原型如下：
-
-   ```c
-   void FD_ZERO(fd_set *set);
-   ```
-
-   其中，`set` 是一个指向 `fd_set` 结构体的指针，表示要清零的文件描述符集合。
-
-2. **FD_SET：** 这个宏用于将一个文件描述符添加到文件描述符集合中。其原型如下：
-
-   ```c
-   void FD_SET(int fd, fd_set *set);
-   ```
-
-   其中，`fd` 是要添加的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要添加文件描述符的文件描述符集合。
-
-3. **FD_CLR：** 用于从文件描述符集合中清除（移除）一个文件描述符。
-
-   ```c
-   void FD_CLR(int fd, fd_set *set);
-   ```
-
-   其中，`fd` 是要清除的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要清除文件描述符的文件描述符集合。
-
-4. **FD_ISSET：** 用于检查文件描述符集合中是否包含某个文件描述符。
-
-   ```c
-   int FD_ISSET(int fd, const fd_set *set);
-   ```
-
-   其中，`fd` 是要检查的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要检查的文件描述符集合。如果文件描述符集合中包含指定的文件描述符，则返回非零值；否则返回零。
+每一次的检测都需要对传入的位图进行遍历，还需要从用户空间和内核空间之间相互传递数据，同时监听的最大文件描述符受到进程可以打开的最大文件描述符数量限制。
 
 
 
