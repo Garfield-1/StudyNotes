@@ -45,7 +45,7 @@
 
 
 
-## select接口
+## select原理分析
 
 查看man手册可知select函数的作用
 
@@ -522,15 +522,225 @@ for(;;)
 
 调用`vfs_poll`获取文件对象的事件掩码，并检查其中是否包含某些特定的事件标志
 
-
-
 执行`vfs_poll`函数实际执行`file->f_op->poll()`函数，这个`file->f_op->poll()`其实就是`file_operations->poll()`即文件系统的`poll`方法
 
 `file_operations->poll()`是在驱动中进行实现，这个函数指针通常用于执行文件对象的轮询操作，以确定文件对象的状态是否满足特定的条件
 
 
 
-### file_operations->poll
+### select接口小结
+
+`select`接口底层使用`fd_set_bits`结构存储文件描述符位图，这个结构实际是`unsigned long`，将多个文件描述符存储在一起，每一位代表一个文件描述符。在用户配置好需要监听的文件描述符后，由用户空间传入内核空间中，调用内核文件系统提供的poll接口检测是否有变化。在获取到结果后将结果存入`fd_set_bits`结构中再从内核空间传回用户空间。
+
+每一次的检测都需要对传入的位图进行遍历，还需要从用户空间和内核空间之间相互传递数据，同时监听的最大文件描述符受到进程可以打开的最大文件描述符数量限制。
+
+
+
+
+## poll原理分析
+
+### 示例代码
+
+监听标准输入，设置超时时间为5秒
+
+```c
+#include <stdio.h>
+#include <unistd.h>
+#include <poll.h>
+
+int main() {
+    struct pollfd fds[1];
+    int ret;
+
+    fds[0].fd = STDIN_FILENO;  // 标准输入的文件描述符
+    fds[0].events = POLLIN;    // 监听可读事件
+    
+    ret = poll(fds, 1, 5000);  //使用poll函数监听标准输入，设置超时时间为5000 毫秒（5秒）
+
+    if (ret == -1) {
+        perror("poll");
+        return 1;
+    } else if (ret == 0) {
+        printf("5秒内没有事件发生\n");
+    } else {
+        if (fds[0].revents & POLLIN) {
+            printf("标准输入已就绪\n");
+        }
+    }
+    
+    return 0;
+}
+```
+
+
+
+### poll函数调用栈
+
+![02_poll函数调用栈](.\img\02_poll函数调用栈.png)
+
+### do_sys_poll函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct timespec64 *end_time)
+{
+	struct poll_wqueues table;
+	int len;
+	long stack_pps[POLL_STACK_ALLOC/sizeof(long)];
+	struct poll_list *const head = (struct poll_list *)stack_pps;
+ 	struct poll_list *walk = head;
+ 	unsigned long todo = nfds;
+
+	/*
+	 * 创建struct poll_list类型的链表，链表中存放待检测的文件描述符
+	 * 将传入的待检测的文件描述符从用户空间拷贝至内核空间，然后存入链表中
+	 */
+	len = min_t(unsigned int, nfds, N_STACK_PPS);
+	for (;;) {
+		walk->next = NULL;
+		walk->len = len;
+		if (!len)
+			break;
+
+		copy_from_user(walk->entries, ufds + nfds-todo, sizeof(struct pollfd) * walk->len);
+
+		todo -= walk->len;
+		if (!todo)
+			break;
+
+		len = min(todo, POLLFD_PER_PAGE);
+		walk = walk->next = kmalloc(struct_size(walk, entries, len), GFP_KERNEL);
+	}
+	/*
+	 * 初始化poll等待队列
+	 * 执行do_poll检测待检测的文件描述符
+	 * 释放poll等待队列
+	 */
+	poll_initwait(&table);
+	do_poll(head, &table, end_time);
+	poll_freewait(&table);
+
+	/*
+	 * 检测结果存放在单链表中，头节点为head
+	 * 将检测结果从内核空间拷贝至用户空间
+	 */
+	for (walk = head; walk; walk = walk->next) {
+		struct pollfd *fds = walk->entries;
+		for (int j = 0; j < walk->len; j++, ufds++)
+			// __put_user函数，将数据从内核空间拷贝到用户空间
+			if (__put_user(fds[j].revents, &ufds->revents))
+				goto out_fds;
+  	}
+	// 销毁链表
+	walk = head->next;
+	while (walk) {
+		struct poll_list *pos = walk;
+		walk = walk->next;
+		kfree(pos);
+	}
+	return -EFAULT;
+}
+```
+
+**核心思想**
+
+1. 首先创建`struct poll_list`类型的单链表，用于存储待检测的文件描述符
+2. 将待检测的文件描述符从用户空间拷贝至内核空间
+3. 执行`do_poll`进行检测
+4. 将检测结果从内核空间拷贝至用户空间
+
+`poll`接口的整体设计思路与`select`可以说几乎一致，都是先创建对应的数据结构然后从用户空间拷贝待检测的文件描述符，检测完成后再拷贝至内核空间。二者的区别只是在于使用了不同的数据结构，所以也使用不同的处理方式。
+
+
+
+### do_poll函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
+		   struct timespec64 *end_time)
+{
+	poll_table* pt = &wait->pt;
+	ktime_t expire, *to = NULL;
+	int timed_out = 0, count = 0;
+	u64 slack = 0;
+	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
+	unsigned long busy_start = 0;
+
+	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
+		pt->_qproc = NULL;
+		timed_out = 1;
+	}
+
+	if (end_time && !timed_out)
+		slack = select_estimate_accuracy(end_time);
+
+	for (;;) {
+		struct poll_list *walk;
+		bool can_busy_loop = false;
+
+		for (walk = list; walk != NULL; walk = walk->next) {
+			struct pollfd * pfd, * pfd_end;
+
+			pfd = walk->entries;
+			pfd_end = pfd + walk->len;
+			for (; pfd != pfd_end; pfd++) {
+				if (do_pollfd(pfd, pt, &can_busy_loop,
+					      busy_flag)) {
+					count++;
+					pt->_qproc = NULL;
+					busy_flag = 0;
+					can_busy_loop = false;
+				}
+			}
+		}
+
+		pt->_qproc = NULL;
+		if (!count) {
+			count = wait->error;
+			if (signal_pending(current))
+				count = -ERESTARTNOHAND;
+		}
+		if (count || timed_out)
+			break;
+
+		if (can_busy_loop && !need_resched()) {
+			if (!busy_start) {
+				busy_start = busy_loop_current_time();
+				continue;
+			}
+			if (!busy_loop_timeout(busy_start))
+				continue;
+		}
+		busy_flag = 0;
+
+		if (end_time && !to) {
+			expire = timespec64_to_ktime(*end_time);
+			to = &expire;
+		}
+
+		if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, to, slack))
+			timed_out = 1;
+	}
+	return count;
+}
+```
+
+
+
+### do_pollfd函数
+
+### poll接口小结
+
+
+
+## file_operations->poll
 
 #### 函数声明
 
@@ -596,19 +806,6 @@ static const struct file_operations proc_rtas_log_operations = {
 ```
 
 可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
-
-
-
-### select接口小结
-
-`select`接口底层使用`fd_set_bits`结构存储文件描述符位图，这个结构实际是`unsigned long`，将多个文件描述符存储在一起，每一位代表一个文件描述符。在用户配置好需要监听的文件描述符后，由用户空间传入内核空间中，调用内核文件系统提供的poll接口检测是否有变化。在获取到结果后将结果存入`fd_set_bits`结构中再从内核空间传回用户空间。
-
-每一次的检测都需要对传入的位图进行遍历，还需要从用户空间和内核空间之间相互传递数据，同时监听的最大文件描述符受到进程可以打开的最大文件描述符数量限制。
-
-
-
-
-## poll实现原理
 
 
 
