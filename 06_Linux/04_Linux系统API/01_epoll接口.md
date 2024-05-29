@@ -713,6 +713,14 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 }
 ```
 
+**核心思想**
+
+构造一个高精度循环检测
+
+**循环出口：内层循环设置循环结束的标志位**
+
+
+
 **第二第三层循环结构**
 
 内层的第二层第三层循环做的事情主要是，遍历struct poll_list结构的链表，检查对应的文件描述符是否有变化，并将结果填充至链表中
@@ -737,6 +745,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 				if (do_pollfd(pfd, pt, &can_busy_loop, busy_flag)) {
 					count++;
 					pt->_qproc = NULL;
+                    //设置循环结束的标志位
 					busy_flag = 0;
 					can_busy_loop = false;
 				}
