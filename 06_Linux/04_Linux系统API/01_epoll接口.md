@@ -338,11 +338,14 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
          * 低精度检测函数
          * 进行忙等待检测,检查是否超时,若未超时则进行新一轮检测
          */
-        if (can_busy_loop) { 
-           	busy_start = busy_loop_current_time();
-            if (!busy_loop_timeout(busy_start))
-                continue;
-        }
+		if (can_busy_loop) {
+			if (!busy_start) {
+				busy_start = busy_loop_current_time();
+				continue;
+			}
+			if (!busy_loop_timeout(busy_start))
+				continue;
+		}
 
         /*
          * 高精度定时器
@@ -383,52 +386,55 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-// 获取给定文件描述符集合中的最大文件描述符值
-retval = max_select_fd(n, fds);
-int n = retval;
-
-for(;;)
+static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 {
-    /*
-     * 此处申请的`unsigned long inp, outp, exp`变量分别对应可读、可写、异常事件的文件描述符位图
-     * 这些数据的每一位都对应着一个文件描述符，如果某个文件描述符在集合中，则对应的位被设置为 `1`；否则被设置为 `0`
-     * 变量前是否以字母r开头表示是传出数据，否则为输入的传入数据
-     */
-    unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
-    bool can_busy_loop = false;
+    // 获取给定文件描述符集合中的最大文件描述符值
+    retval = max_select_fd(n, fds);
+    int n = retval;
 
-    inp = fds->in;
-    outp = fds->out;
-    exp = fds->ex;
-    rinp = fds->res_in;
-    routp = fds->res_out;
-    rexp = fds->res_ex;
+    for(...)
+    {
+        /*
+         * 此处申请的`unsigned long inp, outp, exp`变量分别对应可读、可写、异常事件的文件描述符位图
+         * 这些数据的每一位都对应着一个文件描述符，如果某个文件描述符在集合中，则对应的位被设置为 `1`；否则被设置为 `0`
+         * 变量前是否以字母r开头表示是传出数据，否则为输入的传入数据
+         */
+        unsigned long *rinp, *routp, *rexp, *inp, *outp, *exp;
+        bool can_busy_loop = false;
 
-    for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
-        unsigned long in, out, ex, all_bits;
-        unsigned long res_in = 0, res_out = 0, res_ex = 0;
-        __poll_t mask;
+        inp = fds->in;
+        outp = fds->out;
+        exp = fds->ex;
+        rinp = fds->res_in;
+        routp = fds->res_out;
+        rexp = fds->res_ex;
 
-        in = *inp++;
-        out = *outp++;
-        ex = *exp++;
+        for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
+            unsigned long in, out, ex, all_bits;
+            unsigned long res_in = 0, res_out = 0, res_ex = 0;
+            __poll_t mask;
 
-        // 检查输入、输出和异常描述符的集合是否全为零
-        all_bits = in | out | ex;
-        if (all_bits == 0) {
-            i += BITS_PER_LONG;
-            continue;
+            in = *inp++;
+            out = *outp++;
+            ex = *exp++;
+
+            // 检查输入、输出和异常描述符的集合是否全为零
+            all_bits = in | out | ex;
+            if (all_bits == 0) {
+                i += BITS_PER_LONG;
+                continue;
+            }
+
+            for (...) {}// 此处省略循环体...
+
+            // 记录检测的结果
+            if (res_in)
+                *rinp = res_in;
+            if (res_out)
+                *routp = res_out;
+            if (res_ex)
+                *rexp = res_ex;
         }
-
-        for (j = 0; j < BITS_PER_LONG; ++j, ++i, bit <<= 1) {}// 此处省略循环体...
-
-        // 记录检测的结果
-        if (res_in)
-            *rinp = res_in;
-        if (res_out)
-            *routp = res_out;
-        if (res_ex)
-            *rexp = res_ex;
     }
 }
 ```
@@ -452,66 +458,68 @@ for(;;)
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-unsigned long bit = 1, j;
-struct poll_wqueues table;
-poll_table *wait;
-__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
-
-poll_initwait(&table); // 初始化一个等待队列
-wait = &table.pt;
-
-retval = max_select_fd(n, fds);
-n = retval;
-
-retval = 0;
-for(;;)
+static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 {
+    unsigned long bit = 1, j;
+    struct poll_wqueues table;
+    poll_table *wait;
+    __poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
+
+    poll_initwait(&table); // 初始化一个等待队列
+    wait = &table.pt;
+
+    retval = max_select_fd(n, fds);
+    n = retval;
+
+    retval = 0;
     for(...)
     {
-        __poll_t mask;
+        for(...)
+        {
+            __poll_t mask;
 
-        all_bits = in | out | ex;
-        if (all_bits == 0) {
-            i += BITS_PER_LONG;
-            continue;
-        }
-        for (j = 0; j < BITS_PER_LONG && i >= n; ++j, ++i, bit <<= 1) {
-            struct fd f;
+            all_bits = in | out | ex;
+            if (all_bits == 0) {
+                i += BITS_PER_LONG;
+                continue;
+            }
+            for (j = 0; j < BITS_PER_LONG && i >= n; ++j, ++i, bit <<= 1) {
+                struct fd f;
 
-            f = fdget(i);
-            if (f.file) {
-                /*
-                 * 读取文件描述符对应的文件对象的引用
-                 * 设置等待键值，等待文件对象的状态变化
-                 * 函数等待文件对象的状态变化，并获取文件对象的事件掩码
-                 * 释放申请的文件资源
-                 */
-                wait_key_set(wait, in, out, bit, busy_flag);
-                mask = vfs_poll(f.file, wait);
-                fdput(f);
-				/*
-				 * 检查文件对象的事件掩码mask中是否设置了特定的事件标志
-                 * 并且这些标志是否满足了select调用中指定的相应的读、写和异常条件
-                 */
-                if ((mask & POLLIN_SET) && (in & bit)) {
-                    res_in |= bit;
-                    retval++;
+                f = fdget(i);
+                if (f.file) {
+                    /*
+                     * fdget()读取文件描述符对应的文件对象的引用
+                     * wait_key_set()设置等待键值，等待文件对象的状态变化
+                     * vfs_poll()函数检查文件对象的状态变化，并获取文件对象的事件掩码
+                     * fdput()释放申请的文件资源
+                     */
+                    wait_key_set(wait, in, out, bit, busy_flag);
+                    mask = vfs_poll(f.file, wait);
+                    fdput(f);
+                    /*
+                     * 检查文件对象的事件掩码mask中是否设置了特定的事件标志
+                     * 并且这些标志是否满足了select调用中指定的相应的读、写和异常条件
+                     */
+                    if ((mask & POLLIN_SET) && (in & bit)) {
+                        res_in |= bit;
+                        retval++;
+                    }
+                    if ((mask & POLLOUT_SET) && (out & bit)) {
+                        res_out |= bit;
+                        retval++;
+                    }
+                    if ((mask & POLLEX_SET) && (ex & bit)) {
+                        res_ex |= bit;
+                        retval++;
+                    }
+                    // 当检测到检测的文件描述符有变化时，关闭循环标志位
+                    if (retval) {
+                        can_busy_loop = false;
+                        busy_flag = 0;
+                    } else if (busy_flag & mask)
+                        can_busy_loop = true;
                 }
-                if ((mask & POLLOUT_SET) && (out & bit)) {
-                    res_out |= bit;
-                    retval++;
-                }
-                if ((mask & POLLEX_SET) && (ex & bit)) {
-                    res_ex |= bit;
-                    retval++;
-                }
-                // 当检测到检测的文件描述符有变化时，关闭循环标志位
-                if (retval) {
-                    can_busy_loop = false;
-                    busy_flag = 0;
-                } else if (busy_flag & mask)
-                    can_busy_loop = true;
-
             }
         }
     }
@@ -658,59 +666,37 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct tim
 
 ### do_poll函数
 
+`do_poll`的设计为三层循环嵌套的结构。外侧循环构建了一个高精度定时循环，内层循环则用于检测和填充文件描述符链表
+
+**第一层循环结构**
+
+外层循环构建了一个高精度定时循环，其设计与`select`几乎一致，详细**参见前文中`do_select`函数一节**
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
-		   struct timespec64 *end_time)
+static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct timespec64 *end_time)
 {
-	poll_table* pt = &wait->pt;
-	ktime_t expire, *to = NULL;
 	int timed_out = 0, count = 0;
 	u64 slack = 0;
-	__poll_t busy_flag = net_busy_loop_on() ? POLL_BUSY_LOOP : 0;
 	unsigned long busy_start = 0;
-
-	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
-		pt->_qproc = NULL;
-		timed_out = 1;
-	}
-
-	if (end_time && !timed_out)
-		slack = select_estimate_accuracy(end_time);
+	
+    // 计算高精度定时器的误差值
+	slack = select_estimate_accuracy(end_time);
 
 	for (;;) {
 		struct poll_list *walk;
 		bool can_busy_loop = false;
 
-		for (walk = list; walk != NULL; walk = walk->next) {
-			struct pollfd * pfd, * pfd_end;
+		for (...) {}//此处省略循环体
 
-			pfd = walk->entries;
-			pfd_end = pfd + walk->len;
-			for (; pfd != pfd_end; pfd++) {
-				if (do_pollfd(pfd, pt, &can_busy_loop,
-					      busy_flag)) {
-					count++;
-					pt->_qproc = NULL;
-					busy_flag = 0;
-					can_busy_loop = false;
-				}
-			}
-		}
-
-		pt->_qproc = NULL;
-		if (!count) {
-			count = wait->error;
-			if (signal_pending(current))
-				count = -ERESTARTNOHAND;
-		}
 		if (count || timed_out)
 			break;
-
-		if (can_busy_loop && !need_resched()) {
+		
+        // 检查忙本轮等待是否超时
+		if (can_busy_loop) {
 			if (!busy_start) {
 				busy_start = busy_loop_current_time();
 				continue;
@@ -718,31 +704,105 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait,
 			if (!busy_loop_timeout(busy_start))
 				continue;
 		}
-		busy_flag = 0;
-
-		if (end_time && !to) {
-			expire = timespec64_to_ktime(*end_time);
-			to = &expire;
-		}
-
-		if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, to, slack))
+		
+        // 将进程置为TASK_INTERRUPTIBLE阻塞，直到timeout后将进程状态重新置为TASK_RUNNING
+		if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time, slack))
 			timed_out = 1;
 	}
 	return count;
 }
 ```
 
+**第二第三层循环结构**
+
+内层的第二层第三层循环做的事情主要是，遍历struct poll_list结构的链表，检查对应的文件描述符是否有变化，并将结果填充至链表中
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct timespec64 *end_time)
+{
+	for (...) {
+        struct poll_list *walk;
+        bool can_busy_loop = false;
+
+		for (walk = list; walk != NULL; walk = walk->next) {
+			struct pollfd * pfd, * pfd_end;
+
+			pfd = walk->entries;
+			pfd_end = pfd + walk->len;
+			for (; pfd != pfd_end; pfd++) {
+				if (do_pollfd(pfd, pt, &can_busy_loop, busy_flag)) {
+					count++;
+					pt->_qproc = NULL;
+					busy_flag = 0;
+					can_busy_loop = false;
+				}
+			}
+		}
+	}
+}
+```
+
+**核心思想**
+
+遍历链表，检测链表中的每一个元素的文件描述符
+
+**循环出口：链表遍历结束**
+
 
 
 ### do_pollfd函数
 
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
+							bool *can_busy_poll)
+{
+	int fd = pollfd->fd;
+	__poll_t mask = 0, filter;
+	struct fd f;
+
+	mask = EPOLLNVAL;
+	f = fdget(fd);
+
+	filter = demangle_poll(pollfd->events) | EPOLLERR | EPOLLHUP);
+	pwait->_key = filter;
+	mask = vfs_poll(f.file, pwait);//检查文件对象的状态变化，并获取文件对象的事件掩码
+	if (mask)
+		*can_busy_poll = true;
+	mask &= filter;					// 只保留返回结果中与filter对应的部分
+	fdput(f);
+
+	pollfd->revents = mangle_poll(mask);
+	return mask;
+}
+```
+
+**核心思想**
+
+`do_pollfd`函数的核心逻辑是调用`vfs_poll()`对待检查文件描述符是否发生变化，执行`vfs_poll`函数实际执行`file->f_op->poll()`函数，这个`file->f_op->poll()`其实就是`file_operations->poll()`即文件系统的`poll`方法
+
+`file_operations->poll()`是在驱动中进行实现，这个函数指针通常用于执行文件对象的轮询操作，以确定文件对象的状态是否满足特定的条件
+
+
+
 ### poll接口小结
 
+`poll`和`select`的原理几乎一致，都是将需要监听的文件描述符传入内核，然后调用`file_operations->poll`接口去检测，底层都是依赖内核的文件系统实现。二者不同的地方在于`select`是构造了一个位图然后，然后在位图中填充文件描述符，`poll`则是使用单链表。但两者的效率并没有太大的区别
+
+由于每次的检测都会涉及到数据在用户空间到内核空间之间的来回拷贝，而且每次检测遍历所有的文件描述符，所以其效率并不高。
 
 
-## file_operations->poll
 
-#### 函数声明
+## file_operations->poll接口
+
+### 函数声明
 
 在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
 
@@ -760,7 +820,7 @@ struct file_operations {
 } __randomize_layout;
 ```
 
-#### 函数实现
+### 函数实现
 
 `struct file_operations`中的`__poll_t`是在驱动代码中实现，不同驱动代码实现方式不同。但都会调用`poll_wait()`函数
 
