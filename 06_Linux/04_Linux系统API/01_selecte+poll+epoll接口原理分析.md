@@ -12,13 +12,6 @@
 
 > 笔者注：本文中出现的相关接口源代码均引用自**Linux 5.4**版本源码
 
-## epoll是什么
-
-`epoll`是一种`I/O`事件通知机制，是`linux`内核实现`IO`多路复用的一个实现。
- `IO`多路复用是指，在一个操作里同时监听多个输入输出源，在其中一个或多个输入输出源可用的时候返回，然后对其的进行读写操作。
-
-`epoll`的通俗解释是一种当文件描述符的内核缓冲区非空的时候，发出可读信号进行通知，当写缓冲区不满的时候，发出可写信号通知的机制
-
 
 
 ## 发展历史
@@ -562,7 +555,7 @@ int main() {
 
     fds[0].fd = STDIN_FILENO;  // 标准输入的文件描述符
     fds[0].events = POLLIN;    // 监听可读事件
-    
+
     ret = poll(fds, 1, 5000);  //使用poll函数监听标准输入，设置超时时间为5000 毫秒（5秒）
 
     if (ret == -1) {
@@ -575,7 +568,7 @@ int main() {
             printf("标准输入已就绪\n");
         }
     }
-    
+
     return 0;
 }
 ```
@@ -682,7 +675,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 	int timed_out = 0, count = 0;
 	u64 slack = 0;
 	unsigned long busy_start = 0;
-	
+
     // 计算高精度定时器的误差值
 	slack = select_estimate_accuracy(end_time);
 
@@ -694,7 +687,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 		if (count || timed_out)
 			break;
-		
+
         // 检查忙本轮等待是否超时
 		if (can_busy_loop) {
 			if (!busy_start) {
@@ -704,7 +697,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 			if (!busy_loop_timeout(busy_start))
 				continue;
 		}
-		
+
         // 将进程置为TASK_INTERRUPTIBLE阻塞，直到timeout后将进程状态重新置为TASK_RUNNING
 		if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time, slack))
 			timed_out = 1;
@@ -879,6 +872,13 @@ static const struct file_operations proc_rtas_log_operations = {
 
 
 ## epoll实现原理
+
+### epoll是什么
+
+`epoll`是一种`I/O`事件通知机制，是`linux`内核实现`IO`多路复用的一个实现。
+ `IO`多路复用是指，在一个操作里同时监听多个输入输出源，在其中一个或多个输入输出源可用的时候返回，然后对其的进行读写操作。
+
+`epoll`的通俗解释是一种当文件描述符的内核缓冲区非空的时候，发出可读信号进行通知，当写缓冲区不满的时候，发出可写信号通知的机制
 
 
 
