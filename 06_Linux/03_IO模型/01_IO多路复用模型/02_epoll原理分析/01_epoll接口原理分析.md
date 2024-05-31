@@ -1,10 +1,6 @@
 # epoll原理
 
-> 参考文档：https://www.cnblogs.com/Hijack-you/p/13057792.html
->
-> [【原创】Linux select/poll机制原理分析 - LoyenWang - 博客园 (cnblogs.com)](https://www.cnblogs.com/LoyenWang/p/12622904.html)
->
-> [源码解读poll/select内核机制 - Gityuan博客 | 袁辉辉的技术博客](https://gityuan.com/2019/01/05/linux-poll-select/)
+> 参考文档：
 >
 > [【Linux深入】epoll源码剖析_epoll剖析-CSDN博客](https://blog.csdn.net/baiye_xing/article/details/76352935)
 >
