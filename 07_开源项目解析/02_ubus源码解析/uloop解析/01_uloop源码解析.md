@@ -53,10 +53,10 @@
 ```c
 struct uloop_timeout
 {
-    struct list_head list; //链表节点
-    bool pending;      //添加一个新的timeout pending是true， false删除该节点timeout
+    struct list_head list;    //链表节点
+    bool pending;      		  //添加一个新的timeout pending是true， false删除该节点timeout
     uloop_timeout_handler cb; //超时处理函数
-    struct timeval time;   //超时时间
+    struct timeval time;      //超时时间
 };
 ```
 
@@ -114,7 +114,7 @@ struct uloop_timeout
 
 struct uloop_timeout timeout;	//创建uloop_timeout全局变量
  
-int frequency = 5; //每隔5秒超时一次
+int frequency = 5; 				//每隔5秒超时一次
  
 static void timeout_cb(struct uloop_timeout *t)
 {
@@ -148,11 +148,11 @@ int main()
 struct uloop_fd
 {
     uloop_fd_handler cb; /*文件描述符对应的处理函数 */
-    int fd;       /*文件描述符*/
-    bool eof;      /*EOF*/
-    bool error;     /*出错*/
-    bool registered;   /*是否已经添加到epoll的监控队列*/
-    uint8_t flags;    /*ULOOP_READ | ULOOP_WRITE | ULOOP_BLOCKING等*/ 
+    int fd;       		 /*文件描述符*/
+    bool eof;      		 /*EOF*/
+    bool error;     	 /*出错*/
+    bool registered;     /*是否已经添加到epoll的监控队列*/
+    uint8_t flags;    	 /*ULOOP_READ | ULOOP_WRITE | ULOOP_BLOCKING等*/ 
 };
 ```
 
@@ -184,7 +184,7 @@ struct uloop_process
     struct list_head list;       
     bool pending;         
     uloop_process_handler cb; /** 文件描述符， 调用者初始化 */
-    pid_t pid;         /** 文件描述符， 调用者初始化 */
+    pid_t pid;         		  /** 文件描述符， 调用者初始化 */
 };
 ```
 
