@@ -146,7 +146,7 @@ typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
 
 ### select函数调用栈
 
-![01_select函数调用栈](.\img\01_select函数调用栈.png)
+<img src=".\img\01_select函数调用栈.png" alt="01_select函数调用栈" />
 
 **整体流程分析**
 
@@ -551,7 +551,7 @@ int main() {
 
 ### poll函数调用栈
 
-![02_poll函数调用栈](.\img\02_poll函数调用栈.png)
+<img src=".\img\02_poll函数调用栈.png" alt="02_poll函数调用栈" />
 
 ### do_sys_poll函数
 

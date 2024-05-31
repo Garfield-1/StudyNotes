@@ -12,12 +12,12 @@
 * `ulimit -c unlimited` 不限制生成core文件大小
 * `ulimit -c 0` 关闭`core`文件生成开关
 * `ulimit -c 1024` 限定生成`core`文件的大小为`1024kb`
-![Alt text](image/02_ulimit -a.png)
+<img src="image/02_ulimit -a.png" alt="Alt text" />
 
 ## 3.设置coredump文件大小
 
 1. 修改`/etc/security/limits.conf`修改系统对`coredump`文件大小限制；有`soft`，`hard`和-，`soft`指的是当前系统生效的设置值，软限制也可以理解为警告值。`hard`表明系统中所能设定的最大值;`soft`的限制不能比hard限制高
-![Alt text](image/01_coredump文件设置_文件大小.png)
+<img src="image/01_coredump文件设置_文件大小.png" alt="Alt text" />
 
 1. 在终端中输入`ulimit -c 文件大小`临时设置`coredump`文件大小
 
@@ -63,7 +63,7 @@
     ```
 
 2. 使用coredump文件命令为`gdb 引发coredump文件 core文件` 
-![Alt text](image/04_生成coredump文件.png)  
+<img src="image/04_生成coredump文件.png" alt="Alt text" />  
 
 3. 然后输入`bt`查看函数调用栈 
-![Alt text](image/03_解析coredump文件.png)
+<img src="image/03_解析coredump文件.png" alt="Alt text" />

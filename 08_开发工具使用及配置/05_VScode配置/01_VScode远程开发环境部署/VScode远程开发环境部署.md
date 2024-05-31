@@ -14,11 +14,11 @@ VScode插件市场
 
 * 下载下图中的`Remote - SSH`和`Remote - SSH: Editing Configuration Files`插件并安装,配置对应ssh连接
 
-![图8_VSCode SSH插件](./image/图8_VSCode SSH插件.png)
+<img src="./image/图8_VSCode SSH插件.png" alt="图8_VSCode SSH插件" />
 
 * 连接建立后会在~/.vscode-server目录下生成一个与本地VS Code提交序号名称相同的文件夹,内部存放着远程SSH连接相关配置文件
 
-![图9_ VSCode关于](./image/图9_ VSCode关于.png)
+<img src="./image/图9_ VSCode关于.png" alt="图9_ VSCode关于" />
 
 * 若出现连接时一直处于加载状态
 
@@ -51,19 +51,19 @@ VScode插件市场
 
   为VS Code提供本地汉化界面
 
-  ![图1_简体中文汉化包](./image/图1_简体中文汉化包.png)
+  <img src="./image/图1_简体中文汉化包.png" alt="图1_简体中文汉化包" />
 
 * Git History
 
   查看Git提交历史记录
 
-  ![图2_Git History插件](./image/图2_Git History插件.png)
+  <img src="./image/图2_Git History插件.png" alt="图2_Git History插件" />
 
 * GitLens
 
   提供强大的Git管理功能
 
-![图3_GitLens](./image/图3_GitLens.png)
+<img src="./image/图3_GitLens.png" alt="图3_GitLens" />
 
 ##  6. vscode使用图形化界面GDB调试
 
@@ -112,13 +112,13 @@ VScode插件市场
 
   例如可在监视中手动添加`*r@10`来监视数组r的前10位元素
 
-  ![图11_监视数组内容](.\image\图11_监视数组内容.png)
+  <img src=".\image\图11_监视数组内容.png" alt="图11_监视数组内容" />
 
 ##  7. 调试标注库函数
 
    * 在调试时如果单步执行遇到库函数`srand(time(NULL));`则GDB会提示无法加载源文件
 
-     ![图4_无法加载源文件](./image/图4_无法加载源文件.png)
+     <img src="./image/图4_无法加载源文件.png" alt="图4_无法加载源文件" />
 
    * 此时代码中的`time(NULL)`函数指向libc.so.6库，由于在GDB配置路径中不存在对应版本的glibc源代码所以无法正常跳转至函数定义处
 
@@ -128,4 +128,4 @@ VScode插件市场
 
    * 下载对应版本的glibc源代码，并将源代码目录放在配置文件中的`"cwd": "${workspaceFolder}/glibc-2.31",`中，此时再使用gdb调试遇到库函数时便会跳转至glibc源码中对应的函数实现
 
-![图10_time函数](./image/图10_time函数.png)
+<img src="./image/图10_time函数.png" alt="图10_time函数" />
