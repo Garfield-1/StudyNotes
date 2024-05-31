@@ -32,12 +32,6 @@
 
 
 
-## 可以做什么
-
-简单来说，`select/poll`能监听多个设备的文件描述符，只要有任何一个设备满足条件，`select/poll`就会返回，否则将进行睡眠等待。
-
-
-
 ## select原理分析
 
 查看man手册可知select函数的作用
@@ -64,8 +58,6 @@
 > 调用被信号处理程序中断;
 >
 > 超时过期
-
-
 
 ### 示例代码
 
@@ -108,8 +100,6 @@ int main(void)
 	exit(EXIT_SUCCESS);
 }
 ```
-
-
 
 ### 相关接口
 
@@ -154,13 +144,9 @@ typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
 
    其中，`fd` 是要检查的文件描述符，`set` 是一个指向 `fd_set` 结构体的指针，表示要检查的文件描述符集合。如果文件描述符集合中包含指定的文件描述符，则返回非零值；否则返回零。
 
-
-
 ### select函数调用栈
 
 ![01_select函数调用栈](.\img\01_select函数调用栈.png)
-
-
 
 #### 源码分析
 
@@ -205,8 +191,6 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 	return poll_select_finish(&end_time, tvp, PT_TIMEVAL, ret);
 }
 ```
-
-
 
 ### core_sys_select函数
 
@@ -280,8 +264,6 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 `select`接口使用`fd_set_bits`结构保存记录文件描述符，`core_sys_select`函数中创建对应类型的变量。记录从用户空间传入的待检测文件描述符，使用`do_select`执行实际的监听动作，然后将结果传回用户空间。
 
 > 笔者注：严格地说数据在用户空间和内核空间互相传递并不是在这里完成的，经过`SYSCALL_DEFINE5(select)`的调用后已经进入内核态中。这里只是为方便理解而这样表述
-
-
 
 ### do_select函数
 
@@ -366,8 +348,6 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 2. **调用被信号处理程序中断**
 3. **循环超时过期**
 
-
-
 **第二层循环**
 
 * 第二层循环，即中间层循环
@@ -437,8 +417,6 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 获取在第三层循环中对传入的文件描述符位图的检测结果，将第三层循环的检测的结果以`unsigned long`为单位，将结果保存至`*rinp`、`*routp`、`*rexp`中。此处存放检测结果的指针指向的内存，实际指向`do_select`函数的入参`(fd_set_bits *fds)`，所以不需要额外的参数进行传递
 
 二层循环仅有**唯一的一个退出条件，待扫描的文件描述符位图遍历完成**
-
-
 
 **第三层循环设计**
 
@@ -527,8 +505,6 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 `file_operations->poll()`是在驱动中进行实现，这个函数指针通常用于执行文件对象的轮询操作，以确定文件对象的状态是否满足特定的条件
 
-
-
 ### select接口小结
 
 `select`接口底层使用`fd_set_bits`结构存储文件描述符位图，这个结构实际是`unsigned long`，将多个文件描述符存储在一起，每一位代表一个文件描述符。在用户配置好需要监听的文件描述符后，由用户空间传入内核空间中，调用内核文件系统提供的poll接口检测是否有变化。在获取到结果后将结果存入`fd_set_bits`结构中再从内核空间传回用户空间。
@@ -572,8 +548,6 @@ int main() {
     return 0;
 }
 ```
-
-
 
 ### poll函数调用栈
 
@@ -655,8 +629,6 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct tim
 
 `poll`接口的整体设计思路与`select`可以说几乎一致，都是先创建对应的数据结构然后从用户空间拷贝待检测的文件描述符，检测完成后再拷贝至内核空间。二者的区别只是在于使用了不同的数据结构，所以也使用不同的处理方式。
 
-
-
 ### do_poll函数
 
 `do_poll`的设计为三层循环嵌套的结构。外侧循环构建了一个高精度定时循环，内层循环则用于检测和填充文件描述符链表
@@ -712,8 +684,6 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 **循环出口：内层循环设置循环结束的标志位**
 
-
-
 **第二第三层循环结构**
 
 内层的第二层第三层循环做的事情主要是，遍历struct poll_list结构的链表，检查对应的文件描述符是否有变化，并将结果填充至链表中
@@ -754,8 +724,6 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 **循环出口：链表遍历结束**
 
-
-
 ### do_pollfd函数
 
 **核心逻辑如下**
@@ -791,8 +759,6 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 `do_pollfd`函数的核心逻辑是调用`vfs_poll()`对待检查文件描述符是否发生变化，执行`vfs_poll`函数实际执行`file->f_op->poll()`函数，这个`file->f_op->poll()`其实就是`file_operations->poll()`即文件系统的`poll`方法
 
 `file_operations->poll()`是在驱动中进行实现，这个函数指针通常用于执行文件对象的轮询操作，以确定文件对象的状态是否满足特定的条件
-
-
 
 ### poll接口小结
 
