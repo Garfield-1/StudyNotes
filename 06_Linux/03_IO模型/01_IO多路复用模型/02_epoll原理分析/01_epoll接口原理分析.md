@@ -103,9 +103,173 @@ cleanup:
 }
 ```
 
-## 创建epoll实例
 
-epoll_create1
+
+## epoll核心数据结构
+
+### struct epitem
+
+```c
+/*
+ * Each file descriptor added to the eventpoll interface will
+ * have an entry of this type linked to the "rbr" RB tree.
+ * Avoid increasing the size of this struct, there can be many thousands
+ * of these on a server and we do not want this to take another cache line.
+ */
+struct epitem {
+	union {
+		/* RB tree node links this structure to the eventpoll RB tree */
+		struct rb_node rbn;
+		/* Used to free the struct epitem */
+		struct rcu_head rcu;
+	};
+	/* List header used to link this structure to the eventpoll ready list */
+	struct list_head rdllink;
+	/*
+	 * Works together "struct eventpoll"->ovflist in keeping the
+	 * single linked chain of items.
+	 */
+	struct epitem *next;
+	/* The file descriptor information this item refers to */
+	struct epoll_filefd ffd;
+	/* Number of active wait queue attached to poll operations */
+	int nwait;
+	/* List containing poll wait queues */
+	struct list_head pwqlist;
+	/* The "container" of this item */
+	struct eventpoll *ep;
+	/* List header used to link this item to the "struct file" items list */
+	struct list_head fllink;
+	/* wakeup_source used when EPOLLWAKEUP is set */
+	struct wakeup_source __rcu *ws;
+	/* The structure that describe the interested events and the source fd */
+	struct epoll_event event;
+};
+```
+
+### struct eppoll_entry
+
+```c
+/* Wait structure used by the poll hooks */
+struct eppoll_entry {
+	/* List header used to link this structure to the "struct epitem" */
+	struct list_head llink;
+
+	/* The "base" pointer is set to the container "struct epitem" */
+	struct epitem *base;
+
+	/*
+	 * Wait queue item that will be linked to the target file wait
+	 * queue head.
+	 */
+	wait_queue_entry_t wait;
+
+	/* The wait queue head that linked the "wait" wait queue item */
+	wait_queue_head_t *whead;
+};
+```
+
+
+
+## epoll初始化接口
+
+### eventpoll_init函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/*
+ * Configuration options available inside /proc/sys/fs/epoll/
+ * Maximum number of epoll watched descriptors, per user
+ */
+static long max_user_watches __read_mostly;
+
+static int __init eventpoll_init(void)
+{
+	struct sysinfo si;
+	
+    // 设置最大epoll watches数量
+	si_meminfo(&si);
+	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) / EP_ITEM_COST;
+
+    // 初始化递归检查队列 
+	ep_nested_calls_init(&poll_loop_ncalls);
+	ep_nested_calls_init(&poll_safewake_ncalls);
+
+    // 分配epitem和eppoll_entry的slab的缓存
+	epi_cache = kmem_cache_create("eventpoll_epi", sizeof(struct epitem),
+			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
+	pwq_cache = kmem_cache_create("eventpoll_pwq",
+		sizeof(struct eppoll_entry), 0, SLAB_PANIC|SLAB_ACCOUNT, NULL);
+
+	return 0;
+}
+
+// 内核文件系统初始化阶段执行
+fs_initcall(eventpoll_init);
+```
+
+
+
+## 创建epoll实例接口
+
+`epoll_create1`和`epoll_create`接口均可用于创建`epoll`实例，不同的是`epoll_create1`可以多传入一个参数
+
+```c
+SYSCALL_DEFINE1(epoll_create1, int, flags)
+{
+	return do_epoll_create(flags);
+}
+
+SYSCALL_DEFINE1(epoll_create, int, size)
+{
+	if (size <= 0)
+		return -EINVAL;
+
+	return do_epoll_create(0);
+}
+```
+
+### do_epoll_create函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/* File callbacks that implement the eventpoll file behaviour */
+static const struct file_operations eventpoll_fops = {
+	.show_fdinfo	= ep_show_fdinfo,
+	.release	= ep_eventpoll_release,
+	.poll		= ep_eventpoll_poll,
+	.llseek		= noop_llseek,
+};
+
+static int do_epoll_create(int flags)
+{
+	int error, fd;
+	struct eventpoll *ep = NULL;
+	struct file *file;
+
+	ep_alloc(&ep);
+
+   	// 获取一个可读可写的未被使用的文件描述符
+	fd = get_unused_fd_flags(O_RDWR | (flags & O_CLOEXEC));
+    //创建一个匿名的inode节点
+	file = anon_inode_getfile("[eventpoll]", &eventpoll_fops, ep, O_RDWR | (flags & O_CLOEXEC));
+
+    ep->file = file;
+	fd_install(fd, file);
+
+	return fd;
+}
+```
+
+**核心思想**
+
+创建一个匿名的`inode`节点，这个文件对象通常不对应于实际的文件系统中的任何文件，因此被称为匿名`inode`。它被用作`epoll`实例的文件描述符，通过这个文件描述符，用户空间程序可以对`epoll`实例进行`I/O`操作。并返回与之关联的文件描述符
 
 
 
