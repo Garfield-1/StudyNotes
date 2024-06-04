@@ -200,7 +200,7 @@ struct epitem {
 
 ### struct eppoll_entry
 
-每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生
+每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
 
 ```c
 /* Wait structure used by the poll hooks */
