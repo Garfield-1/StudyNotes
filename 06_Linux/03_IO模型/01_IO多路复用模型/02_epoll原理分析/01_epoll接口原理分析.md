@@ -224,7 +224,7 @@ struct eppoll_entry {
 
 
 
-## epoll初始化接口
+## epoll初始化
 
 ### eventpoll_init函数
 
@@ -323,6 +323,78 @@ static int do_epoll_create(int flags)
 **核心思想**
 
 创建一个匿名的`inode`节点，这个文件对象通常不对应于实际的文件系统中的任何文件，因此被称为匿名`inode`。它被用作`epoll`实例的文件描述符，通过这个文件描述符，用户空间程序可以对`epoll`实例进行`I/O`操作。并返回与之关联的文件描述符
+
+
+
+## 新增监听句柄
+
+### epoll_crl函数
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/*
+ * The following function implements the controller interface for
+ * the eventpoll file that enables the insertion/removal/change of
+ * file descriptors inside the interest set.
+ */
+SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
+		struct epoll_event __user *, event)
+{
+	int error;
+	int full_check = 0;
+	struct fd f, tf;
+	struct eventpoll *ep;
+	struct epitem *epi;
+	struct epoll_event epds;
+
+	if (ep_op_has_event(op))
+	    copy_from_user(&epds, event, sizeof(struct epoll_event));
+
+	if (ep_op_has_event(op))
+		ep_take_care_of_epollwakeup(&epds);
+
+    f = fdget(epfd);
+	ep = f.file->private_data;
+
+    tf = fdget(fd);
+	if (op == EPOLL_CTL_ADD) {
+		if (!list_empty(&f.file->f_ep_links) || is_file_epoll(tf.file)) {
+			full_check = 1;
+            list_add(&tf.file->f_tfile_llink, &tfile_check_list);
+		}
+	}
+
+	epi = ep_find(ep, tf.file, fd);
+
+	switch (op) {
+	case EPOLL_CTL_ADD:
+        epds.events |= EPOLLERR | EPOLLHUP;
+        error = ep_insert(ep, &epds, tf.file, fd, full_check);
+        if (full_check)
+            clear_tfile_check_list();
+		break;
+	case EPOLL_CTL_DEL:
+        error = ep_remove(ep, epi);
+		break;
+	case EPOLL_CTL_MOD:
+        if (!(epi->event.events & EPOLLEXCLUSIVE)) {
+            epds.events |= EPOLLERR | EPOLLHUP;
+            error = ep_modify(ep, epi, &epds);
+        }
+		break;
+	}
+	
+    fdput(tf);
+	fdput(f);
+
+	return error;
+}
+```
+
+**核心思想**
 
 
 
