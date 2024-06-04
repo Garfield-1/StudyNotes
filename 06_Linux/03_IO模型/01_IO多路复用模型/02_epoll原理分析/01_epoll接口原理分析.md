@@ -4,6 +4,8 @@
 >
 > [【Linux深入】epoll源码剖析_epoll剖析-CSDN博客](https://blog.csdn.net/baiye_xing/article/details/76352935)
 >
+> [epoll源码深度剖析 - 坚持，每天进步一点点 - 博客园 (cnblogs.com)](https://www.cnblogs.com/mysky007/p/12284842.html)
+>
 > [Linux 5.4源码下载](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
@@ -107,47 +109,98 @@ cleanup:
 
 ## epoll核心数据结构
 
-### struct epitem
+### struct eventpoll
+
+这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`epoll_create`创建的匿名文件`file`的`private_data`字段中
 
 ```c
-/*
- * Each file descriptor added to the eventpoll interface will
- * have an entry of this type linked to the "rbr" RB tree.
- * Avoid increasing the size of this struct, there can be many thousands
- * of these on a server and we do not want this to take another cache line.
- */
+struct eventpoll {
+	/* 互斥锁 */
+	struct mutex mtx;
+
+	/* 等待队列，执行epoll_Wait加入等待队列*/
+	wait_queue_head_t wq;
+
+	/* 
+	 * 等待队列的file->poll()
+     * 这个队列里存放的是该eventloop作为poll对象的一个实例，加入到等待的队列
+	 * 这是因为eventpoll本身也是一个file, 所以也会有poll操作
+	 */
+	wait_queue_head_t poll_wait;
+
+	/* 就绪链表 */
+	struct list_head rdllist;
+
+    /* 用于rdllist和ovflist的读写锁 */
+	rwlock_t lock;
+
+    /* 指向被检视对象存储的红黑树 */
+	struct rb_root_cached rbr;
+
+	/* 把数据拷贝至用户空间时溢出的数据 */
+	struct epitem *ovflist;
+	struct wakeup_source *ws;
+
+	/* 创建eventpoll描述符的用户 */
+	struct user_struct *user;
+	
+    /* eventloop对应的匿名文件 */
+	struct file *file;
+
+    /* used to optimize loop detection check */
+	int visited;
+	struct list_head visited_list_link;
+
+	/* 用于追踪忙poll的napi_id */
+	unsigned int napi_id;
+};
+```
+
+### struct epitem
+
+每当我们调用`epoll_ctl`增加一个`fd`时，内核就会为我们创建出一个`epitem`实例，并且把这个实例作为红黑树的一个子节点，增加到`eventpoll`结构体中的红黑树中，对应的字段是`rbr`。这之后，查找每一个`fd`上是否有事件发生都是通过红黑树上的`epitem`来操作
+
+```c
 struct epitem {
 	union {
-		/* RB tree node links this structure to the eventpoll RB tree */
+		/* 红黑树节点将此结构链接到eventpoll红黑树 */
 		struct rb_node rbn;
-		/* Used to free the struct epitem */
+		/* RCU头部，用于释放struct epitem */
 		struct rcu_head rcu;
 	};
-	/* List header used to link this structure to the eventpoll ready list */
+
+    /* 挂载到eventpoll->rdllist的节点  */
 	struct list_head rdllink;
-	/*
-	 * Works together "struct eventpoll"->ovflist in keeping the
-	 * single linked chain of items.
-	 */
+
+    /* 指向eventpoll->ovflist的指针 */
 	struct epitem *next;
-	/* The file descriptor information this item refers to */
+
+    /* epoll监听的fd */
 	struct epoll_filefd ffd;
-	/* Number of active wait queue attached to poll operations */
+
+    /* 一个文件可以被多个epoll实例所监听，这里记录了当前文件被监听的次数 */
 	int nwait;
-	/* List containing poll wait queues */
+
+    /* 轮询等待队列的列表 */
 	struct list_head pwqlist;
-	/* The "container" of this item */
+
+    /* 当前epollitem所属的eventpoll*/
 	struct eventpoll *ep;
-	/* List header used to link this item to the "struct file" items list */
+
+    /* 列表头文件，用于将该项链接到"struct file"的项列表 */
 	struct list_head fllink;
-	/* wakeup_source used when EPOLLWAKEUP is set */
+
+    /* 设置EPOLLWAKEUP标志时使用的唤醒源 */
 	struct wakeup_source __rcu *ws;
-	/* The structure that describe the interested events and the source fd */
+
+    /* 描述感兴趣的事件和源fd的结构 */
 	struct epoll_event event;
 };
 ```
 
 ### struct eppoll_entry
+
+每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生
 
 ```c
 /* Wait structure used by the poll hooks */
