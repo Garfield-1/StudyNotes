@@ -330,18 +330,24 @@ static int do_epoll_create(int flags)
 
 ### epoll_crl函数
 
+用于向`epoll`实例中添加、修改或删除感兴趣的文件描述符（`socket`、文件等）及其关注的事件
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 /*
- * The following function implements the controller interface for
- * the eventpoll file that enables the insertion/removal/change of
- * file descriptors inside the interest set.
+ * @epfd: epool_create创建的用于eventpoll的fd
+ * @op: 控制的命令类型
+ * EPOLL_CTL_ADD：添加一个新的文件描述符和其关注的事件到 epoll 实例中。
+ * EPOLL_CTL_MOD：修改一个已经存在的文件描述符关注的事件。
+ * EPOLL_CTL_DEL：从 epoll 实例中删除一个文件描述符。
+ *
+ * @fd: 要操作的文件描述符
+ * @event:与fd相关的对象,描述了要添加、修改或删除的事件。
  */
-SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
-		struct epoll_event __user *, event)
+SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd, struct epoll_event __user *, event)
 {
 	int error;
 	int full_check = 0;
@@ -350,40 +356,42 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	struct epitem *epi;
 	struct epoll_event epds;
 
-	if (ep_op_has_event(op))
-	    copy_from_user(&epds, event, sizeof(struct epoll_event));
-
-	if (ep_op_has_event(op))
-		ep_take_care_of_epollwakeup(&epds);
-
-    f = fdget(epfd);
-	ep = f.file->private_data;
+	/* 从用户空间拷贝event至内核空间 */
+	copy_from_user(&epds, event, sizeof(struct epoll_event));
 
     tf = fdget(fd);
 	if (op == EPOLL_CTL_ADD) {
-		if (!list_empty(&f.file->f_ep_links) || is_file_epoll(tf.file)) {
-			full_check = 1;
-            list_add(&tf.file->f_tfile_llink, &tfile_check_list);
-		}
+		full_check = 1;
+		/* 将目标文件添加到 epoll 全局的tfile_check_list中 */
+		list_add(&tf.file->f_tfile_llink, &tfile_check_list);
 	}
 
+	f = fdget(epfd);
+	ep = f.file->private_data;
+	/* 在eventpoll中存储文件描述符信息的红黑树中查找指定的fd对应的epitem实例 */
 	epi = ep_find(ep, tf.file, fd);
 
 	switch (op) {
 	case EPOLL_CTL_ADD:
-        epds.events |= EPOLLERR | EPOLLHUP;
-        error = ep_insert(ep, &epds, tf.file, fd, full_check);
+		/*
+		 * 如果要添加的fd不存在,则调用ep_insert()插入到红黑树中,
+		 * 如果已存在,则返回EEXIST错误.
+		 */
+		if (!epi) {
+			error = ep_insert(ep, &epds, tf.file, fd, full_check);
+		} else
+			error = -EEXIST;
+		/* 清空文件检查列表 */
         if (full_check)
             clear_tfile_check_list();
 		break;
 	case EPOLL_CTL_DEL:
+		/* 删除节点 */
         error = ep_remove(ep, epi);
 		break;
 	case EPOLL_CTL_MOD:
-        if (!(epi->event.events & EPOLLEXCLUSIVE)) {
-            epds.events |= EPOLLERR | EPOLLHUP;
-            error = ep_modify(ep, epi, &epds);
-        }
+		/* 修改节点 */
+        error = ep_modify(ep, epi, &epds);
 		break;
 	}
 	
@@ -395,6 +403,186 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 ```
 
 **核心思想**
+
+`epoll_ctl`接口主要用于对想要监视的`file`做增删改的操作，**将数据从用户空间拷贝至内核空间**然后根据不同的操作类型调用不同的接口
+
+
+
+## 等待epoll事件
+
+### epoll_wait函数
+
+对`ep_poll`的一层封装
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events, int, maxevents, int, timeout)
+{
+	return do_epoll_wait(epfd, events, maxevents, timeout);
+}
+
+static int do_epoll_wait(int epfd, struct epoll_event __user *events,  int maxevents, int timeout)
+{
+	int error;
+	struct fd f;
+	struct eventpoll *ep;
+
+	f = fdget(epfd);
+
+	ep = f.file->private_data;
+	error = ep_poll(ep, events, maxevents, timeout);
+
+	fdput(f);
+	return error;
+}
+```
+
+### ep_poll函数
+
+这个函数真正将执行epoll_wait的进程带入睡眠状态
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+/**
+ * ep_poll - Retrieves ready events, and delivers them to the caller supplied
+ *           event buffer.
+ *
+ * @ep: Pointer to the eventpoll context.
+ * @events: Pointer to the userspace buffer where the ready events should be
+ *          stored.
+ * @maxevents: Size (in terms of number of events) of the caller event buffer.
+ * @timeout: Maximum timeout for the ready events fetch operation, in
+ *           milliseconds. If the @timeout is zero, the function will not block,
+ *           while if the @timeout is less than zero, the function will block
+ *           until at least one event has been retrieved (or an error
+ *           occurred).
+ *
+ * Returns: Returns the number of ready events which have been fetched, or an
+ *          error code, in case of error.
+ */
+static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
+		   int maxevents, long timeout)
+{
+	int res = 0, eavail, timed_out = 0;
+	u64 slack = 0;
+	bool waiter = false;
+	wait_queue_entry_t wait;
+	ktime_t expires, *to = NULL;
+
+	lockdep_assert_irqs_enabled();
+
+	if (timeout > 0) {
+		struct timespec64 end_time = ep_set_mstimeout(timeout);
+
+		slack = select_estimate_accuracy(&end_time);
+		to = &expires;
+		*to = timespec64_to_ktime(end_time);
+	} else if (timeout == 0) {
+		/*
+		 * Avoid the unnecessary trip to the wait queue loop, if the
+		 * caller specified a non blocking operation. We still need
+		 * lock because we could race and not see an epi being added
+		 * to the ready list while in irq callback. Thus incorrectly
+		 * returning 0 back to userspace.
+		 */
+		timed_out = 1;
+
+		write_lock_irq(&ep->lock);
+		eavail = ep_events_available(ep);
+		write_unlock_irq(&ep->lock);
+
+		goto send_events;
+	}
+
+fetch_events:
+
+	if (!ep_events_available(ep))
+		ep_busy_loop(ep, timed_out);
+
+	eavail = ep_events_available(ep);
+	if (eavail)
+		goto send_events;
+
+	/*
+	 * Busy poll timed out.  Drop NAPI ID for now, we can add
+	 * it back in when we have moved a socket with a valid NAPI
+	 * ID onto the ready list.
+	 */
+	ep_reset_busy_poll_napi_id(ep);
+
+	/*
+	 * We don't have any available event to return to the caller.  We need
+	 * to sleep here, and we will be woken by ep_poll_callback() when events
+	 * become available.
+	 */
+	if (!waiter) {
+		waiter = true;
+		init_waitqueue_entry(&wait, current);
+
+		spin_lock_irq(&ep->wq.lock);
+		__add_wait_queue_exclusive(&ep->wq, &wait);
+		spin_unlock_irq(&ep->wq.lock);
+	}
+
+	for (;;) {
+		/*
+		 * We don't want to sleep if the ep_poll_callback() sends us
+		 * a wakeup in between. That's why we set the task state
+		 * to TASK_INTERRUPTIBLE before doing the checks.
+		 */
+		set_current_state(TASK_INTERRUPTIBLE);
+		/*
+		 * Always short-circuit for fatal signals to allow
+		 * threads to make a timely exit without the chance of
+		 * finding more events available and fetching
+		 * repeatedly.
+		 */
+		if (fatal_signal_pending(current)) {
+			res = -EINTR;
+			break;
+		}
+
+		eavail = ep_events_available(ep);
+		if (eavail)
+			break;
+		if (signal_pending(current)) {
+			res = -EINTR;
+			break;
+		}
+
+		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
+			timed_out = 1;
+			break;
+		}
+	}
+
+	__set_current_state(TASK_RUNNING);
+
+send_events:
+	/*
+	 * Try to transfer events to user space. In case we get 0 events and
+	 * there's still timeout left over, we go trying again in search of
+	 * more luck.
+	 */
+	if (!res && eavail &&
+	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
+		goto fetch_events;
+
+	if (waiter) {
+		spin_lock_irq(&ep->wq.lock);
+		__remove_wait_queue(&ep->wq, &wait);
+		spin_unlock_irq(&ep->wq.lock);
+	}
+
+	return res;
+}
+```
 
 
 
