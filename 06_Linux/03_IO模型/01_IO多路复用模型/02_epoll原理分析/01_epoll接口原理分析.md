@@ -6,6 +6,8 @@
 >
 > [epoll源码深度剖析 - 坚持，每天进步一点点 - 博客园 (cnblogs.com)](https://www.cnblogs.com/mysky007/p/12284842.html)
 >
+> [图解 | 深入揭秘 epoll 是如何实现 IO 多路复用的！-腾讯云开发者社区-腾讯云 (tencent.com)](https://cloud.tencent.com/developer/article/1964472)
+>
 > [Linux 5.4源码下载](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
@@ -450,24 +452,15 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,  int maxev
 
 ```c
 /**
- * ep_poll - Retrieves ready events, and delivers them to the caller supplied
- *           event buffer.
+ * ep_poll - 检索准备好的事件，并将它们传递到调用者提供的事件缓冲区
  *
- * @ep: Pointer to the eventpoll context.
- * @events: Pointer to the userspace buffer where the ready events should be
- *          stored.
- * @maxevents: Size (in terms of number of events) of the caller event buffer.
- * @timeout: Maximum timeout for the ready events fetch operation, in
- *           milliseconds. If the @timeout is zero, the function will not block,
- *           while if the @timeout is less than zero, the function will block
- *           until at least one event has been retrieved (or an error
- *           occurred).
- *
- * Returns: Returns the number of ready events which have been fetched, or an
- *          error code, in case of error.
+ * @ep: 指向eventpoll上下文的指针
+ * @events: 指向用户空间缓冲区的指针，准备好的事件应该存储在这里
+ * @maxevents: 调用者事件缓冲区的大小(以事件数量表示)
+ * @timeout: 准备事件获取操作的最大超时时间，单位为毫秒。如果@timeout为零，则该函数不会阻塞
+ * 			 而如果@timeout小于零，则该函数将阻塞，直到至少检索到一个事件(或发生错误)
  */
-static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
-		   int maxevents, long timeout)
+static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events, int maxevents, long timeout)
 {
 	int res = 0, eavail, timed_out = 0;
 	u64 slack = 0;
@@ -477,92 +470,58 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 
 	lockdep_assert_irqs_enabled();
 
+	/* timeout大于0时，获取高精度定时器的误差值 */
 	if (timeout > 0) {
-		struct timespec64 end_time = ep_set_mstimeout(timeout);
-
-		slack = select_estimate_accuracy(&end_time);
-		to = &expires;
-		*to = timespec64_to_ktime(end_time);
+		slack = select_estimate_accuracy(&timeout);
 	} else if (timeout == 0) {
-		/*
-		 * Avoid the unnecessary trip to the wait queue loop, if the
-		 * caller specified a non blocking operation. We still need
-		 * lock because we could race and not see an epi being added
-		 * to the ready list while in irq callback. Thus incorrectly
-		 * returning 0 back to userspace.
-		 */
+		/* timeout等于0时，将timed_out置为1跳转后会直接进入等待流程 */
 		timed_out = 1;
-
-		write_lock_irq(&ep->lock);
 		eavail = ep_events_available(ep);
-		write_unlock_irq(&ep->lock);
 
 		goto send_events;
 	}
 
 fetch_events:
-
+	/* 如果没有可用事件，就调用ep_busy_loop()函数进行忙等待，直到有事件变为可用或者超时 */
 	if (!ep_events_available(ep))
 		ep_busy_loop(ep, timed_out);
 
+	/* 获取epoll实例中当前可用事件数 */
 	eavail = ep_events_available(ep);
 	if (eavail)
 		goto send_events;
 
-	/*
-	 * Busy poll timed out.  Drop NAPI ID for now, we can add
-	 * it back in when we have moved a socket with a valid NAPI
-	 * ID onto the ready list.
-	 */
 	ep_reset_busy_poll_napi_id(ep);
 
 	/*
-	 * We don't have any available event to return to the caller.  We need
-	 * to sleep here, and we will be woken by ep_poll_callback() when events
-	 * become available.
+	 * waiter表示当前进程是否存在于等待队列中
+	 * init_waitqueue_entry初始化一个等待队列，将当前队列和wait关联
+	 * __add_wait_queue_exclusive将当前进程添加到等待队列中
+	 * 以便在事件不可用时进入睡眠状态，等待事件的发生
 	 */
 	if (!waiter) {
 		waiter = true;
 		init_waitqueue_entry(&wait, current);
 
-		spin_lock_irq(&ep->wq.lock);
 		__add_wait_queue_exclusive(&ep->wq, &wait);
-		spin_unlock_irq(&ep->wq.lock);
 	}
 
 	for (;;) {
-		/*
-		 * We don't want to sleep if the ep_poll_callback() sends us
-		 * a wakeup in between. That's why we set the task state
-		 * to TASK_INTERRUPTIBLE before doing the checks.
-		 */
 		set_current_state(TASK_INTERRUPTIBLE);
-		/*
-		 * Always short-circuit for fatal signals to allow
-		 * threads to make a timely exit without the chance of
-		 * finding more events available and fetching
-		 * repeatedly.
-		 */
-		if (fatal_signal_pending(current)) {
-			res = -EINTR;
-			break;
-		}
 
+		/* 若此时有新的可用事件则跳出循环 */
 		eavail = ep_events_available(ep);
 		if (eavail)
 			break;
-		if (signal_pending(current)) {
-			res = -EINTR;
-			break;
-		}
 
-		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
+		/* 设置高精度超时定时器，若超时则跳出循环 */
+		if (!schedule_hrtimeout_range(timeout, slack, HRTIMER_MODE_ABS)) {
 			timed_out = 1;
 			break;
 		}
 	}
 
-	__set_current_state(TASK_RUNNING);
+	set_current_state(TASK_RUNNING);
 
 send_events:
 	/*
@@ -570,19 +529,21 @@ send_events:
 	 * there's still timeout left over, we go trying again in search of
 	 * more luck.
 	 */
-	if (!res && eavail &&
-	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
+	/* 当 epoll 实例中有可用事件、事件发送成功、且没有发生超时重新执行fetch_events */
+	if (eavail && !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
 		goto fetch_events;
 
 	if (waiter) {
-		spin_lock_irq(&ep->wq.lock);
 		__remove_wait_queue(&ep->wq, &wait);
-		spin_unlock_irq(&ep->wq.lock);
 	}
 
 	return res;
 }
 ```
+
+**核心思想**
+
+`ep_poll`通过高精度定时器和进程忙等待，在不断地循环中通过`ep_events_available()`检测可用事件。最终将可用事件存储在`events`中
 
 
 

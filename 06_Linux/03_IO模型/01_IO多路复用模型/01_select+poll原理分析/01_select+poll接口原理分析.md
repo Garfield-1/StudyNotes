@@ -181,9 +181,7 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 		to = &end_time;
         // 设置函数的的超时时间
-		if (poll_select_set_timeout(to,
-				tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),
-				(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
+		if (poll_select_set_timeout(to, tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
 			return -EINVAL;
 	}
 
