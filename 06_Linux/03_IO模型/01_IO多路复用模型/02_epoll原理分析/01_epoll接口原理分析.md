@@ -8,11 +8,7 @@
 >
 > [图解 | 深入揭秘 epoll 是如何实现 IO 多路复用的！-腾讯云开发者社区-腾讯云 (tencent.com)](https://cloud.tencent.com/developer/article/1964472)
 >
-> [Linux 5.4源码下载](https://github.com/torvalds/linux/releases/tag/v5.4)
-
-
-
-> 笔者注：本文中出现的相关接口源代码均引用自**Linux 5.4**版本源码
+> [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
 

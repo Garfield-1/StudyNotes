@@ -6,11 +6,7 @@
 >
 > [源码解读poll/select内核机制 - Gityuan博客 | 袁辉辉的技术博客](https://gityuan.com/2019/01/05/linux-poll-select/)
 >
-> [Linux 5.4源码下载](https://github.com/torvalds/linux/releases/tag/v5.4)
-
-
-
-> 笔者注：本文中出现的相关接口源代码均引用自**Linux 5.4**版本源码
+> [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
 

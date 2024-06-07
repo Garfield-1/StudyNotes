@@ -52,6 +52,8 @@ git clone https://github.com/openwrt/ubus或https://github.com/openwrt/ubus
 
 在完成上文中的编译步骤后，依次进入`jsonC_build`、`libubox_build`和`ubus_build`文件夹执行`sudo make install`命令在`Ubuntu`上安装`json-c`、`libubox`和`ubus`
 
+> 笔者注：此处建议使用包管理工具先对编译成生产的二进制进行打包，然后再安装。这样可以使用包管理器进行管理
+
 ### 测试执行ubus
 
 创建三个终端
