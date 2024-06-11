@@ -8,6 +8,10 @@
 >
 > [图解 | 深入揭秘 epoll 是如何实现 IO 多路复用的！-腾讯云开发者社区-腾讯云 (tencent.com)](https://cloud.tencent.com/developer/article/1964472)
 >
+> [Linux eventpoll解析 - aspirs - 博客园 (cnblogs.com)](https://www.cnblogs.com/aspirs/p/15861763.html)
+>
+> [从linux源码看epoll - 无毁的湖光-Al的个人空间 - OSCHINA - 中文开源技术交流社区](https://my.oschina.net/alchemystar/blog/3008840)
+>
 > [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)
 
 
@@ -30,16 +34,16 @@
 
 
 
-## epoll实现原理
-
-### epoll是什么
+## epoll是什么
 
 `epoll`是一种`I/O`事件通知机制，是`linux`内核实现`IO`多路复用的一个实现。
  `IO`多路复用是指，在一个操作里同时监听多个输入输出源，在其中一个或多个输入输出源可用的时候返回，然后对其的进行读写操作。
 
 `epoll`的通俗解释是一种当文件描述符的内核缓冲区非空的时候，发出可读信号进行通知，当写缓冲区不满的时候，发出可写信号通知的机制
 
-### 示例代码
+
+
+## 示例代码
 
 创建一个`epoll`连接，监听标准输入。将输入的值记录并打印，若输入`exit`则直接退出结束进程
 
@@ -231,12 +235,10 @@ struct eppoll_entry {
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-/*
- * Configuration options available inside /proc/sys/fs/epoll/
- * Maximum number of epoll watched descriptors, per user
- */
-static long max_user_watches __read_mostly;
+// fs/eventpoll.c
 
+// 全局变量max_user_watches
+static long max_user_watches __read_mostly;
 static int __init eventpoll_init(void)
 {
 	struct sysinfo si;
@@ -245,9 +247,9 @@ static int __init eventpoll_init(void)
 	si_meminfo(&si);
 	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) / EP_ITEM_COST;
 
-    // 初始化递归检查队列 
+    // 初始化嵌套检测链表
 	ep_nested_calls_init(&poll_loop_ncalls);
-	ep_nested_calls_init(&poll_safewake_ncalls);
+    ep_nested_calls_init(&poll_safewake_ncalls);
 
     // 分配epitem和eppoll_entry的slab的缓存
 	epi_cache = kmem_cache_create("eventpoll_epi", sizeof(struct epitem),
@@ -261,6 +263,14 @@ static int __init eventpoll_init(void)
 // 内核文件系统初始化阶段执行
 fs_initcall(eventpoll_init);
 ```
+
+**核心思想**
+
+在内核文件系统初始化阶段
+
+* 配置`epoll`最大监听数量
+* `epoll`嵌套调用链表，在 epoll 事件轮询中，当一个文件描述符等待事件时，可能会触发对其他文件描述符的事件轮询操作，从而形成嵌套调用的情况。使用此链表对嵌套调用进行记录
+* 分配`slab`缓存提高
 
 
 
@@ -326,7 +336,7 @@ static int do_epoll_create(int flags)
 
 ## 新增监听句柄
 
-### epoll_crl函数
+### epoll_ctl函数
 
 用于向`epoll`实例中添加、修改或删除感兴趣的文件描述符（`socket`、文件等）及其关注的事件
 
@@ -403,6 +413,8 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd, struct epoll_event __use
 **核心思想**
 
 `epoll_ctl`接口主要用于对想要监视的`file`做增删改的操作，**将数据从用户空间拷贝至内核空间**然后根据不同的操作类型调用不同的接口
+
+使用`fdget`接口获取句柄对应的进程描述符`task_struct`，然后通过`task_struct`操作`eventpoll`
 
 
 
