@@ -45,7 +45,7 @@
 
 ## 示例代码
 
-创建一个`epoll`连接，监听标准输入。将输入的值记录并打印，若输入`exit`则直接退出结束进程
+创建一个`epoll`连接，监听标准输入。打印用户输入的值，若输入`exit`则直接退出结束进程
 
 ```c
 #include <stdio.h>
@@ -113,7 +113,7 @@ cleanup:
 
 ### struct eventpoll
 
-这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`epoll_create`创建的匿名文件`file`的`private_data`字段中
+这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`do_epoll_create`创建的匿名文件`file`的`private_data`字段中
 
 ```c
 struct eventpoll {
@@ -295,6 +295,8 @@ SYSCALL_DEFINE1(epoll_create, int, size)
 
 ### do_epoll_create函数
 
+创建新的
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
@@ -303,11 +305,21 @@ SYSCALL_DEFINE1(epoll_create, int, size)
 /* File callbacks that implement the eventpoll file behaviour */
 static const struct file_operations eventpoll_fops = {
 	.show_fdinfo	= ep_show_fdinfo,
-	.release	= ep_eventpoll_release,
-	.poll		= ep_eventpoll_poll,
-	.llseek		= noop_llseek,
+	.release		= ep_eventpoll_release,
+	.poll			= ep_eventpoll_poll,
+	.llseek			= noop_llseek,
 };
 
+/*
+ * anon_inode_getfile-通过连接一个匿名inode和一个描述文件“类”的dentry来创建一个新的文件实例
+ * @name:新文件的“类”的名称
+ * @fops:文件操作的新文件
+ * @priv:新文件的私有数据(将是文件的private_data)
+ * @flags:打开文件的行为和属性
+ *
+ * 通过将一个文件挂接在单个索引节点上来创建一个新文件。这对于不需要完整inode就可以正确操作的文件很有用。
+ * 使用anon_inode_getfile()创建的所有文件将共享一个inode，从而节省内存并避免文件/inode/dentry设置的代码重复。返回新创建的文件*或错误指针。
+ */
 static int do_epoll_create(int flags)
 {
 	int error, fd;
@@ -318,7 +330,7 @@ static int do_epoll_create(int flags)
 
    	// 获取一个可读可写的未被使用的文件描述符
 	fd = get_unused_fd_flags(O_RDWR | (flags & O_CLOEXEC));
-    //创建一个匿名的inode节点
+    // 创建一个匿名的inode节点
 	file = anon_inode_getfile("[eventpoll]", &eventpoll_fops, ep, O_RDWR | (flags & O_CLOEXEC));
 
     ep->file = file;
@@ -332,9 +344,44 @@ static int do_epoll_create(int flags)
 
 创建一个匿名的`inode`节点，这个文件对象通常不对应于实际的文件系统中的任何文件，因此被称为匿名`inode`。它被用作`epoll`实例的文件描述符，通过这个文件描述符，用户空间程序可以对`epoll`实例进行`I/O`操作。并返回与之关联的文件描述符
 
+**使用`anon_inode_getfile`创建`inode`节点**，此处不详细展开实现代码
 
+此处函数调用栈为
 
-## 新增监听句柄
+```js
+do_epoll_create
+	/* 将file->private_data赋值为ep */
+	|->anon_inode_getfile(const char *name, const struct file_operations *fops, 
+                          void *priv, int flags)
+		/* 设置创建文件的名称为之前传入的[eventpoll] */
+		|->alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt, const char *name, int flags,
+                             const struct file_operations *fops)
+			/* 创建新的file并将file->f_op赋值为入参eventpoll_fops */
+			|->alloc_file(&path, flags, fops)
+				/* 创建一个空的文件对象，创建文件的行为和属性为flags */
+				|->alloc_empty_file(flags, current_cred())
+```
+
+**使用`fd_install`将新创建的`inode`节点插入当前进程的文件数组中**
+
+```c
+void __fd_install(struct files_struct *files, unsigned int fd, struct file *file)
+{
+	struct fdtable *fdt;
+    fdt = files_fdtable(files);
+    rcu_assign_pointer(fdt->fd[fd], file);
+}
+
+void fd_install(unsigned int fd, struct file *file)
+{
+    /* current->files是指向当前进程文件描述符表的指针 */
+	__fd_install(current->files, fd, file);
+}
+```
+
+![7e12a53183406420dddb7ac9e12e93c6dc5](.\img\7e12a53183406420dddb7ac9e12e93c6dc5.webp)
+
+## 操作监听句柄
 
 ### epoll_ctl函数
 
@@ -355,7 +402,8 @@ static int do_epoll_create(int flags)
  * @fd: 要操作的文件描述符
  * @event:与fd相关的对象,描述了要添加、修改或删除的事件。
  */
-SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd, struct epoll_event __user *, event)
+SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
+                struct epoll_event __user *, event)
 {
 	int error;
 	int full_check = 0;
@@ -366,46 +414,62 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd, struct epoll_event __use
 
 	/* 从用户空间拷贝event至内核空间 */
 	copy_from_user(&epds, event, sizeof(struct epoll_event));
-
     tf = fdget(fd);
-	if (op == EPOLL_CTL_ADD) {
-		full_check = 1;
-		/* 将目标文件添加到 epoll 全局的tfile_check_list中 */
-		list_add(&tf.file->f_tfile_llink, &tfile_check_list);
+
+    if (ep_op_has_event(op))
+        ep_take_care_of_epollwakeup(&epds);
+
+    ep = f.file->private_data
+    /*
+     * 句柄epfd对应的文件描述符表
+     * f.file->private_data存储的是此前epoll_create中新增的eventpoll节点
+     * 在eventpoll中存储文件描述符信息的红黑树中查找指定的fd对应的epitem实例
+     */
+    f = fdget(epfd);
+
+    if (op == EPOLL_CTL_ADD) {
+        if (!list_empty(&f.file->f_ep_links) || is_file_epoll(tf.file)) {
+			full_check = 1;
+            if (is_file_epoll(tf.file)) {
+				error = -ELOOP;
+				if (ep_loop_check(ep, tf.file) != 0) {
+					clear_tfile_check_list();
+					goto error_tgt_fput;
+				}
+			} else
+             /* 将目标文件添加到epoll全局的tfile_check_list中 */
+			list_add(&tf.file->f_tfile_llink, &tfile_check_list);
+        }
 	}
 
-	f = fdget(epfd);
-	ep = f.file->private_data;
-	/* 在eventpoll中存储文件描述符信息的红黑树中查找指定的fd对应的epitem实例 */
 	epi = ep_find(ep, tf.file, fd);
-
 	switch (op) {
-	case EPOLL_CTL_ADD:
-		/*
-		 * 如果要添加的fd不存在,则调用ep_insert()插入到红黑树中,
-		 * 如果已存在,则返回EEXIST错误.
-		 */
-		if (!epi) {
+	case EPOLL_CTL_ADD:/* 新增节点 */
+		if (!epi)
 			error = ep_insert(ep, &epds, tf.file, fd, full_check);
-		} else
+		else
 			error = -EEXIST;
 		/* 清空文件检查列表 */
         if (full_check)
             clear_tfile_check_list();
 		break;
-	case EPOLL_CTL_DEL:
-		/* 删除节点 */
-        error = ep_remove(ep, epi);
+	case EPOLL_CTL_DEL:/* 删除节点 */
+        if (epi)
+            error = ep_remove(ep, epi);
+        else
+            error = -ENOENT;
 		break;
-	case EPOLL_CTL_MOD:
-		/* 修改节点 */
-        error = ep_modify(ep, epi, &epds);
+	case EPOLL_CTL_MOD:/* 修改节点 */
+        if (epi) {
+            error = ep_modify(ep, epi, &epds);
+        else
+            error = -ENOENT;
 		break;
 	}
-	
+
     fdput(tf);
 	fdput(f);
-
+error_return:
 	return error;
 }
 ```
@@ -429,12 +493,14 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd, struct epoll_event __use
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events, int, maxevents, int, timeout)
+SYSCALL_DEFINE4(epoll_wait, int, epfd, struct epoll_event __user *, events,
+                int, maxevents, int, timeout)
 {
 	return do_epoll_wait(epfd, events, maxevents, timeout);
 }
 
-static int do_epoll_wait(int epfd, struct epoll_event __user *events,  int maxevents, int timeout)
+static int do_epoll_wait(int epfd, struct epoll_event __user *events,
+                         int maxevents, int timeout)
 {
 	int error;
 	struct fd f;
@@ -468,7 +534,8 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,  int maxev
  * @timeout: 准备事件获取操作的最大超时时间，单位为毫秒。如果@timeout为零，则该函数不会阻塞
  * 			 而如果@timeout小于零，则该函数将阻塞，直到至少检索到一个事件(或发生错误)
  */
-static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events, int maxevents, long timeout)
+static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
+                   int maxevents, long timeout)
 {
 	int res = 0, eavail, timed_out = 0;
 	u64 slack = 0;
