@@ -250,15 +250,15 @@ static const char *parse_object(cJSON *item, const char *value)
 
 对于`object`来说其至少包含两层等级，即`object`名称和成员；对于将名称作为字符串处理。首先提取`object`名称部分，对于后半段成员的处理则是调用`parse_value()`去处理，此时如果内部成员是`object`则会触发**第一层递归**，此时**`child`**节点便作为一个新的根节点，**直到遇到普通的键值对递归结束**，这便是函数前半段的处理。
 
-![02_parse_object函数思想_一层递归](.\img\01_parse_object函数思想_一层递归.png)
+<img src=".\img\01_parse_object函数思想_一层递归.png" alt="02_parse_object函数思想_一层递归" />
 
 当一层递归结束后，函数后半段创建一个循环遍历`json`文件的每一行，循环中创建一个新节点添加在双向链表后，并提取下个元素的名称填充`child->valuestring`。接着继续调用`parse_value()`如果此时解析的元素是`object`便是**第二层递归**，递归出口与第一层相同。整个循环中会将相同级别成员添加至双向链表，低级别元素添加至`child`节点
 
-![02_parse_object函数思想_二层递归](.\img\02_parse_object函数思想_二层递归.png)
+<img src=".\img\02_parse_object函数思想_二层递归.png" alt="02_parse_object函数思想_二层递归" />
 
 二层递归结束后，函数调用栈返回。继续处理一层递归未处理的部分
 
-![02_parse_object函数思想_一层递归结束](.\img\03_parse_object函数思想_一层递归结束.png)
+<img src=".\img\03_parse_object函数思想_一层递归结束.png" alt="02_parse_object函数思想_一层递归结束" />
 
 实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`因此对这个函数的理解，对整个`cJSON`解析流程的理解至关重要
 
@@ -350,7 +350,7 @@ static const char *skip(const char *in)
 
 不断向后偏移，直到指向的字符的`ACSII`码大于`32`;函数作者非常巧妙的利用了`ASCII`码表的排列的规则，将前`32`位在字符串解析时无法用到的字符舍弃，只保留了有效字符
 
-![ACSII码表](.\img\04_ACSII码表.jpg)
+<img src=".\img\04_ACSII码表.jpg" alt="ACSII码表" />
 
 
 
