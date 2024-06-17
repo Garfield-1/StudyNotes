@@ -10,7 +10,7 @@
 
 ## uloop整体结构
 
-![01_uloop_run处理时序](.\img\01_uloop_run处理时序.png)
+<img src=".\img\01_uloop_run处理时序.png" alt="01_uloop_run处理时序" />
 
 　`uloop_run`轮询处理定时器、进程、描述符事件。
 
@@ -72,7 +72,7 @@ struct uloop_timeout
 
 　　将定时器插入到timeouts链表中，该链表成员根据超时时间从小到大排列。
 
- ![03_定时器流程](E:\work\git_project\StuduNode\07_开源项目解析\02_ubus源码解析\uloop解析\img\03_定时器流程.png)
+ <img src=".\img\03_定时器流程.png" alt="03_定时器流程" />
 
 - 设置定时器超时时间(毫秒)，并添加
 
@@ -170,7 +170,7 @@ struct uloop_fd
 
 ### 描述符事件流程
 
-###  ![02_描述符事件流程](.\img\02_描述符事件流程.png)
+<img src=".\img\02_描述符事件流程.png" alt="02_描述符事件流程" />
 
 
 
@@ -217,4 +217,4 @@ struct uloop_process
 
 ### 进程事件处理流程
 
-### ![04_进程事件处理流程](.\img\04_进程事件处理流程.png)
+<img src=".\img\04_进程事件处理流程.png" alt="04_进程事件处理流程" />

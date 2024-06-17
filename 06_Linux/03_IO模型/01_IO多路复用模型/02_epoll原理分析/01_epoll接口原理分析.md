@@ -379,7 +379,7 @@ void fd_install(unsigned int fd, struct file *file)
 }
 ```
 
-![7e12a53183406420dddb7ac9e12e93c6dc5](.\img\7e12a53183406420dddb7ac9e12e93c6dc5.webp)
+<img src=".\img\7e12a53183406420dddb7ac9e12e93c6dc5.webp" alt="7e12a53183406420dddb7ac9e12e93c6dc5" />
 
 ## 操作监听句柄
 
