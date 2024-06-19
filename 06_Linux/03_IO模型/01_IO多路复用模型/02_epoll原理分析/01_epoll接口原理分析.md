@@ -247,7 +247,7 @@ static int __init eventpoll_init(void)
 	si_meminfo(&si);
 	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) / EP_ITEM_COST;
 
-    // 初始化嵌套检测链表
+    // 初始化嵌套检测链表，用于防止出现嵌套调用的情况
 	ep_nested_calls_init(&poll_loop_ncalls);
     ep_nested_calls_init(&poll_safewake_ncalls);
 
@@ -344,9 +344,7 @@ static int do_epoll_create(int flags)
 
 创建一个匿名的`inode`节点，这个文件对象通常不对应于实际的文件系统中的任何文件，因此被称为匿名`inode`。它被用作`epoll`实例的文件描述符，通过这个文件描述符，用户空间程序可以对`epoll`实例进行`I/O`操作。并返回与之关联的文件描述符
 
-**使用`anon_inode_getfile`创建`inode`节点**，此处不详细展开实现代码
-
-此处函数调用栈为
+**使用`anon_inode_getfile`创建`inode`节点**，此处不详细展开实现代码，仅列出函数调用栈
 
 ```js
 do_epoll_create
@@ -479,6 +477,25 @@ error_return:
 `epoll_ctl`接口主要用于对想要监视的`file`做增删改的操作，**将数据从用户空间拷贝至内核空间**然后根据不同的操作类型调用不同的接口
 
 使用`fdget`接口获取句柄对应的进程描述符`task_struct`，然后通过`task_struct`操作`eventpoll`
+
+
+
+### 相关接口及调用栈
+
+```c
+ep_insert
+	->reverse_path_check
+		/* tfile_check_list链表 */
+		->list_for_each_entry
+
+/* 此处remove接口操作的其实是一个eppoll_entry链表 */
+ep_remove
+    ->ep_unregister_pollwait
+		->ep_remove_wait_queue
+
+ep_modify
+    ->ep_pm_stay_awake
+```
 
 
 
@@ -621,6 +638,16 @@ send_events:
 `ep_poll`通过高精度定时器和进程忙等待，在不断地循环中通过`ep_events_available()`检测可用事件。最终将可用事件存储在`events`中
 
 
+
+关键接口函数调用栈
+
+```c
+/* 此处检查的是就绪链表的内容 */
+ep_events_available(struct eventpoll *ep)
+    ->list_empty_careful(&ep->rdllist)
+```
+
+ 
 
 ## file_operations->poll接口
 
