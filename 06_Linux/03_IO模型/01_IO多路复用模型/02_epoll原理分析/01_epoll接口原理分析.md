@@ -226,6 +226,154 @@ struct eppoll_entry {
 
 
 
+### 初始化相关数据结构
+
+#### 新建`eventpoll`节点\\`ep_alloc`函数
+
+分配`eventpoll`节点内存，初始化`epoll`红黑树和等待链表
+
+`ep_alloc`函数
+
+```c
+static int ep_alloc(struct eventpoll **pep)
+{
+	int error;
+	struct user_struct *user;
+	struct eventpoll *ep;
+
+	user = get_current_user();
+	error = -ENOMEM;
+	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+	if (unlikely(!ep))
+		goto free_uid;
+
+	mutex_init(&ep->mtx);
+	rwlock_init(&ep->lock);
+	init_waitqueue_head(&ep->wq);
+	init_waitqueue_head(&ep->poll_wait);
+	INIT_LIST_HEAD(&ep->rdllist);
+	ep->rbr = RB_ROOT_CACHED;
+	ep->ovflist = EP_UNACTIVE_PTR;
+	ep->user = user;
+
+	*pep = ep;
+
+	return 0;
+
+free_uid:
+	free_uid(user);
+	return error;
+}
+```
+
+
+
+## 等待队列链表
+
+`epoll`模块中维护了一个等待队列链表记录当前等待中的监听的句柄
+
+其等待队列的头存储在`eventpoll`节点中
+
+### 1. 链表核心数据结构
+
+
+
+### 2. 相关操作接口
+
+#### `init_waitqueue_head`函数
+
+此函数为内核公共函数，且仅在`ep_alloc`函数中有使用，此处不展开具体实现
+
+#### `waitqueue_active`函数
+
+用于检查等待队列链表是否为空
+
+```c
+static inline int waitqueue_active(struct wait_queue_head *wq_head)
+{
+	return !list_empty(&wq_head->head);
+}
+```
+
+#### `ep_poll_safewake`函数
+
+唤醒等待`eventpoll`文件的状态就绪的进程
+
+```c
+#define wake_up_poll(x, m)							\
+	__wake_up(x, TASK_NORMAL, 1, poll_to_key(m))
+
+static void ep_poll_safewake(wait_queue_head_t *wq)
+{
+	wake_up_poll(wq, EPOLLIN);
+}
+```
+
+#### `poll_wait`函数
+
+注册等待函数，将等待的回调函数注册到当前进程中，在`ep_insert`中使用
+
+```c
+/* 
+ * structures and helpers for f_op->poll implementations
+ */
+typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
+
+/*
+ * Do not touch the structure directly, use the access functions
+ * poll_does_not_wait() and poll_requested_events() instead.
+ */
+typedef struct poll_table_struct {
+	poll_queue_proc _qproc;
+	__poll_t _key;
+} poll_table;
+
+
+static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
+{
+	if (p && p->_qproc && wait_address)
+		p->_qproc(filp, wait_address, p);
+}
+```
+
+
+
+## epoll红黑树
+
+
+
+## 关键流程回调函数
+
+### `ep_ptable_queue_proc`函数
+
+等待队列的回调函数，在`ep_insert`中注册
+
+```c
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
+				 poll_table *pt)
+{
+	struct epitem *epi = ep_item_from_epqueue(pt);
+	struct eppoll_entry *pwq;
+
+	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
+		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
+		pwq->whead = whead;
+		pwq->base = epi;
+		if (epi->event.events & EPOLLEXCLUSIVE)
+			add_wait_queue_exclusive(whead, &pwq->wait);
+		else
+			add_wait_queue(whead, &pwq->wait);
+		list_add_tail(&pwq->llink, &epi->pwqlist);
+		epi->nwait++;
+	} else {
+		/* We have to signal that an error occurred */
+		epi->nwait = -1;
+	}
+}
+```
+
+
+
 ## epoll初始化
 
 ### eventpoll_init函数
@@ -266,7 +414,7 @@ fs_initcall(eventpoll_init);
 
 **核心思想**
 
-在内核文件系统初始化阶段
+在内核文件系统初始化阶段执行
 
 * 配置`epoll`最大监听数量
 * `epoll`嵌套调用链表，在 epoll 事件轮询中，当一个文件描述符等待事件时，可能会触发对其他文件描述符的事件轮询操作，从而形成嵌套调用的情况。使用此链表对嵌套调用进行记录
@@ -320,6 +468,8 @@ static const struct file_operations eventpoll_fops = {
  * 通过将一个文件挂接在单个索引节点上来创建一个新文件。这对于不需要完整inode就可以正确操作的文件很有用。
  * 使用anon_inode_getfile()创建的所有文件将共享一个inode，从而节省内存并避免文件/inode/dentry设置的代码重复。返回新创建的文件*或错误指针。
  */
+struct file *anon_inode_getfile(const char *name, const struct file_operations *fops, void *priv, int flags);
+
 static int do_epoll_create(int flags)
 {
 	int error, fd;
@@ -342,42 +492,55 @@ static int do_epoll_create(int flags)
 
 **核心思想**
 
+**创建`inode`节点**
+
 创建一个匿名的`inode`节点，这个文件对象通常不对应于实际的文件系统中的任何文件，因此被称为匿名`inode`。它被用作`epoll`实例的文件描述符，通过这个文件描述符，用户空间程序可以对`epoll`实例进行`I/O`操作。并返回与之关联的文件描述符
 
 **使用`anon_inode_getfile`创建`inode`节点**，此处不详细展开实现代码，仅列出函数调用栈
 
 ```js
 do_epoll_create
-	/* 将file->private_data赋值为ep */
+	/* 将file->private_data赋值为priv */
 	|->anon_inode_getfile(const char *name, const struct file_operations *fops, 
                           void *priv, int flags)
-		/* 设置创建文件的名称为之前传入的[eventpoll] */
+		/* 设置创建file的名称为之前传入的name*/
 		|->alloc_file_pseudo(struct inode *inode, struct vfsmount *mnt, const char *name, int flags,
                              const struct file_operations *fops)
-			/* 创建新的file并将file->f_op赋值为入参eventpoll_fops */
-			|->alloc_file(&path, flags, fops)
-				/* 创建一个空的文件对象，创建文件的行为和属性为flags */
-				|->alloc_empty_file(flags, current_cred())
+			/* 将file->f_op赋值为入参eventpoll_fops */
+			|->alloc_file(const struct path *path, int flags, const struct file_operations *fop)
+				/* 创建一个空的文件对象，设置被创建文件的状态和属性为flags */
+				|->alloc_empty_file(int flags, const struct cred *cred)
 ```
 
 **使用`fd_install`将新创建的`inode`节点插入当前进程的文件数组中**
 
 ```c
+void fd_install(unsigned int fd, struct file *file)
+{
+    /* current->files是指向当前进程文件描述符表的指针 */
+	__fd_install(current->files, fd, file);
+}
+
+/* fd:文件描述符
+ * file:新建的inode节点
+ * struct fdtable：内核中用来管理文件描述符的数据结构
+ * fdt->fd：存储file结构体的数组：
+ */
 void __fd_install(struct files_struct *files, unsigned int fd, struct file *file)
 {
 	struct fdtable *fdt;
     fdt = files_fdtable(files);
     rcu_assign_pointer(fdt->fd[fd], file);
 }
-
-void fd_install(unsigned int fd, struct file *file)
-{
-    /* current->files是指向当前进程文件描述符表的指针 */
-	__fd_install(current->files, fd, file);
-}
 ```
 
+此处将新建的file节点插入，对应当前的进程文件数组中，用于后续内核管理。
+
+将其插入ep中，此时的ep是存放在等待队列中的
+
 <img src=".\img\7e12a53183406420dddb7ac9e12e93c6dc5.webp" alt="7e12a53183406420dddb7ac9e12e93c6dc5" />
+
+### ep_insert函数
 
 ## 操作监听句柄
 
