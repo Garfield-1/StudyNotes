@@ -149,7 +149,7 @@ struct eventpoll {
     /* eventloop对应的匿名文件 */
 	struct file *file;
 
-    /* used to optimize loop detection check */
+    /* 用于检测是否有嵌套调用造成环路 */
 	int visited;
 	struct list_head visited_list_link;
 
