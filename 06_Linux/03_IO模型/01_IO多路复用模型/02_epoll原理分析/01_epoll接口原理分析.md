@@ -135,7 +135,7 @@ struct epitem {
 };
 ```
 
-<img src=".\img\struct_epitem.jpg" alt="struct_epitem"/>
+<img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
 ### struct eppoll_entry
 
@@ -158,21 +158,6 @@ struct eppoll_entry {
 
 	/* The wait queue head that linked the "wait" wait queue item */
 	wait_queue_head_t *whead;
-};
-```
-
-### struct ep_pqueue
-
-`struct ep_pqueue` 的作用是在处理轮询操作时，提供一个封装结构，以便更方便地管理和操作与轮询相关的数据。具体来说：
-
-- **轮询表管理**：通过 `poll_table pt`，可以管理轮询操作所需的状态和数据结构，包括注册和注销事件的操作。
-- **事件项管理**：通过 `struct epitem *epi`，可以指向特定事件的数据结构，允许操作系统在事件准备就绪时通知相关的处理程序。
-
-```c
-/* Wrapper struct used by poll queueing */
-struct ep_pqueue {
-	poll_table pt;
-	struct epitem *epi;
 };
 ```
 
@@ -512,52 +497,6 @@ cleanup:
 
 <img src=".\img\02_epoll接口流程.jpg" alt="02_epoll接口流程" />
 
-## epoll初始化
-
-### eventpoll_init函数
-
-**核心逻辑如下**
-
-> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
-
-```c
-// fs/eventpoll.c
-
-// 全局变量max_user_watches
-static long max_user_watches __read_mostly;
-static int __init eventpoll_init(void)
-{
-	struct sysinfo si;
-	
-    // 设置最大epoll watches数量
-	si_meminfo(&si);
-	max_user_watches = (((si.totalram - si.totalhigh) / 25) << PAGE_SHIFT) / EP_ITEM_COST;
-
-    // 初始化嵌套检测链表，用于防止出现嵌套调用的情况
-	ep_nested_calls_init(&poll_loop_ncalls);
-    ep_nested_calls_init(&poll_safewake_ncalls);
-
-    // 分配epitem和eppoll_entry的slab的缓存
-	epi_cache = kmem_cache_create("eventpoll_epi", sizeof(struct epitem),
-			0, SLAB_HWCACHE_ALIGN|SLAB_PANIC|SLAB_ACCOUNT, NULL);
-	pwq_cache = kmem_cache_create("eventpoll_pwq",
-		sizeof(struct eppoll_entry), 0, SLAB_PANIC|SLAB_ACCOUNT, NULL);
-
-	return 0;
-}
-
-// 内核文件系统初始化阶段执行
-fs_initcall(eventpoll_init);
-```
-
-**核心思想**
-
-在内核文件系统初始化阶段执行
-
-* 配置`epoll`最大监听数量
-* `epoll`嵌套调用链表，在 epoll 事件轮询中，当一个文件描述符等待事件时，可能会触发对其他文件描述符的事件轮询操作，从而形成嵌套调用的情况。使用此链表对嵌套调用进行记录
-* 分配`slab`缓存提高
-
 
 
 ## 创建epoll实例接口
@@ -685,129 +624,6 @@ void __fd_install(struct files_struct *files, unsigned int fd, struct file *file
 static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 		     struct file *tfile, int fd, int full_check)
 {
-	int error, pwake = 0;
-	__poll_t revents;
-	long user_watches;
-	struct epitem *epi;
-	struct ep_pqueue epq;
-
-	lockdep_assert_irqs_enabled();
-
-	user_watches = atomic_long_read(&ep->user->epoll_watches);
-	if (unlikely(user_watches >= max_user_watches))
-		return -ENOSPC;
-	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
-		return -ENOMEM;
-
-	/* Item initialization follow here ... */
-	INIT_LIST_HEAD(&epi->rdllink);
-	INIT_LIST_HEAD(&epi->fllink);
-	INIT_LIST_HEAD(&epi->pwqlist);
-	epi->ep = ep;
-	ep_set_ffd(&epi->ffd, tfile, fd);
-	epi->event = *event;
-	epi->nwait = 0;
-	epi->next = EP_UNACTIVE_PTR;
-	if (epi->event.events & EPOLLWAKEUP) {
-		error = ep_create_wakeup_source(epi);
-		if (error)
-			goto error_create_wakeup_source;
-	} else {
-		RCU_INIT_POINTER(epi->ws, NULL);
-	}
-
-	/* Initialize the poll table using the queue callback */
-	epq.epi = epi;
-	init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
-
-	/*
-	 * Attach the item to the poll hooks and get current event bits.
-	 * We can safely use the file* here because its usage count has
-	 * been increased by the caller of this function. Note that after
-	 * this operation completes, the poll callback can start hitting
-	 * the new item.
-	 */
-	revents = ep_item_poll(epi, &epq.pt, 1);
-
-	/*
-	 * We have to check if something went wrong during the poll wait queue
-	 * install process. Namely an allocation for a wait queue failed due
-	 * high memory pressure.
-	 */
-	error = -ENOMEM;
-	if (epi->nwait < 0)
-		goto error_unregister;
-
-	/* Add the current item to the list of active epoll hook for this file */
-	spin_lock(&tfile->f_lock);
-	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
-	spin_unlock(&tfile->f_lock);
-
-	/*
-	 * Add the current item to the RB tree. All RB tree operations are
-	 * protected by "mtx", and ep_insert() is called with "mtx" held.
-	 */
-	ep_rbtree_insert(ep, epi);
-
-	/* now check if we've created too many backpaths */
-	error = -EINVAL;
-	if (full_check && reverse_path_check())
-		goto error_remove_epi;
-
-	/* We have to drop the new item inside our item list to keep track of it */
-	write_lock_irq(&ep->lock);
-
-	/* record NAPI ID of new item if present */
-	ep_set_busy_poll_napi_id(epi);
-
-	/* If the file is already "ready" we drop it inside the ready list */
-	if (revents && !ep_is_linked(epi)) {
-		list_add_tail(&epi->rdllink, &ep->rdllist);
-		ep_pm_stay_awake(epi);
-
-		/* Notify waiting tasks that events are available */
-		if (waitqueue_active(&ep->wq))
-			wake_up(&ep->wq);
-		if (waitqueue_active(&ep->poll_wait))
-			pwake++;
-	}
-
-	write_unlock_irq(&ep->lock);
-
-	atomic_long_inc(&ep->user->epoll_watches);
-
-	/* We have to call this outside the lock */
-	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
-
-	return 0;
-
-error_remove_epi:
-	spin_lock(&tfile->f_lock);
-	list_del_rcu(&epi->fllink);
-	spin_unlock(&tfile->f_lock);
-
-	rb_erase_cached(&epi->rbn, &ep->rbr);
-
-error_unregister:
-	ep_unregister_pollwait(ep, epi);
-
-	/*
-	 * We need to do this because an event could have been arrived on some
-	 * allocated wait queue. Note that we don't care about the ep->ovflist
-	 * list, since that is used/cleaned only inside a section bound by "mtx".
-	 * And ep_insert() is called with "mtx" held.
-	 */
-	write_lock_irq(&ep->lock);
-	if (ep_is_linked(epi))
-		list_del_init(&epi->rdllink);
-	write_unlock_irq(&ep->lock);
-
-	wakeup_source_unregister(ep_wakeup_source(epi));
-
-error_create_wakeup_source:
-	kmem_cache_free(epi_cache, epi);
-
 	return error;
 }
 ```
