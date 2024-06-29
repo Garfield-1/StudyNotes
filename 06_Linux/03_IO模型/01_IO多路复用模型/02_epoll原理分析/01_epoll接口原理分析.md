@@ -43,7 +43,408 @@
 
 
 
-## 示例代码
+## epoll核心数据结构
+
+### struct eventpoll
+
+这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`do_epoll_create`创建的匿名文件`file`的`private_data`字段中
+
+```c
+struct eventpoll {
+	/* 互斥锁 */
+	struct mutex mtx;
+
+	/* 等待队列，执行epoll_Wait加入等待队列*/
+	wait_queue_head_t wq;
+
+	/* 
+	 * 等待队列的file->poll()
+     * 这个队列里存放的是该eventloop作为poll对象的一个实例，加入到等待的队列
+	 * 这是因为eventpoll本身也是一个file, 所以也会有poll操作
+	 */
+	wait_queue_head_t poll_wait;
+
+	/* 就绪链表 */
+	struct list_head rdllist;
+
+    /* 用于rdllist和ovflist的读写锁 */
+	rwlock_t lock;
+
+    /* 指向被检视对象存储的红黑树 */
+	struct rb_root_cached rbr;
+
+	struct epitem *ovflist;
+	struct wakeup_source *ws;
+
+	/* 创建eventpoll描述符的用户 */
+	struct user_struct *user;
+	
+    /* eventloop对应的匿名文件 */
+	struct file *file;
+
+    /* 用于检测是否有嵌套调用造成环路 */
+	int visited;
+	struct list_head visited_list_link;
+
+	/* 用于追踪忙poll的napi_id */
+	unsigned int napi_id;
+};
+```
+
+<img src=".\img\struct_eventpoll.jpg" alt="struct_eventpoll" style="zoom: 33%;" />
+
+### struct epitem
+
+每当我们调用`epoll_ctl`增加一个`fd`时，内核就会为我们创建出一个`epitem`实例，并且把这个实例作为红黑树的一个子节点，增加到`eventpoll`结构体中的红黑树中，对应的字段是`rbr`。这之后，查找每一个`fd`上是否有事件发生都是通过红黑树上的`epitem`来操作
+
+```c
+struct epitem {
+	union {
+		/* 红黑树节点将此结构链接到eventpoll红黑树 */
+		struct rb_node rbn;
+		/* RCU头部，用于释放struct epitem */
+		struct rcu_head rcu;
+	};
+
+    /* 挂载到eventpoll->rdllist的节点  */
+	struct list_head rdllink;
+
+    /* 指向eventpoll->ovflist的指针 */
+	struct epitem *next;
+
+    /* epoll监听的fd */
+	struct epoll_filefd ffd;
+
+    /* 一个文件可以被多个epoll实例所监听，这里记录了当前文件被监听的次数 */
+	int nwait;
+
+    /* 轮询等待队列的列表 */
+	struct list_head pwqlist;
+
+    /* 当前epollitem所属的eventpoll*/
+	struct eventpoll *ep;
+
+    /* 列表头文件，用于将该项链接到"struct file"的项列表 */ 
+	struct list_head fllink;
+
+    /* 设置EPOLLWAKEUP标志时使用的唤醒源 */
+	struct wakeup_source __rcu *ws;
+
+    /* 描述感兴趣的事件和源fd的结构 */
+	struct epoll_event event;
+};
+```
+
+<img src=".\img\struct_epitem.jpg" alt="struct_epitem"/>
+
+### struct eppoll_entry
+
+每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
+
+```c
+/* Wait structure used by the poll hooks */
+struct eppoll_entry {
+	/* List header used to link this structure to the "struct epitem" */
+	struct list_head llink;
+
+	/* The "base" pointer is set to the container "struct epitem" */
+	struct epitem *base;
+
+	/*
+	 * Wait queue item that will be linked to the target file wait
+	 * queue head.
+	 */
+	wait_queue_entry_t wait;
+
+	/* The wait queue head that linked the "wait" wait queue item */
+	wait_queue_head_t *whead;
+};
+```
+
+### struct ep_pqueue
+
+`struct ep_pqueue` 的作用是在处理轮询操作时，提供一个封装结构，以便更方便地管理和操作与轮询相关的数据。具体来说：
+
+- **轮询表管理**：通过 `poll_table pt`，可以管理轮询操作所需的状态和数据结构，包括注册和注销事件的操作。
+- **事件项管理**：通过 `struct epitem *epi`，可以指向特定事件的数据结构，允许操作系统在事件准备就绪时通知相关的处理程序。
+
+```c
+/* Wrapper struct used by poll queueing */
+struct ep_pqueue {
+	poll_table pt;
+	struct epitem *epi;
+};
+```
+
+
+
+## 初始化相关数据结构
+
+### 1. 新建`eventpoll`节点
+
+#### `ep_alloc`函数
+
+分配`eventpoll`节点内存，初始化`epoll`红黑树和等待链表
+
+```c
+static int ep_alloc(struct eventpoll **pep)
+{
+}
+```
+
+### 2. 新建eppoll_entry节点
+
+#### `ep_ptable_queue_proc`函数
+
+等待队列的回调函数，在`ep_insert`中注册
+
+```c
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
+				 poll_table *pt)
+{
+}
+```
+
+
+
+## 相关数据接口维护接口
+
+### 公共接口
+
+### ep_scan_ready_list函数
+
+扫描就绪队列
+
+```c
+static __poll_t ep_scan_ready_list(struct eventpoll *ep,
+			      __poll_t (*sproc)(struct eventpoll *,
+					   struct list_head *, void *),
+			      void *priv, int depth, bool ep_locked)
+{
+}
+```
+
+#### `ep_poll_callback`函数
+
+epoll回调函数
+
+```c
+static int ep_poll_callback(wait_queue_entry_t *wait,
+                            unsigned mode, int sync, void *key)
+{
+}
+```
+
+
+
+### epitem->rdlink链表
+
+### epitem->pwqlist链表
+
+在`epitem`中维护了一个轮询等待队列，`epitem->pwqlist`,列出修改该链表的部分接口
+
+#### `ep_ptable_queue_proc`函数
+
+```c
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
+				 poll_table *pt)
+{
+}
+```
+
+#### `ep_unregister_pollwait`函数
+
+销毁回调epoll_wait
+
+```c
+/*
+ * This function unregisters poll callbacks from the associated file
+ * descriptor.  Must be called with "mtx" held (or "epmutex" if called from
+ * ep_free).
+ */
+static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
+{
+}
+```
+
+
+
+### 2. 相关操作接口
+
+#### `init_waitqueue_head`函数
+
+此函数为内核公共函数，且仅在`ep_alloc`函数中有使用，此处不展开具体实现
+
+#### `waitqueue_active`函数
+
+用于检查等待队列链表是否为空
+
+```c
+static inline int waitqueue_active(struct wait_queue_head *wq_head)
+{
+	return !list_empty(&wq_head->head);
+}
+```
+
+#### `ep_poll_safewake`函数
+
+唤醒等待`eventpoll`文件的状态就绪的进程
+
+```c
+#define wake_up_poll(x, m)							\
+	__wake_up(x, TASK_NORMAL, 1, poll_to_key(m))
+
+static void ep_poll_safewake(wait_queue_head_t *wq)
+{
+	wake_up_poll(wq, EPOLLIN);
+}
+```
+
+#### `ep_scan_ready_list`函数
+
+```c
+static __poll_t ep_scan_ready_list(struct eventpoll *ep,
+			      __poll_t (*sproc)(struct eventpoll *,
+					   struct list_head *, void *),
+			      void *priv, int depth, bool ep_locked)
+{
+}
+```
+
+#### `ep_send_events_proc`函数
+
+将events事件从内核空间发送到用户空间
+
+```c
+static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
+			       void *priv)
+{
+}
+```
+
+
+
+## epoll红黑树
+
+### `ep_insert`函数
+
+插入新的节点
+
+```c
+static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
+		     struct file *tfile, int fd, int full_check)
+{
+}
+```
+
+
+
+### `ep_rbtree_insert`函数
+
+向红黑树中插入节点
+
+```c
+static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
+{
+}
+```
+
+### `ep_find`函数
+
+在红黑树中查找节点
+
+```c
+static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
+{
+}
+```
+
+### `ep_remove`函数
+
+从红黑树中删除节点
+
+```c
+/*
+ * Removes a "struct epitem" from the eventpoll RB tree and deallocates
+ * all the associated resources. Must be called with "mtx" held.
+ */
+static int ep_remove(struct eventpoll *ep, struct epitem *epi)
+{
+}
+```
+
+### `ep_free`函数
+
+释放红黑树占用的内存
+
+```c
+static void ep_free(struct eventpoll *ep)
+{
+}
+```
+
+
+
+## 关键流程回调函数
+
+### `ep_create_wakeup_source`函数
+
+创建唤醒源
+
+```c
+static int ep_create_wakeup_source(struct epitem *epi)
+{
+}
+```
+
+### `ep_destroy_wakeup_source`函数
+
+销毁唤醒源
+
+```c
+/* rare code path, only used when EPOLL_CTL_MOD removes a wakeup source */
+static noinline void ep_destroy_wakeup_source(struct epitem *epi)
+{
+}
+```
+
+### `ep_ptable_queue_proc`函数
+
+将等待队列添加到目标文件唤醒列表中的回调函数
+
+```c
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
+				 poll_table *pt)
+{
+}
+```
+
+
+
+### `poll_wait`函数
+
+注册等待函数，将等待的回调函数注册到当前进程中，在`ep_insert`中使用
+
+```c
+/* 
+ * structures and helpers for f_op->poll implementations
+ */
+typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
+
+typedef struct poll_table_struct {
+	poll_queue_proc _qproc;
+	__poll_t _key;
+} poll_table;
+
+
+static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
+{
+	if (p && p->_qproc && wait_address)
+		p->_qproc(filp, wait_address, p);
+}
+```
+
+### 示例代码
 
 创建一个`epoll`连接，监听标准输入。打印用户输入的值，若输入`exit`则直接退出结束进程
 
@@ -107,650 +508,9 @@ cleanup:
 }
 ```
 
+## 基本流程
 
-
-## epoll核心数据结构
-
-### struct eventpoll
-
-这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`do_epoll_create`创建的匿名文件`file`的`private_data`字段中
-
-```c
-struct eventpoll {
-	/* 互斥锁 */
-	struct mutex mtx;
-
-	/* 等待队列，执行epoll_Wait加入等待队列*/
-	wait_queue_head_t wq;
-
-	/* 
-	 * 等待队列的file->poll()
-     * 这个队列里存放的是该eventloop作为poll对象的一个实例，加入到等待的队列
-	 * 这是因为eventpoll本身也是一个file, 所以也会有poll操作
-	 */
-	wait_queue_head_t poll_wait;
-
-	/* 就绪链表 */
-	struct list_head rdllist;
-
-    /* 用于rdllist和ovflist的读写锁 */
-	rwlock_t lock;
-
-    /* 指向被检视对象存储的红黑树 */
-	struct rb_root_cached rbr;
-
-	/* 把数据拷贝至用户空间时溢出的数据 */
-	struct epitem *ovflist;
-	struct wakeup_source *ws;
-
-	/* 创建eventpoll描述符的用户 */
-	struct user_struct *user;
-	
-    /* eventloop对应的匿名文件 */
-	struct file *file;
-
-    /* 用于检测是否有嵌套调用造成环路 */
-	int visited;
-	struct list_head visited_list_link;
-
-	/* 用于追踪忙poll的napi_id */
-	unsigned int napi_id;
-};
-```
-
-### struct epitem
-
-每当我们调用`epoll_ctl`增加一个`fd`时，内核就会为我们创建出一个`epitem`实例，并且把这个实例作为红黑树的一个子节点，增加到`eventpoll`结构体中的红黑树中，对应的字段是`rbr`。这之后，查找每一个`fd`上是否有事件发生都是通过红黑树上的`epitem`来操作
-
-```c
-struct epitem {
-	union {
-		/* 红黑树节点将此结构链接到eventpoll红黑树 */
-		struct rb_node rbn;
-		/* RCU头部，用于释放struct epitem */
-		struct rcu_head rcu;
-	};
-
-    /* 挂载到eventpoll->rdllist的节点  */
-	struct list_head rdllink;
-
-    /* 指向eventpoll->ovflist的指针 */
-	struct epitem *next;
-
-    /* epoll监听的fd */
-	struct epoll_filefd ffd;
-
-    /* 一个文件可以被多个epoll实例所监听，这里记录了当前文件被监听的次数 */
-	int nwait;
-
-    /* 轮询等待队列的列表 */
-	struct list_head pwqlist;
-
-    /* 当前epollitem所属的eventpoll*/
-	struct eventpoll *ep;
-
-    /* 列表头文件，用于将该项链接到"struct file"的项列表 */
-	struct list_head fllink;
-
-    /* 设置EPOLLWAKEUP标志时使用的唤醒源 */
-	struct wakeup_source __rcu *ws;
-
-    /* 描述感兴趣的事件和源fd的结构 */
-	struct epoll_event event;
-};
-```
-
-### struct eppoll_entry
-
-每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
-
-```c
-/* Wait structure used by the poll hooks */
-struct eppoll_entry {
-	/* List header used to link this structure to the "struct epitem" */
-	struct list_head llink;
-
-	/* The "base" pointer is set to the container "struct epitem" */
-	struct epitem *base;
-
-	/*
-	 * Wait queue item that will be linked to the target file wait
-	 * queue head.
-	 */
-	wait_queue_entry_t wait;
-
-	/* The wait queue head that linked the "wait" wait queue item */
-	wait_queue_head_t *whead;
-};
-```
-
-
-
-## 初始化相关数据结构
-
-### 1. 新建`eventpoll`节点
-
-#### `ep_alloc`函数
-
-分配`eventpoll`节点内存，初始化`epoll`红黑树和等待链表
-
-```c
-static int ep_alloc(struct eventpoll **pep)
-{
-	int error;
-	struct user_struct *user;
-	struct eventpoll *ep;
-
-	user = get_current_user();
-	error = -ENOMEM;
-	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
-	if (unlikely(!ep))
-		goto free_uid;
-
-	mutex_init(&ep->mtx);
-	rwlock_init(&ep->lock);
-	init_waitqueue_head(&ep->wq);
-	init_waitqueue_head(&ep->poll_wait);
-	INIT_LIST_HEAD(&ep->rdllist);
-	ep->rbr = RB_ROOT_CACHED; /* 初始化红黑树 */
-	ep->ovflist = EP_UNACTIVE_PTR;
-	ep->user = user;
-
-	*pep = ep;
-
-	return 0;
-
-free_uid:
-	free_uid(user);
-	return error;
-}
-```
-
-### 2. 新建eppoll_entry节点
-
-#### `ep_ptable_queue_proc`函数
-
-等待队列的回调函数，在`ep_insert`中注册
-
-```c
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt)
-{
-	struct epitem *epi = ep_item_from_epqueue(pt);
-	struct eppoll_entry *pwq;
-
-	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
-		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
-		pwq->whead = whead;
-		pwq->base = epi;
-		if (epi->event.events & EPOLLEXCLUSIVE)
-			add_wait_queue_exclusive(whead, &pwq->wait);
-		else
-			add_wait_queue(whead, &pwq->wait);
-		list_add_tail(&pwq->llink, &epi->pwqlist);
-		epi->nwait++;
-	} else {
-		/* We have to signal that an error occurred */
-		epi->nwait = -1;
-	}
-}
-```
-
-
-
-## 等待队列链表
-
-`epoll`模块中维护了一个等待队列链表记录当前等待中的监听的句柄
-
-其等待队列的头存储在`eventpoll`节点中
-
-### 1. 链表核心数据结构
-
-#### `ep_remove_wait_queue`函数
-
-删除等待队列
-
-```c
-static void ep_remove_wait_queue(struct eppoll_entry *pwq)
-{
-	wait_queue_head_t *whead;
-
-	rcu_read_lock();
-	/*
-	 * If it is cleared by POLLFREE, it should be rcu-safe.
-	 * If we read NULL we need a barrier paired with
-	 * smp_store_release() in ep_poll_callback(), otherwise
-	 * we rely on whead->lock.
-	 */
-	whead = smp_load_acquire(&pwq->whead);
-	if (whead)
-		remove_wait_queue(whead, &pwq->wait);
-	rcu_read_unlock();
-}
-```
-
-#### `ep_unregister_pollwait`函数
-
-销毁回调
-
-```c
-/*
- * This function unregisters poll callbacks from the associated file
- * descriptor.  Must be called with "mtx" held (or "epmutex" if called from
- * ep_free).
- */
-static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
-{
-	struct list_head *lsthead = &epi->pwqlist;
-	struct eppoll_entry *pwq;
-
-	while (!list_empty(lsthead)) {
-		pwq = list_first_entry(lsthead, struct eppoll_entry, llink);
-
-		list_del(&pwq->llink);
-		ep_remove_wait_queue(pwq);
-		kmem_cache_free(pwq_cache, pwq);
-	}
-}
-```
-
-
-
-### 2. 相关操作接口
-
-#### `init_waitqueue_head`函数
-
-此函数为内核公共函数，且仅在`ep_alloc`函数中有使用，此处不展开具体实现
-
-#### `waitqueue_active`函数
-
-用于检查等待队列链表是否为空
-
-```c
-static inline int waitqueue_active(struct wait_queue_head *wq_head)
-{
-	return !list_empty(&wq_head->head);
-}
-```
-
-#### `ep_poll_safewake`函数
-
-唤醒等待`eventpoll`文件的状态就绪的进程
-
-```c
-#define wake_up_poll(x, m)							\
-	__wake_up(x, TASK_NORMAL, 1, poll_to_key(m))
-
-static void ep_poll_safewake(wait_queue_head_t *wq)
-{
-	wake_up_poll(wq, EPOLLIN);
-}
-```
-
-#### `ep_scan_ready_list`函数
-
-```c
-/**
- * ep_scan_ready_list - Scans the ready list in a way that makes possible for
- *                      the scan code, to call f_op->poll(). Also allows for
- *                      O(NumReady) performance.
- *
- * @ep: Pointer to the epoll private data structure.
- * @sproc: Pointer to the scan callback.
- * @priv: Private opaque data passed to the @sproc callback.
- * @depth: The current depth of recursive f_op->poll calls.
- * @ep_locked: caller already holds ep->mtx
- *
- * Returns: The same integer error code returned by the @sproc callback.
- */
-static __poll_t ep_scan_ready_list(struct eventpoll *ep,
-			      __poll_t (*sproc)(struct eventpoll *,
-					   struct list_head *, void *),
-			      void *priv, int depth, bool ep_locked)
-{
-	__poll_t res;
-	int pwake = 0;
-	struct epitem *epi, *nepi;
-	LIST_HEAD(txlist);
-
-	lockdep_assert_irqs_enabled();
-
-	/*
-	 * We need to lock this because we could be hit by
-	 * eventpoll_release_file() and epoll_ctl().
-	 */
-
-	if (!ep_locked)
-		mutex_lock_nested(&ep->mtx, depth);
-
-	/*
-	 * Steal the ready list, and re-init the original one to the
-	 * empty list. Also, set ep->ovflist to NULL so that events
-	 * happening while looping w/out locks, are not lost. We cannot
-	 * have the poll callback to queue directly on ep->rdllist,
-	 * because we want the "sproc" callback to be able to do it
-	 * in a lockless way.
-	 */
-	write_lock_irq(&ep->lock);
-	list_splice_init(&ep->rdllist, &txlist);
-	WRITE_ONCE(ep->ovflist, NULL);
-	write_unlock_irq(&ep->lock);
-
-	/*
-	 * Now call the callback function.
-	 */
-	res = (*sproc)(ep, &txlist, priv);
-
-	write_lock_irq(&ep->lock);
-	/*
-	 * During the time we spent inside the "sproc" callback, some
-	 * other events might have been queued by the poll callback.
-	 * We re-insert them inside the main ready-list here.
-	 */
-	for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
-	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
-		/*
-		 * We need to check if the item is already in the list.
-		 * During the "sproc" callback execution time, items are
-		 * queued into ->ovflist but the "txlist" might already
-		 * contain them, and the list_splice() below takes care of them.
-		 */
-		if (!ep_is_linked(epi)) {
-			/*
-			 * ->ovflist is LIFO, so we have to reverse it in order
-			 * to keep in FIFO.
-			 */
-			list_add(&epi->rdllink, &ep->rdllist);
-			ep_pm_stay_awake(epi);
-		}
-	}
-	/*
-	 * We need to set back ep->ovflist to EP_UNACTIVE_PTR, so that after
-	 * releasing the lock, events will be queued in the normal way inside
-	 * ep->rdllist.
-	 */
-	WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
-
-	/*
-	 * Quickly re-inject items left on "txlist".
-	 */
-	list_splice(&txlist, &ep->rdllist);
-	__pm_relax(ep->ws);
-
-	if (!list_empty(&ep->rdllist)) {
-		/*
-		 * Wake up (if active) both the eventpoll wait list and
-		 * the ->poll() wait list (delayed after we release the lock).
-		 */
-		if (waitqueue_active(&ep->wq))
-			wake_up(&ep->wq);
-		if (waitqueue_active(&ep->poll_wait))
-			pwake++;
-	}
-	write_unlock_irq(&ep->lock);
-
-	if (!ep_locked)
-		mutex_unlock(&ep->mtx);
-
-	/* We have to call this outside the lock */
-	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
-
-	return res;
-}
-```
-
-
-
-## epoll红黑树
-
-### `ep_rbtree_insert`函数
-
-```c
-static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
-{
-	int kcmp;
-	struct rb_node **p = &ep->rbr.rb_root.rb_node, *parent = NULL;
-	struct epitem *epic;
-	bool leftmost = true;
-
-	while (*p) {
-		parent = *p;
-		epic = rb_entry(parent, struct epitem, rbn);
-		kcmp = ep_cmp_ffd(&epi->ffd, &epic->ffd);
-		if (kcmp > 0) {
-			p = &parent->rb_right;
-			leftmost = false;
-		} else
-			p = &parent->rb_left;
-	}
-	rb_link_node(&epi->rbn, parent, p);
-	rb_insert_color_cached(&epi->rbn, &ep->rbr, leftmost);
-}
-```
-
-### `ep_find`函数
-
-在红黑树中查找节点
-
-```c
-/*
- * Search the file inside the eventpoll tree. The RB tree operations
- * are protected by the "mtx" mutex, and ep_find() must be called with
- * "mtx" held.
- */
-static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
-{
-	int kcmp;
-	struct rb_node *rbp;
-	struct epitem *epi, *epir = NULL;
-	struct epoll_filefd ffd;
-
-	ep_set_ffd(&ffd, file, fd);
-	for (rbp = ep->rbr.rb_root.rb_node; rbp; ) {
-		epi = rb_entry(rbp, struct epitem, rbn);
-		kcmp = ep_cmp_ffd(&ffd, &epi->ffd);
-		if (kcmp > 0)
-			rbp = rbp->rb_right;
-		else if (kcmp < 0)
-			rbp = rbp->rb_left;
-		else {
-			epir = epi;
-			break;
-		}
-	}
-
-	return epir;
-}
-```
-
-### `ep_remove`函数
-
-从红黑树中删除节点
-
-```c
-/*
- * Removes a "struct epitem" from the eventpoll RB tree and deallocates
- * all the associated resources. Must be called with "mtx" held.
- */
-static int ep_remove(struct eventpoll *ep, struct epitem *epi)
-{
-	struct file *file = epi->ffd.file;
-
-	lockdep_assert_irqs_enabled();
-
-	/*
-	 * Removes poll wait queue hooks.
-	 */
-	ep_unregister_pollwait(ep, epi);
-
-	/* Remove the current item from the list of epoll hooks */
-	spin_lock(&file->f_lock);
-	list_del_rcu(&epi->fllink);
-	spin_unlock(&file->f_lock);
-
-	rb_erase_cached(&epi->rbn, &ep->rbr);
-
-	write_lock_irq(&ep->lock);
-	if (ep_is_linked(epi))
-		list_del_init(&epi->rdllink);
-	write_unlock_irq(&ep->lock);
-
-	wakeup_source_unregister(ep_wakeup_source(epi));
-	/*
-	 * At this point it is safe to free the eventpoll item. Use the union
-	 * field epi->rcu, since we are trying to minimize the size of
-	 * 'struct epitem'. The 'rbn' field is no longer in use. Protected by
-	 * ep->mtx. The rcu read side, reverse_path_check_proc(), does not make
-	 * use of the rbn field.
-	 */
-	call_rcu(&epi->rcu, epi_rcu_free);
-
-	atomic_long_dec(&ep->user->epoll_watches);
-
-	return 0;
-}
-```
-
-### `ep_free`函数
-
-释放红黑树占用的内存
-
-```c
-static void ep_free(struct eventpoll *ep)
-{
-	struct rb_node *rbp;
-	struct epitem *epi;
-
-	/* We need to release all tasks waiting for these file */
-	if (waitqueue_active(&ep->poll_wait))
-		ep_poll_safewake(&ep->poll_wait);
-
-	/*
-	 * We need to lock this because we could be hit by
-	 * eventpoll_release_file() while we're freeing the "struct eventpoll".
-	 * We do not need to hold "ep->mtx" here because the epoll file
-	 * is on the way to be removed and no one has references to it
-	 * anymore. The only hit might come from eventpoll_release_file() but
-	 * holding "epmutex" is sufficient here.
-	 */
-	mutex_lock(&epmutex);
-
-	/*
-	 * Walks through the whole tree by unregistering poll callbacks.
-	 */
-	for (rbp = rb_first_cached(&ep->rbr); rbp; rbp = rb_next(rbp)) {
-		epi = rb_entry(rbp, struct epitem, rbn);
-
-		ep_unregister_pollwait(ep, epi);
-		cond_resched();
-	}
-
-	/*
-	 * Walks through the whole tree by freeing each "struct epitem". At this
-	 * point we are sure no poll callbacks will be lingering around, and also by
-	 * holding "epmutex" we can be sure that no file cleanup code will hit
-	 * us during this operation. So we can avoid the lock on "ep->lock".
-	 * We do not need to lock ep->mtx, either, we only do it to prevent
-	 * a lockdep warning.
-	 */
-	mutex_lock(&ep->mtx);
-	while ((rbp = rb_first_cached(&ep->rbr)) != NULL) {
-		epi = rb_entry(rbp, struct epitem, rbn);
-		ep_remove(ep, epi);
-		cond_resched();
-	}
-	mutex_unlock(&ep->mtx);
-
-	mutex_unlock(&epmutex);
-	mutex_destroy(&ep->mtx);
-	free_uid(ep->user);
-	wakeup_source_unregister(ep->ws);
-	kfree(ep);
-}
-```
-
-
-
-## 关键流程回调函数
-
-### `ep_create_wakeup_source`函数
-
-创建唤醒源
-
-```c
-static int ep_create_wakeup_source(struct epitem *epi)
-{
-	const char *name;
-	struct wakeup_source *ws;
-
-	if (!epi->ep->ws) {
-		epi->ep->ws = wakeup_source_register(NULL, "eventpoll");
-		if (!epi->ep->ws)
-			return -ENOMEM;
-	}
-
-	name = epi->ffd.file->f_path.dentry->d_name.name;
-	ws = wakeup_source_register(NULL, name);
-
-	if (!ws)
-		return -ENOMEM;
-	rcu_assign_pointer(epi->ws, ws);
-
-	return 0;
-}
-```
-
-### `ep_destroy_wakeup_source`函数
-
-销毁唤醒源
-
-```c
-/* rare code path, only used when EPOLL_CTL_MOD removes a wakeup source */
-static noinline void ep_destroy_wakeup_source(struct epitem *epi)
-{
-	struct wakeup_source *ws = ep_wakeup_source(epi);
-
-	RCU_INIT_POINTER(epi->ws, NULL);
-
-	/*
-	 * wait for ep_pm_stay_awake_rcu to finish, synchronize_rcu is
-	 * used internally by wakeup_source_remove, too (called by
-	 * wakeup_source_unregister), so we cannot use call_rcu
-	 */
-	synchronize_rcu();
-	wakeup_source_unregister(ws);
-}
-```
-
-### `poll_wait`函数
-
-注册等待函数，将等待的回调函数注册到当前进程中，在`ep_insert`中使用
-
-```c
-/* 
- * structures and helpers for f_op->poll implementations
- */
-typedef void (*poll_queue_proc)(struct file *, wait_queue_head_t *, struct poll_table_struct *);
-
-/*
- * Do not touch the structure directly, use the access functions
- * poll_does_not_wait() and poll_requested_events() instead.
- */
-typedef struct poll_table_struct {
-	poll_queue_proc _qproc;
-	__poll_t _key;
-} poll_table;
-
-
-static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
-{
-	if (p && p->_qproc && wait_address)
-		p->_qproc(filp, wait_address, p);
-}
-```
-
-
+<img src=".\img\02_epoll接口流程.jpg" alt="02_epoll接口流程" />
 
 ## epoll初始化
 
@@ -915,9 +675,144 @@ void __fd_install(struct files_struct *files, unsigned int fd, struct file *file
 
 将其插入`ep`中，此时的`ep`是存放在等待队列中的
 
-<img src=".\img\7e12a53183406420dddb7ac9e12e93c6dc5.webp" alt="7e12a53183406420dddb7ac9e12e93c6dc5" />
+<img src=".\img\01_do_epoll_create流程.jpg" alt="01_do_epoll_create流程" />
 
 ### ep_insert函数
+
+插入节点
+
+```c
+static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
+		     struct file *tfile, int fd, int full_check)
+{
+	int error, pwake = 0;
+	__poll_t revents;
+	long user_watches;
+	struct epitem *epi;
+	struct ep_pqueue epq;
+
+	lockdep_assert_irqs_enabled();
+
+	user_watches = atomic_long_read(&ep->user->epoll_watches);
+	if (unlikely(user_watches >= max_user_watches))
+		return -ENOSPC;
+	if (!(epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)))
+		return -ENOMEM;
+
+	/* Item initialization follow here ... */
+	INIT_LIST_HEAD(&epi->rdllink);
+	INIT_LIST_HEAD(&epi->fllink);
+	INIT_LIST_HEAD(&epi->pwqlist);
+	epi->ep = ep;
+	ep_set_ffd(&epi->ffd, tfile, fd);
+	epi->event = *event;
+	epi->nwait = 0;
+	epi->next = EP_UNACTIVE_PTR;
+	if (epi->event.events & EPOLLWAKEUP) {
+		error = ep_create_wakeup_source(epi);
+		if (error)
+			goto error_create_wakeup_source;
+	} else {
+		RCU_INIT_POINTER(epi->ws, NULL);
+	}
+
+	/* Initialize the poll table using the queue callback */
+	epq.epi = epi;
+	init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
+
+	/*
+	 * Attach the item to the poll hooks and get current event bits.
+	 * We can safely use the file* here because its usage count has
+	 * been increased by the caller of this function. Note that after
+	 * this operation completes, the poll callback can start hitting
+	 * the new item.
+	 */
+	revents = ep_item_poll(epi, &epq.pt, 1);
+
+	/*
+	 * We have to check if something went wrong during the poll wait queue
+	 * install process. Namely an allocation for a wait queue failed due
+	 * high memory pressure.
+	 */
+	error = -ENOMEM;
+	if (epi->nwait < 0)
+		goto error_unregister;
+
+	/* Add the current item to the list of active epoll hook for this file */
+	spin_lock(&tfile->f_lock);
+	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
+	spin_unlock(&tfile->f_lock);
+
+	/*
+	 * Add the current item to the RB tree. All RB tree operations are
+	 * protected by "mtx", and ep_insert() is called with "mtx" held.
+	 */
+	ep_rbtree_insert(ep, epi);
+
+	/* now check if we've created too many backpaths */
+	error = -EINVAL;
+	if (full_check && reverse_path_check())
+		goto error_remove_epi;
+
+	/* We have to drop the new item inside our item list to keep track of it */
+	write_lock_irq(&ep->lock);
+
+	/* record NAPI ID of new item if present */
+	ep_set_busy_poll_napi_id(epi);
+
+	/* If the file is already "ready" we drop it inside the ready list */
+	if (revents && !ep_is_linked(epi)) {
+		list_add_tail(&epi->rdllink, &ep->rdllist);
+		ep_pm_stay_awake(epi);
+
+		/* Notify waiting tasks that events are available */
+		if (waitqueue_active(&ep->wq))
+			wake_up(&ep->wq);
+		if (waitqueue_active(&ep->poll_wait))
+			pwake++;
+	}
+
+	write_unlock_irq(&ep->lock);
+
+	atomic_long_inc(&ep->user->epoll_watches);
+
+	/* We have to call this outside the lock */
+	if (pwake)
+		ep_poll_safewake(&ep->poll_wait);
+
+	return 0;
+
+error_remove_epi:
+	spin_lock(&tfile->f_lock);
+	list_del_rcu(&epi->fllink);
+	spin_unlock(&tfile->f_lock);
+
+	rb_erase_cached(&epi->rbn, &ep->rbr);
+
+error_unregister:
+	ep_unregister_pollwait(ep, epi);
+
+	/*
+	 * We need to do this because an event could have been arrived on some
+	 * allocated wait queue. Note that we don't care about the ep->ovflist
+	 * list, since that is used/cleaned only inside a section bound by "mtx".
+	 * And ep_insert() is called with "mtx" held.
+	 */
+	write_lock_irq(&ep->lock);
+	if (ep_is_linked(epi))
+		list_del_init(&epi->rdllink);
+	write_unlock_irq(&ep->lock);
+
+	wakeup_source_unregister(ep_wakeup_source(epi));
+
+error_create_wakeup_source:
+	kmem_cache_free(epi_cache, epi);
+
+	return error;
+}
+```
+
+
 
 ## 操作监听句柄
 
