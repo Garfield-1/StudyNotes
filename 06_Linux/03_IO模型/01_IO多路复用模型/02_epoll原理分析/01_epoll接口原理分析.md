@@ -91,19 +91,48 @@ struct eventpoll {
 };
 ```
 
-#### 创建`eventpoll`节点
+#### **创建`eventpoll`节点**
 
 **`ep_alloc`函数**
 
 分配`eventpoll`节点内存，初始化`epoll`红黑树和等待链表
 
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
 ```c
 static int ep_alloc(struct eventpoll **pep)
 {
+	struct user_struct *user;
+	struct eventpoll *ep;
+
+    /* 返回当前进程的用户ID */
+	user = get_current_user();
+	ep = kzalloc(sizeof(*ep), GFP_KERNEL);
+
+    /* 初始化互斥锁 */
+	mutex_init(&ep->mtx);
+    /* 初始化读写锁 */
+	rwlock_init(&ep->lock);
+	init_waitqueue_head(&ep->wq);
+	init_waitqueue_head(&ep->poll_wait);
+	INIT_LIST_HEAD(&ep->rdllist);
+	ep->rbr = RB_ROOT_CACHED;
+	ep->ovflist = EP_UNACTIVE_PTR;
+	ep->user = user;
+
+	*pep = ep;
+
+	return 0;
 }
 ```
 
-**`eventpoll`架构图**
+**核心思想**
+
+`ep_alloc`函数创建申请结构体的内存空间，将结构体的各个成员初始化，其中需要注意的是`user`保存的是当前进程对应的用户`ID`
+
+#### **`eventpoll`结构图**
 
 <img src=".\img\struct_eventpoll.jpg" alt="struct_eventpoll" style="zoom: 33%;" />
 
@@ -149,22 +178,7 @@ struct epitem {
 };
 ```
 
-#### 创建`eppoll_entry`节点
-
-**`ep_ptable_queue_proc`函数**
-
-等待队列的回调函数，在`ep_insert`中注册
-
-```c
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt)
-{
-}
-```
-
-**`eppoll_entry`结构图**
-
-
+#### **`epitem`结构图**
 
 <img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
@@ -196,6 +210,33 @@ struct eppoll_entry {
 
 ## 关键链表相关接口
 
+### `epitem->ovflist`链表
+
+
+
+### `epitem->rdlink`链表和`eventpoll->rdllist`链表
+
+`epitem->rdlink`中存放等待的事件，`eventpoll->rdllist`中存放已经就绪的事件
+
+```c
+static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
+			       void *priv)
+{
+    ...
+    struct epitem *epi;
+
+    /* 将epi->rdllink插入ep->rdllist尾部 */
+	list_add_tail(&epi->rdllink, &ep->rdllist);
+	...
+}
+```
+
+<img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 67%;" />
+
+### `epitem->pwqlist`链表
+
+在`epitem`中维护了一个轮询等待队列，`epitem->pwqlist`,列出修改该链表的部分接口
+
 ### `ep_scan_ready_list`函数
 
 扫描就绪队列
@@ -208,12 +249,6 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 {
 }
 ```
-
-### `epitem->rdlink`链表
-
-### `epitem->pwqlist`链表
-
-在`epitem`中维护了一个轮询等待队列，`epitem->pwqlist`,列出修改该链表的部分接口
 
 #### `ep_ptable_queue_proc`函数
 
