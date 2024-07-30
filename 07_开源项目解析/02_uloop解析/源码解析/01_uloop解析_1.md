@@ -161,3 +161,34 @@ static inline int uloop_run(void)
 ```
 
 `uloop_run_timeout`函数
+
+```c
+int uloop_run_timeout(int timeout)
+{
+	int next_time = 0;
+
+	uloop_run_depth++;
+
+	uloop_status = 0;
+	uloop_cancelled = false;
+	do {
+		uloop_process_timeouts();
+
+		if (do_sigchld)
+			uloop_handle_processes();
+
+		if (uloop_cancelled)
+			break;
+
+		next_time = uloop_get_next_timeout();
+		if (timeout >= 0 && (next_time < 0 || timeout < next_time))
+				next_time = timeout;
+		uloop_run_events(next_time);
+	} while (!uloop_cancelled && timeout < 0);
+
+	--uloop_run_depth;
+
+	return uloop_status;
+}
+```
+
