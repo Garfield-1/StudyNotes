@@ -1,5 +1,31 @@
 # uloop源码解析
 
+
+
+## 整体框架接口
+
+- 初始化事件循环
+
+　　`int uloop_init(void)`
+
+　　创建一个`epoll`的句柄，最多监控`32`个文件描述符。
+
+　　设置文件描述符属性，如`FD_CLOEXEC`。
+
+- 事件循环主处理入口
+
+　　`void uloop_run(void)`
+
+- 销毁事件循环
+
+　　`void uloop_done(void)`
+
+　　关闭`epoll`句柄。
+
+　　清空定时器链表中的所有的定时器。
+
+　　清空进程处理事件链表中删除所有的进程事件节点。
+
 ## 定时器模块
 
 ## 使用方法
@@ -160,7 +186,7 @@ static inline int uloop_run(void)
 }
 ```
 
-`uloop_run_timeout`函数
+### `uloop_run_timeout`函数
 
 ```c
 int uloop_run_timeout(int timeout)
@@ -172,15 +198,15 @@ int uloop_run_timeout(int timeout)
 	uloop_status = 0;
 	uloop_cancelled = false;
 	do {
-		uloop_process_timeouts();
+		uloop_process_timeouts();// 检测uloop链表中所有元素，将超时的时间从链表中删除
 
-		if (do_sigchld)
-			uloop_handle_processes();
+		if (do_sigchld)// 是否收到SIGCHLD信号，若收到则为true
+			uloop_handle_processes();// 检查所有已结束的子进程，在链表中删除节点，并调用回调函数处理
 
 		if (uloop_cancelled)
 			break;
 
-		next_time = uloop_get_next_timeout();
+		next_time = uloop_get_next_timeout();// 获取下一个超时时间的超时时间
 		if (timeout >= 0 && (next_time < 0 || timeout < next_time))
 				next_time = timeout;
 		uloop_run_events(next_time);
@@ -192,3 +218,58 @@ int uloop_run_timeout(int timeout)
 }
 ```
 
+**核心思想**
+
+最外层记录循环的深度，内层使用一个大的`while`循环作为函数的核心逻辑
+
+
+
+## 监听`epoll`事件
+
+### `uloop_fetch_events`函数
+
+```c
+static int uloop_fetch_events(int timeout)
+{
+	int n, nfds;
+
+	nfds = epoll_wait(poll_fd, events, ARRAY_SIZE(events), timeout);
+	for (n = 0; n < nfds; ++n) {
+		struct uloop_fd_event *cur = &cur_fds[n];
+		struct uloop_fd *u = events[n].data.ptr;
+		unsigned int ev = 0;
+
+		cur->fd = u;
+		if (!u)
+			continue;
+
+		if (events[n].events & (EPOLLERR|EPOLLHUP)) {
+			u->error = true;
+			if (!(u->flags & ULOOP_ERROR_CB))
+				uloop_fd_delete(u);
+		}
+
+		if(!(events[n].events & (EPOLLRDHUP|EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP))) {
+			cur->fd = NULL;
+			continue;
+		}
+
+		if(events[n].events & EPOLLRDHUP)
+			u->eof = true;
+
+		if(events[n].events & EPOLLIN)
+			ev |= ULOOP_READ;
+
+		if(events[n].events & EPOLLOUT)
+			ev |= ULOOP_WRITE;
+
+		cur->events = ev;
+	}
+
+	return nfds;
+}
+```
+
+**核心思想**
+
+本质是对`epoll_wait`的一层封装
