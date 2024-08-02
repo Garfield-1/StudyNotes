@@ -7,17 +7,17 @@ LIB := -lm								#链接库
 #LDFLAGS = -L./lib -Wl,-rpath=./lib		#自定义动态库路径，并设置程序允许时从这个路径读取动态库
 PRODUCT := a.out						#编译产物
 
-all : $(PRODUCT)
+all: $(PRODUCT)
 
-$(PRODUCT) : $(TARGETS)
-	$(CC) $(TARGETS) -o $(PRODUCT) $(LIB)
+$(PRODUCT): $(TARGETS)
+	$(CC) $^ -o $@ $(LIB)
 #	如果需要使用自定义的动态库，请使用下面的代码
-#	$(CC) $(TARGETS) -o $(PRODUCT) $(LDFLAGS) $(LIB)
+#	$(CC) $^ -o $@ $(LDFLAGS)
 	rm $(TARGETS)
 
-$(TARGETS) : $(SRCS)
-	$(CC) -c $(CFLAGS) $(patsubst %.o, %.c, $@) -o  $@ $(INC_DIR)
+%.o: %.c
+	$(CC) -c $(CFLAGS) $(INC_DIR) $< -o $@
 
-.PHONY : clean
-clean :
+.PHONY: clean
+clean:
 	rm $(TARGETS) $(PRODUCT)
