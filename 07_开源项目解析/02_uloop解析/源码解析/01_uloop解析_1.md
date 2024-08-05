@@ -272,4 +272,4 @@ static int uloop_fetch_events(int timeout)
 
 **核心思想**
 
-本质是对`epoll_wait`的一层封装
+本质是对`epoll_wait`的一层封装，函数内部的`cur_fds`为全局变量，循环中的主要操作实际上是对这个全局数组进行赋值的操作，和将`epoll`中的句柄取出来赋值的操作。
