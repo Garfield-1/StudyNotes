@@ -310,6 +310,10 @@ int uloop_process_add(struct uloop_process *p)
 }
 ```
 
+**核心思想**
+
+按照升序排序将新节点插入链表中
+
 
 
 ### `uloop_handle_processes`函数
