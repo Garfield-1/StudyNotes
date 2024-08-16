@@ -38,27 +38,42 @@
 #include <stdio.h>
 #include <uloop.h>
 
-struct uloop_timeout timeout;	//创建uloop_timeout全局变量
+struct uloop_timeout timeout;						// 创建uloop_timeout全局变量
 
-int frequency = 5; 				//每隔5秒超时一次
+int frequency = 5; 									// 每隔5秒超时一次
 
+// 设置定时器回调
 static void timeout_cb(struct uloop_timeout *t)
 {
 	printf("[%s] uloop test \n", __FUNCTION__);
-	uloop_timeout_set(t, frequency * 1000);//设置下次的超时时间
+	uloop_timeout_set(t, frequency * 1000);
 }
 
 int main()
 {	
-	uloop_init();			//使用库初始化	
-	timeout.cb = timeout_cb;
-	uloop_timeout_set(&timeout, frequency * 1000);//设置下次的超时时间
+	uloop_init();									// 使用库初始化	
+	timeout.cb = timeout_cb;						// 设置定时器超时回调
+	uloop_timeout_set(&timeout, frequency * 1000);	// 设置下次的超时时间
 	uloop_run();
 	uloop_done();
 }
 ```
 
 上述程序效果：每隔`5S`打印一次
+
+
+
+## 概述
+
+`uloop`的核心数据结构围绕着三个链表进行展开，分别是定时器链表、子进程链表、信号管理链表
+
+初始化阶段做的工作主要是，创建`epoll`、设置信号处理、设置定时器链表节点和超时回调函数
+
+整体的架构被设计成，上层一个大循环，循环内部每一次检查超时事件链表和子进程链表，超时事件执行回调并删除链表中的节点，需要通过信号处理的事件也执行回调删除节点。底层使用`epoll`监听事件
+
+
+
+整体编码风格十分飘逸，使用大量全局变量控制关键流程且贯穿流程始终，内部多个链表互相影响互相耦合，但整体设计小巧精致少有冗余。可以明显作者在设计时，将整个`uloop.c`作为一个独立的单独模块。
 
 
 
@@ -161,7 +176,7 @@ struct uloop_signal
 
 
 
-## 定时器链表操作
+## 定时器链表管理
 
 ### `uloop_timeout_add`函数
 
@@ -204,43 +219,6 @@ int uloop_timeout_add(struct uloop_timeout *timeout)
 
 
 
-### `uloop_process_timeouts`函数
-
-**源代码如下**
-
-> 笔者注：除注释外，所有代码均未删改
-
-```c
-static void uloop_process_timeouts(void)
-{
-	struct uloop_timeout *t;
-	struct timeval tv;
-
-	if (list_empty(&timeouts))
-		return;
-
-	uloop_gettime(&tv);
-	while (!list_empty(&timeouts)) {
-        /* 获取定时器链表时间和当前时间比较 */
-		t = list_first_entry(&timeouts, struct uloop_timeout, list);
-		if (tv_diff(&t->time, &tv) > 0)
-			break;
-
-        /* 清除超时的定时器，并执行定时器回调 */
-		uloop_timeout_cancel(t);
-		if (t->cb)
-			t->cb(t);
-        
-	}
-}
-```
-
-**核心思想**
-
-遍历整个定时器链表，将时间超过当前时间的节点清除，然后执行对应回调
-
-
-
 ### `uloop_clear_timeouts`函数
 
 函数主要作用是，清空定时器链表
@@ -277,7 +255,46 @@ int uloop_timeout_cancel(struct uloop_timeout *timeout)
 
 
 
-## 子进程管理链表操作
+### `uloop_process_timeouts`函数
+
+定时器链表管理**核心接口**。遍历整个链表执行已经到达时间的节点回调，并清除定时器
+
+**源代码如下**
+
+> 笔者注：除注释外，所有代码均未删改
+
+```c
+static void uloop_process_timeouts(void)
+{
+	struct uloop_timeout *t;
+	struct timeval tv;
+
+	if (list_empty(&timeouts))
+		return;
+
+	uloop_gettime(&tv);
+	while (!list_empty(&timeouts)) {
+        /* 获取定时器链表时间和当前时间比较 */
+		t = list_first_entry(&timeouts, struct uloop_timeout, list);
+		if (tv_diff(&t->time, &tv) > 0)
+			break;
+
+        /* 清除超时的定时器，并执行定时器回调 */
+		uloop_timeout_cancel(t);
+		if (t->cb)
+			t->cb(t);
+        
+	}
+}
+```
+
+**核心思想**
+
+遍历整个定时器链表，将时间超过当前时间的节点清除，然后执行对应回调
+
+
+
+## 子进程管理链表管理
 
 ### `uloop_process_add`函数
 
@@ -316,46 +333,6 @@ int uloop_process_add(struct uloop_process *p)
 
 
 
-### `uloop_handle_processes`函数
-
-**源代码如下**
-
-> 笔者注：除注释外，所有代码均未删改
-
-```c
-static void uloop_handle_processes(void)
-{
-	struct uloop_process *p, *tmp;
-	pid_t pid;
-	int ret;
-
-	do_sigchld = false;
-
-	while (1) {
-		pid = waitpid(-1, &ret, WNOHANG);
-		if (pid < 0 && errno == EINTR)
-			continue;
-
-		if (pid <= 0)
-			return;
-
-		list_for_each_entry_safe(p, tmp, &processes, list) {
-			if (p->pid < pid)
-				continue;
-
-			if (p->pid > pid)
-				break;
-
-			uloop_process_delete(p);
-			p->cb(p, ret);
-		}
-	}
-
-}
-```
-
-
-
 ### `uloop_clear_processes`函数
 
 清空链表
@@ -391,7 +368,51 @@ int uloop_process_delete(struct uloop_process *p)
 
 
 
-## 信号管理链表操作
+### `uloop_handle_processes`函数
+
+子进程管理核心接口，
+
+**源代码如下**
+
+> 笔者注：除注释外，所有代码均未删改
+
+```c
+static void uloop_handle_processes(void)
+{
+	struct uloop_process *p, *tmp;
+	pid_t pid;
+	int ret;
+
+	do_sigchld = false;
+
+	while (1) {
+		pid = waitpid(-1, &ret, WNOHANG);
+		if (pid < 0 && errno == EINTR)
+			continue;
+
+		if (pid <= 0)
+			return;
+        /*
+         * 遍历链表，直到找到与子进程匹配的pid
+         * 删除节点并执行节点对应回调
+         */
+		list_for_each_entry_safe(p, tmp, &processes, list) {
+			if (p->pid < pid)
+				continue;
+
+			if (p->pid > pid)
+				break;
+
+			uloop_process_delete(p);
+			p->cb(p, ret);
+		}
+	}
+}
+```
+
+
+
+## 信号管理链表管理
 
 ### `uloop_signal_add`函数
 
@@ -532,6 +553,8 @@ int uloop_timeout_set(struct uloop_timeout *timeout, int msecs)
 
 ### `uloop_run_timeout`函数
 
+核心接口，对定时器链表和子进程链表中的
+
 ```c
 int uloop_run_timeout(int timeout);
 
@@ -549,18 +572,18 @@ int uloop_run_timeout(int timeout)
 	uloop_status = 0;
 	uloop_cancelled = false;
 	do {
-		uloop_process_timeouts();// 检测uloop链表中所有元素，将超时的时间从链表中删除
+		uloop_process_timeouts();				// 检测uloop链表中所有元素，将超时的时间从链表中删除
 
-		if (do_sigchld)// 是否收到SIGCHLD信号，若收到则为true
-			uloop_handle_processes();// 检查所有已结束的子进程，在链表中删除节点，并调用回调函数处理
+		if (do_sigchld)							// 是否收到SIGCHLD信号，若收到则为true
+			uloop_handle_processes();			// 检查所有已结束的子进程，在链表中删除节点，并调用回调函数处理
 
 		if (uloop_cancelled)
 			break;
 
-		next_time = uloop_get_next_timeout();// 获取下一个超时时间的超时时间
+		next_time = uloop_get_next_timeout();	// 计算下个事件超时离当前时间多久
 		if (timeout >= 0 && (next_time < 0 || timeout < next_time))
 				next_time = timeout;
-		uloop_run_events(next_time);
+		uloop_run_events(next_time);			//通过epoll监听文件句柄，超时时间设置为next_time
 	} while (!uloop_cancelled && timeout < 0);
 
 	--uloop_run_depth;
