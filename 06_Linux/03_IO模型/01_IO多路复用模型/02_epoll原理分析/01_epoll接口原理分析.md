@@ -410,7 +410,8 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	struct eventpoll *ep;
 	struct epitem *epi;
 	struct epoll_event epds;
-
+	
+    copy_from_user(&epds, event, sizeof(struct epoll_event))；
     /*
      * 接口使用时会传入对epoll节点的操作类型
      * 包括增删改三种操作，分别对应不同接口
