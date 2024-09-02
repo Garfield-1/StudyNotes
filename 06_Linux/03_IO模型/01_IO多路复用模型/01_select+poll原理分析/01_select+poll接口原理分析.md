@@ -359,7 +359,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
     retval = max_select_fd(n, fds);
     int n = retval;
 
-    for(...)
+    for(;;)
     {
         /*
          * 此处申请的`unsigned long inp, outp, exp`变量分别对应可读、可写、异常事件的文件描述符位图
@@ -437,7 +437,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
     n = retval;
 
     retval = 0;
-    for(...)
+    for(;;)
     {
         for(...)
         {
@@ -689,7 +689,8 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 ```c
 static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct timespec64 *end_time)
 {
-	for (...) {
+    ...
+	for (;;) {
         struct poll_list *walk;
         bool can_busy_loop = false;
 
@@ -709,6 +710,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 			}
 		}
 	}
+    ...
 }
 ```
 

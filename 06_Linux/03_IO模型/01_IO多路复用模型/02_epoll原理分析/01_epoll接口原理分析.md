@@ -111,7 +111,7 @@ cleanup:
 
 ## 3. 数据结构
 
-## `epoll`核心结构体
+## 3.1 `epoll`核心结构体
 
 ### 1)  `struct eventpoll`
 
@@ -200,7 +200,7 @@ static int ep_alloc(struct eventpoll **pep)
 
 `ep_alloc`函数创建申请结构体的内存空间，将结构体的各个成员初始化，其中需要注意的是`user`保存的是当前进程对应的用户`ID`
 
-#### **`eventpoll`结构图**
+#### **`eventpoll`结构图**（待完成）
 
 <img src=".\img\struct_eventpoll.jpg" alt="struct_eventpoll" style="zoom: 33%;" />
 
@@ -364,6 +364,10 @@ error_create_wakeup_source:
 
 <img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
+
+
+
+
 ### 3) `struct eppoll_entry`
 
 每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
@@ -391,9 +395,13 @@ struct eppoll_entry
 
 
 
-## epoll红黑树操作接口
+## 3.2 epoll红黑树操作接口
 
-### 1) **`epoll_ctl`接口**
+`epoll`模块在内部维护了一个红黑树的数据结构用来管理`epoll`节点，红黑树的节点类型为`struct epitem`
+
+### 1) 模块对外总接口
+
+**`epoll_ctl`函数**
 
 `epoll`模块提供的修改元素的接口，主要用于修改红黑树节点和各个关键链表
 
@@ -421,8 +429,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 		ep_insert(ep, &epds, tf.file, fd, full_check);
 		break;
 	case EPOLL_CTL_DEL:
-		if (epi)
-			ep_remove(ep, epi);
+		ep_remove(ep, epi);
 		break;
 	case EPOLL_CTL_MOD:
 		ep_modify(ep, epi, &epds);
@@ -435,7 +442,57 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 对`epoll`节点的操作会首先进入这个函数，然后根据不同的操作类型进入不同的节点
 
-### 2) `ep_rbtree_insert`函数（待完成）
+<img src=".\img\红黑树操作接口.jpg" alt="红黑树操作接口" style="zoom: 50%;" />
+
+### 2) 查找节点
+
+**`ep_find`函数**
+
+在红黑树中查找节点
+
+**源代码如下**
+
+> 笔者注：除注释外，所有代码均未删改
+
+```c
+static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
+{
+    int kcmp;
+    struct rb_node *rbp;
+    struct epitem *epi, *epir = NULL;
+    struct epoll_filefd ffd;
+
+    // 设置 epoll_filefd 结构体，用于比较查找
+    ep_set_ffd(&ffd, file, fd);
+    
+    // 遍历红黑树
+    for (rbp = ep->rbr.rb_root.rb_node; rbp; ) {
+        /* 通过父节点获取对应的 epitem 结构体 */
+        epi = rb_entry(rbp, struct epitem, rbn);
+        /* 比较当前节点与要插入的节点 */
+        kcmp = ep_cmp_ffd(&ffd, &epi->ffd);
+         /* 如果要插入节点的关键字大于当前节点，则向右子树查找,否则向左子树查找 */
+        if (kcmp > 0)
+            rbp = rbp->rb_right;
+        else if (kcmp < 0)
+            rbp = rbp->rb_left;
+        else {
+            epir = epi;
+            break;
+        }
+    }
+
+    return epir;
+}
+```
+
+**核心思想**
+
+采用深度优先的策略，遍历红黑树找到目标节点
+
+### 3) 插入节点
+
+**`ep_rbtree_insert`函数（待完成）**
 
 插入新的节点
 
@@ -484,53 +541,11 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 
 **核心思想**
 
-将新元素插入红黑树中
+采用深度优先的策略，遍历红黑树找到目标节点，然后将节点插入
 
-### 3) `ep_find`函数
+### 4) 删除节点
 
-在红黑树中查找节点
-
-**源代码如下**
-
-> 笔者注：除注释外，所有代码均未删改
-
-```c
-static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
-{
-    int kcmp;
-    struct rb_node *rbp;
-    struct epitem *epi, *epir = NULL;
-    struct epoll_filefd ffd;
-
-    // 设置 epoll_filefd 结构体，用于比较查找
-    ep_set_ffd(&ffd, file, fd);
-    
-    // 遍历红黑树
-    for (rbp = ep->rbr.rb_root.rb_node; rbp; ) {
-        /* 通过父节点获取对应的 epitem 结构体 */
-        epi = rb_entry(rbp, struct epitem, rbn);
-        /* 比较当前节点与要插入的节点 */
-        kcmp = ep_cmp_ffd(&ffd, &epi->ffd);
-         /* 如果要插入节点的关键字大于当前节点，则向右子树查找,否则向左子树查找 */
-        if (kcmp > 0)
-            rbp = rbp->rb_right;
-        else if (kcmp < 0)
-            rbp = rbp->rb_left;
-        else {
-            epir = epi;
-            break;
-        }
-    }
-
-    return epir;
-}
-```
-
-**核心思想**
-
-遍历红黑树，匹配对应的节点
-
-### 4) `ep_remove`函数(待完成)
+**`ep_remove`函数(待完成)**
 
 从红黑树中删除节点
 
@@ -559,7 +574,9 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 }
 ```
 
-### 5) `ep_modify`函数
+### 5) 修改节点
+
+**`ep_modify`函数**
 
 修改节点
 
@@ -568,21 +585,64 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
+/*
+ * Modify the interest event mask by dropping an event if the new mask
+ * has a match in the current file status. Must be called with "mtx" held.
+ */
 static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 		     const struct epoll_event *event)
 {
+	int pwake = 0;
+	poll_table pt;
+
+	lockdep_assert_irqs_enabled();
+
+	init_poll_funcptr(&pt, NULL);
+
+	epi->event.events = event->events;
+	epi->event.data = event->data;
+	/*
+	 * 检查当前节点是否设置了EPOLLWAKEUP,如果设置了,且当前 epitem 没有唤醒源,则创建一个;
+	 * 如果未设置,且当前有唤醒源,则销毁它
+	 */
+	if (epi->event.events & EPOLLWAKEUP) {
+		if (!ep_has_wakeup_source(epi))
+			ep_create_wakeup_source(epi);
+	} else if (ep_has_wakeup_source(epi)) {
+		ep_destroy_wakeup_source(epi);
+	}
+
+	/* 通过vfs_poll或检查rdllink链表，判断当前节点是否准备就绪 */
+	if (ep_item_poll(epi, &pt, 1)) {	
+		if (!ep_is_linked(epi)) {		/* 检查当前接节点是否链接到rdllink链表上 */
+			list_add_tail(&epi->rdllink, &ep->rdllist);
+			ep_pm_stay_awake(epi);		/* 保持epoll活跃 */
+
+			if (waitqueue_active(&ep->wq))
+				wake_up(&ep->wq);
+			if (waitqueue_active(&ep->poll_wait))
+				pwake++;
+		}
+	}
+
+	if (pwake)
+		ep_poll_safewake(&ep->poll_wait);
+
+	return 0;
 }
 ```
 
 
 
-## 关键链表相关接口
+## 3.3 关键链表相关接口
 
 ### 1) `epitem->ovflist`链表
 
 
 
-### 2) `epitem->rdlink`链表和`eventpoll->rdllist`链表
+### 2) 等待链表和就绪链表
+
+**`epitem->rdlink`链表和`eventpoll->rdllist`链表**
 
 `epitem->rdlink`中存放等待的事件，`eventpoll->rdllist`中存放已经就绪的事件
 
@@ -652,7 +712,7 @@ static inline int waitqueue_active(struct wait_queue_head *wq_head)
 
 
 
-## 关键流程回调函数
+## 4. 关键流程回调函数
 
 ### 1) `ep_poll_safewake`函数
 
@@ -896,7 +956,7 @@ void __fd_install(struct files_struct *files, unsigned int fd, struct file *file
 
 将其插入`ep`中，此时的`ep`是存放在等待队列中的
 
-<img src=".\img\01_do_epoll_create流程.jpg" alt="01_do_epoll_create流程" />
+<img src=".\img\01_do_epoll_create流程.jpg" alt="01_do_epoll_create流程" style="zoom: 33%;" />
 
 
 
