@@ -200,7 +200,7 @@ static int ep_alloc(struct eventpoll **pep)
 
 `ep_alloc`函数创建申请结构体的内存空间，将结构体的各个成员初始化，其中需要注意的是`user`保存的是当前进程对应的用户`ID`
 
-#### **`eventpoll`结构图**（待完成）
+#### **`eventpoll`结构图**
 
 <img src=".\img\struct_eventpoll.jpg" alt="struct_eventpoll" style="zoom: 33%;" />
 
@@ -246,7 +246,7 @@ struct epitem {
 };
 ```
 
-#### 创建`epitem`节点(待完成)
+#### 创建`epitem`节点
 
 `ep_insert`函数
 
@@ -360,7 +360,7 @@ error_create_wakeup_source:
 2. 然后将`epi`添加到红黑树中
 3. 将节点添加到对应的就绪链表、等待链表，以及设置回调函数
 
-#### **`epitem`结构图(待完成)**
+#### **`epitem`结构图**
 
 <img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
@@ -395,7 +395,7 @@ struct eppoll_entry
 
 
 
-## 3.2 epoll红黑树操作接口
+## 3.2 `epoll`红黑树操作接口
 
 `epoll`模块在内部维护了一个红黑树的数据结构用来管理`epoll`节点，红黑树的节点类型为`struct epitem`
 
@@ -492,7 +492,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 ### 3) 插入节点
 
-**`ep_rbtree_insert`函数（待完成）**
+**`ep_rbtree_insert`函数**
 
 插入新的节点
 
@@ -545,7 +545,7 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 
 ### 4) 删除节点
 
-**`ep_remove`函数(待完成)**
+**`ep_remove`函数**
 
 从红黑树中删除节点
 
@@ -634,7 +634,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 
 
 
-## 3.3 关键链表相关接口
+## 3.3 关键链表及相关接口
 
 ### 1) `epitem->ovflist`链表
 
@@ -659,7 +659,9 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 }
 ```
 
-<img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 67%;" />
+**等待链表关系图**
+
+<img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 50%;" />
 
 ### 3) `epitem->pwqlist`链表
 
@@ -835,9 +837,11 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 
 
 
-## 5. epoll基本流程
+## 5. `epoll`基本流程
 
-<img src=".\img\02_epoll接口流程.jpg" alt="02_epoll接口流程" />
+**`epoll`基本流程图**
+
+<img src=".\img\02_epoll接口流程.jpg" alt="02_epoll接口流程" style="zoom: 33%;" />
 
 
 
