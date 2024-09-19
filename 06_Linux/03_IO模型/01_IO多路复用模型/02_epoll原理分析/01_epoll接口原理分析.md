@@ -834,7 +834,7 @@ static int ep_insert(...)
 }
 ```
 
-在`poll_wait`接口中会使用刚才注册的这个回调
+在`poll_wait`接口中会使用刚才注册的`ep_ptable_queue_proc`这个回调
 
 ```c
 static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
