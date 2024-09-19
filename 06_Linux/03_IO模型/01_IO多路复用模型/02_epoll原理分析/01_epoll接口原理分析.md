@@ -16,7 +16,7 @@
 
 
 
-## 1. 发展历史
+## 一、 发展历史
 
 ### **API 发布的时间线**
 
@@ -34,7 +34,7 @@
 
 
 
-## 2. epoll是什么
+## 二、epoll是什么
 
 `epoll`是一种`I/O`事件通知机制，是`linux`内核实现`IO`多路复用的一个实现。
  `IO`多路复用是指，在一个操作里同时监听多个输入输出源，在其中一个或多个输入输出源可用的时候返回，然后对其的进行读写操作。
@@ -43,7 +43,7 @@
 
 
 
-## 4. epoll接口示例代码
+## 三、epoll接口示例代码
 
 创建一个`epoll`连接，监听标准输入。打印用户输入的值，若输入`exit`则直接退出结束进程
 
@@ -109,11 +109,11 @@ cleanup:
 
 
 
-## 3. 数据结构
+## 四、核心数据结构
 
-## 3.1 `epoll`核心结构体
+### 4.1 `epoll`核心结构体
 
-### 1)  `struct eventpoll`
+#### 1)  `struct eventpoll`
 
 这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`do_epoll_create`创建的匿名文件`file`的`private_data`字段中
 
@@ -141,6 +141,11 @@ struct eventpoll {
     /* 指向被检视对象存储的红黑树 */
 	struct rb_root_cached rbr;
 
+    /*
+	 * This is a single linked list that chains all the "struct epitem" that
+	 * happened while transferring ready events to userspace w/out
+	 * holding ->lock.
+	 */
 	struct epitem *ovflist;
 	struct wakeup_source *ws;
 
@@ -159,7 +164,7 @@ struct eventpoll {
 };
 ```
 
-#### **创建`eventpoll`节点**
+创建`eventpoll`节点
 
 **`ep_alloc`函数**
 
@@ -200,11 +205,11 @@ static int ep_alloc(struct eventpoll **pep)
 
 `ep_alloc`函数创建申请结构体的内存空间，将结构体的各个成员初始化，其中需要注意的是`user`保存的是当前进程对应的用户`ID`
 
-#### **`eventpoll`结构图**
+**`eventpoll`结构图**
 
 <img src=".\img\struct_eventpoll.jpg" alt="struct_eventpoll" style="zoom: 33%;" />
 
-### 2)  `struct epitem`
+#### 2)  `struct epitem`
 
 每当我们调用`epoll_ctl`增加一个`fd`时，内核就会为我们创建出一个`epitem`实例，并且把这个实例作为红黑树的一个子节点，增加到`eventpoll`结构体中的红黑树中，对应的字段是`rbr`。这之后，查找每一个`fd`上是否有事件发生都是通过红黑树上的`epitem`来操作
 
@@ -246,7 +251,7 @@ struct epitem {
 };
 ```
 
-#### 创建`epitem`节点
+**创建`epitem`节点**
 
 `ep_insert`函数
 
@@ -360,7 +365,7 @@ error_create_wakeup_source:
 2. 然后将`epi`添加到红黑树中
 3. 将节点添加到对应的就绪链表、等待链表，以及设置回调函数
 
-#### **`epitem`结构图**
+**`epitem`结构图**
 
 <img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
@@ -368,7 +373,7 @@ error_create_wakeup_source:
 
 
 
-### 3) `struct eppoll_entry`
+#### 3) `struct eppoll_entry`
 
 每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
 
@@ -395,11 +400,11 @@ struct eppoll_entry
 
 
 
-## 3.2 `epoll`红黑树操作接口
+### 4.2 `epoll`红黑树操作接口
 
 `epoll`模块在内部维护了一个红黑树的数据结构用来管理`epoll`节点，红黑树的节点类型为`struct epitem`
 
-### 1) 模块对外总接口
+#### 1) 模块对外总接口
 
 **`epoll_ctl`函数**
 
@@ -444,7 +449,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 <img src=".\img\红黑树操作接口.jpg" alt="红黑树操作接口" style="zoom: 50%;" />
 
-### 2) 查找节点
+#### 2) 查找节点
 
 **`ep_find`函数**
 
@@ -490,7 +495,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 采用深度优先的策略，遍历红黑树找到目标节点
 
-### 3) 插入节点
+#### 3) 插入节点
 
 **`ep_rbtree_insert`函数**
 
@@ -543,7 +548,7 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 
 采用深度优先的策略，遍历红黑树找到目标节点，然后将节点插入
 
-### 4) 删除节点
+#### 4) 删除节点
 
 **`ep_remove`函数**
 
@@ -574,7 +579,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 }
 ```
 
-### 5) 修改节点
+#### 5) 修改节点
 
 **`ep_modify`函数**
 
@@ -634,13 +639,83 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 
 
 
-## 3.3 关键链表及相关接口
+### 4.3 关键链表及相关接口
 
-### 1) `epitem->ovflist`链表
+#### 1) `epitem->ovflist`链表和`epitem->rdlink`链表
 
+#### 扫描就绪链表
 
+**`ep_scan_ready_list`**函数
 
-### 2) 等待链表和就绪链表
+扫描就绪链表核心接口，用于维护更新`epoll`关键链表的状态
+
+**核心逻辑如下**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
+```c
+static __poll_t ep_scan_ready_list(struct eventpoll *ep,
+			      __poll_t (*sproc)(struct eventpoll *,
+					   struct list_head *, void *),
+			      void *priv, int depth, bool ep_locked)
+{
+	__poll_t res;
+	int pwake = 0;
+	struct epitem *epi, *nepi;
+
+    /*
+     * 创建一个空的新链表txlist，将其和ep->rdllist拼接起来
+     * 此处传入的sproc是ep_read_events_proc或ep_send_events_proc用于检测句柄的状态或是将epoll检测结果从内核发给用户态
+     */
+	LIST_HEAD(txlist);
+	list_splice_init(&ep->rdllist, &txlist);
+	WRITE_ONCE(ep->ovflist, NULL);
+	res = (*sproc)(ep, &txlist, priv);
+
+    /*
+     * 函数后半段
+     * 此次开始对ep->ovflist进行扫描，当ep->ovflist->rdllink中只有一个元素
+     * 时将其添加到ep->rdllist中并唤醒这个epi节点
+     */
+	for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
+	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
+		if (!ep_is_linked(epi)) {
+			list_add(&epi->rdllink, &ep->rdllist);
+			ep_pm_stay_awake(epi);
+		}
+	}
+
+    /* 清空ep->ovflist链表 */
+	WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
+
+    /* 将txlist添加到ep->rdllist */
+	list_splice(&txlist, &ep->rdllist);
+	__pm_relax(ep->ws);
+
+    /* 唤醒链表 */
+	if (!list_empty(&ep->rdllist)) {
+		if (waitqueue_active(&ep->wq))
+			wake_up(&ep->wq);
+		if (waitqueue_active(&ep->poll_wait))
+			pwake++;
+	}
+
+	if (pwake)
+		ep_poll_safewake(&ep->poll_wait);
+
+	return res;
+}
+```
+
+**核心思想**
+
+`ep_scan_ready_list`函数的执行可以分为前后两个部分
+
+前半部分：执行传入的函数指针`sproc`这里会根据不同的场景传入`ep_read_events_proc`或`ep_send_events_proc`，分别用于检查`epoll`就绪链表或将`epoll`检测结果从内核态发送至用户态
+
+后半部分：遍历检查`ovflist`链表，根据检查结果更新`rdllist`链表，然后唤醒等待链表
+
+#### 2) 等待链表和就绪链表
 
 **`epitem->rdlink`链表和`eventpoll->rdllist`链表**
 
@@ -661,60 +736,174 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 
 **等待链表关系图**
 
-<img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 50%;" />
+<img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 20%;" />
 
-### 3) `epitem->pwqlist`链表
 
-在`epitem`中维护了一个轮询等待队列，`epitem->pwqlist`,列出修改该链表的部分接口
 
-### `epitem->fllink`链表
 
-### 4) `ep_scan_ready_list`函数
 
-扫描就绪队列
+## 五、对文件句柄的监听
+
+### 5.1 驱动层面对文件系统的监听
+
+**`file_operations->poll`接口**
+
+**函数声明**
+
+在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
 
 ```c
-static __poll_t ep_scan_ready_list(struct eventpoll *ep,
-			      __poll_t (*sproc)(struct eventpoll *,
-					   struct list_head *, void *),
-			      void *priv, int depth, bool ep_locked)
+#define __bitwise __attribute__((bitwise))
+typedef unsigned __bitwise __poll_t;
+
+struct file_operations {
+	...
+    /* read意为读、write意为写、poll意为检测，探询 */
+    ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
+	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
+	__poll_t (*poll) (struct file *, struct poll_table_struct *);
+	...
+} __randomize_layout;
+```
+
+**函数实现**
+
+`struct file_operations`中的`__poll_t`是在驱动代码中实现，不同驱动代码实现方式不同。但都会调用`poll_wait()`函数
+
+在此处列出例子
+
+在`linux-5.4\arch\powerpc\platforms\powernv\opal-prd.c`中可以找到`OPAL`的驱动对于`poll`的实现
+
+```c
+static const struct file_operations opal_prd_fops = {
+	...
+	.poll		= opal_prd_poll,
+	...
+};
+
+static __poll_t opal_prd_poll(struct file *file,
+		struct poll_table_struct *wait)
 {
+	poll_wait(file, &opal_prd_msg_wait, wait);
+
+	if (!opal_msg_queue_empty())
+		return EPOLLIN | EPOLLRDNORM;
+
+	return 0;
 }
 ```
 
-### 5) `ep_ptable_queue_proc`函数
+在`linux-5.4\arch\powerpc\kernel\rtasd.c`中可以找到`RTASD`的驱动对于`poll`的实现
 
 ```c
-static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt)
+static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 {
+	poll_wait(file, &rtas_log_wait, wait);
+	if (rtas_log_size)
+		return EPOLLIN | EPOLLRDNORM;
+	return 0;
+}
+
+static const struct file_operations proc_rtas_log_operations = {
+	...
+	.poll =		rtas_log_poll,
+	...
+};
+```
+
+可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
+
+
+
+### 5.2 `epoll`对监听文件句柄的实现
+
+**关键回调函数的注册**
+
+**`file_operations.poll`的注册**
+
+首先通过`init_poll_funcptr`接口注册将回调函数写入`struct ep_pqueue->poll_table->_qproc`
+
+```c
+static int ep_insert(...)
+{
+    ...
+	struct ep_pqueue epq;
+    ...
+    init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
+    ...
 }
 ```
 
-### 6) `ep_unregister_pollwait`函数
-
-销毁回调`epoll_wait`
+在`poll_wait`接口中会使用刚才注册的这个回调
 
 ```c
-static void ep_unregister_pollwait(struct eventpoll *ep, struct epitem *epi)
+static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_address, poll_table *p)
 {
+	if (p && p->_qproc && wait_address)
+		p->_qproc(filp, wait_address, p);
 }
 ```
 
-### 7) `waitqueue_active`函数
-
-用于检查等待队列链表是否为空
+`epoll`对于`file_operations->poll`采用了自己一套实现方式，其中与驱动代码不同，并未采用`poll_wait`将进程挂载到内核等待链中
 
 ```c
-static inline int waitqueue_active(struct wait_queue_head *wq_head)
+/* File callbacks that implement the eventpoll file behaviour */
+static const struct file_operations eventpoll_fops = {
+#ifdef CONFIG_PROC_FS
+	.show_fdinfo	= ep_show_fdinfo,
+#endif
+	.release	= ep_eventpoll_release,
+	.poll		= ep_eventpoll_poll,
+	.llseek		= noop_llseek,
+};
+```
+
+**`vfs_poll`接口的实现**
+
+在`vfs_poll`接口中会调用刚才注册的`ep_eventpoll_poll`
+
+```c
+static inline __poll_t vfs_poll(struct file *file, struct poll_table_struct *pt)
 {
-	return !list_empty(&wq_head->head);
+	if (unlikely(!file->f_op->poll))
+		return DEFAULT_POLLMASK;
+	return file->f_op->poll(file, pt);
+}
+```
+
+**对外关键接口**
+
+在`ep_item_poll`接口中实现对文件的监听接口，根据不同情况分别使用`vfs_poll`或是`ep_scan_ready_list`来获取句柄状态
+
+```c
+/*
+ * Differs from ep_eventpoll_poll() in that internal callers already have
+ * the ep->mtx so we need to start from depth=1, such that mutex_lock_nested()
+ * is correctly annotated.
+ */
+static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
+				 int depth)
+{
+	struct eventpoll *ep;
+	bool locked;
+
+	pt->_key = epi->event.events;
+	if (!is_file_epoll(epi->ffd.file))
+		return vfs_poll(epi->ffd.file, pt) & epi->event.events;
+
+	ep = epi->ffd.file->private_data;
+	poll_wait(epi->ffd.file, &ep->poll_wait, pt);
+	locked = pt && (pt->_qproc == ep_ptable_queue_proc);
+
+	return ep_scan_ready_list(epi->ffd.file->private_data,
+				  ep_read_events_proc, &depth, depth,
+				  locked) & epi->event.events;
 }
 ```
 
 
 
-## 4. 关键流程回调函数
+## 六、关键流程回调函数
 
 ### 1) `ep_poll_safewake`函数
 
@@ -837,15 +1026,15 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 
 
 
-## 5. `epoll`基本流程
+## 七、`epoll`基本流程
 
-**`epoll`基本流程图**
+### 7.1 **`epoll`基本流程**
 
 <img src=".\img\02_epoll接口流程.jpg" alt="02_epoll接口流程" style="zoom: 33%;" />
 
 
 
-## 创建epoll实例接口
+### 7.2 创建epoll实例接口
 
 `epoll_create1`和`epoll_create`接口均可用于创建`epoll`实例，不同的是`epoll_create1`可以多传入一个参数
 
@@ -864,7 +1053,7 @@ SYSCALL_DEFINE1(epoll_create, int, size)
 }
 ```
 
-### `do_epoll_create`函数
+**`do_epoll_create`函数**
 
 创建新的`epoll`节点
 
@@ -964,9 +1153,9 @@ void __fd_install(struct files_struct *files, unsigned int fd, struct file *file
 
 
 
-## 操作监听句柄
+### 7.3 操作监听句柄
 
-### `epoll_ctl`函数
+**`epoll_ctl`函数**
 
 用于向`epoll`实例中添加、修改或删除感兴趣的文件描述符（`socket`、文件等）及其关注的事件
 
@@ -1082,9 +1271,9 @@ ep_modify
 
 
 
-## 等待`epoll`事件
+### 7.4 等待`epoll`事件
 
-### `epoll_wait`函数
+**`epoll_wait`函数**
 
 对`ep_poll`的一层封装
 
@@ -1116,7 +1305,7 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 }
 ```
 
-### `ep_poll`函数
+**`ep_poll`函数**
 
 这个函数真正将执行`epoll_wait`的进程带入睡眠状态
 
@@ -1125,7 +1314,7 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
-/**
+/*
  * ep_poll - 检索准备好的事件，并将它们传递到调用者提供的事件缓冲区
  *
  * @ep: 指向eventpoll上下文的指针
@@ -1230,82 +1419,7 @@ ep_events_available(struct eventpoll *ep)
 
  
 
-----
-
-
-
-## 驱动层面对文件系统的监听
-
-**`file_operations->poll`接口**
-
-**函数声明**
-
-在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
-
-```c
-#define __bitwise __attribute__((bitwise))
-typedef unsigned __bitwise __poll_t;
-
-struct file_operations {
-	...
-    /* read意为读、write意为写、poll意为检测，探询 */
-    ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
-	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	__poll_t (*poll) (struct file *, struct poll_table_struct *);
-	...
-} __randomize_layout;
-```
-
-**函数实现**
-
-`struct file_operations`中的`__poll_t`是在驱动代码中实现，不同驱动代码实现方式不同。但都会调用`poll_wait()`函数
-
-在此处列出例子
-
-在`linux-5.4\arch\powerpc\platforms\powernv\opal-prd.c`中可以找到`OPAL`的驱动对于`poll`的实现
-
-```c
-static const struct file_operations opal_prd_fops = {
-	...
-	.poll		= opal_prd_poll,
-	...
-};
-
-static __poll_t opal_prd_poll(struct file *file,
-		struct poll_table_struct *wait)
-{
-	poll_wait(file, &opal_prd_msg_wait, wait);
-
-	if (!opal_msg_queue_empty())
-		return EPOLLIN | EPOLLRDNORM;
-
-	return 0;
-}
-```
-
-在`linux-5.4\arch\powerpc\kernel\rtasd.c`中可以找到`RTASD`的驱动对于`poll`的实现
-
-```c
-static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
-{
-	poll_wait(file, &rtas_log_wait, wait);
-	if (rtas_log_size)
-		return EPOLLIN | EPOLLRDNORM;
-	return 0;
-}
-
-static const struct file_operations proc_rtas_log_operations = {
-	...
-	.poll =		rtas_log_poll,
-	...
-};
-```
-
-可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
-
-
-
-## `epoll`与`select`、`poll`的对比
+## 八、`epoll`与`select`、`poll`的对比
 
 **1) 用户态将文件描述符传入内核的方式**
 
@@ -1331,7 +1445,11 @@ static const struct file_operations proc_rtas_log_operations = {
 - `poll`：将新的`struct pollfd`结构体数组拷贝传入内核中，继续以上步骤。
 - `epoll`：无需重新构建红黑树，直接沿用已存在的即可。
 
-## epoll更高效的原因
+
+
+## 九、总结
+
+**epoll更高效的原因**
 
 1）`select`和`poll`的动作基本一致，只是`poll`采用链表来进行文件描述符的存储，而`select`采用fd标注位来存放，所以`select`会受到最大连接数的限制，而`poll`不会。
 
