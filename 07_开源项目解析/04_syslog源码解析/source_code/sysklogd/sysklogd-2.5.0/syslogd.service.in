@@ -1,0 +1,15 @@
+[Unit]
+Description=System Logging Service
+Documentation=man:syslogd
+Documentation=man:syslog.conf
+Requires=syslog.socket
+
+[Service]
+EnvironmentFile=-@SYSCONFDIR@/default/syslogd
+ExecStart=@SBINDIR@/syslogd -F $SYSLOGD_OPTS
+StandardOutput=null
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+Alias=syslog.service

@@ -1,0 +1,8 @@
+*.o
+*.lo
+.libs/*
+logger
+syslogd
+libcompat.la
+libsyslog.la
+libsyslog.pc
