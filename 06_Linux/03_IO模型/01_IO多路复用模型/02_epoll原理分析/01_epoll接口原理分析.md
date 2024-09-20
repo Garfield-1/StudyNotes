@@ -740,6 +740,36 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 
 
 
+#### 3)  eventpoll->wq等待队列链表
+
+函数调用栈
+
+```c
+ep_poll
+    /* 此处设置的唤醒回调函数是default_wake_function,用于唤醒进程 */
+	->init_waitqueue_entry(&wait, current)
+    /* 将wait添加到eventpoll->wq链表中 */
+	->__add_wait_queue_exclusive(&ep->wq, &wait)
+		->__add_wait_queue(wq_head, wq_entry)
+			->list_add(&wq_entry->entry, &wq_head->head)
+	->__remove_wait_queue(&ep->wq, &wait)
+    
+ep_ptable_queue_proc
+    /* 此处设置的唤醒回调函数是ep_poll_callback,最终使用wake_up(&ep->wq)唤醒epoll */
+    ->init_waitqueue_func_entry(&pwq->wait, ep_poll_callback)
+	->add_wait_queue(whead, &pwq->wait)
+```
+
+此处注册唤醒函数后会通过`wake_up`接口来调用
+
+```c
+->__wake_up
+    ->__wake_up_common_lock 
+        ->__wake_up_common
+            ->curr = list_next_entry(bookmark, entry);
+            ->curr->func(curr, mode, wake_flags, key);
+```
+
 
 
 ## 五、对文件句柄的监听
