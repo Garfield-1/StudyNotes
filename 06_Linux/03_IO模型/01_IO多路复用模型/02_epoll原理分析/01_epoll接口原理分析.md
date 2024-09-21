@@ -843,6 +843,16 @@ static const struct file_operations proc_rtas_log_operations = {
 
 可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
 
+### 内核等待队列
+
+等待队列基本流程如下
+
+在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
+
+![等待队列](./img/驱动文件监听回调.jpg)
+
+
+
 
 
 ### 5.2 `epoll`对监听文件句柄的实现

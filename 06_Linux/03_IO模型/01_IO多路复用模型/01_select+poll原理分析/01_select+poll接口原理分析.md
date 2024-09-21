@@ -261,6 +261,8 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 ### do_select函数
 
+<img src="./img/do_select流程.jpg" alt="do_select流程" style="zoom: 15%;" />
+
 **函数核心思想**
 
 函数主要做的事情，遍历传入的文件描述符检查哪些有变化
@@ -376,6 +378,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
         routp = fds->res_out;
         rexp = fds->res_ex;
 
+        /* i超过最大文件描述符是退出循环的唯一条件 */
         for (i = 0; i < n; ++rinp, ++routp, ++rexp) {
             unsigned long in, out, ex, all_bits;
             unsigned long res_in = 0, res_out = 0, res_ex = 0;
@@ -501,7 +504,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 ### select接口小结
 
-`select`接口底层使用`fd_set_bits`结构存储文件描述符位图，这个结构实际是`unsigned long`，将多个文件描述符存储在一起，每一位代表一个文件描述符。在用户配置好需要监听的文件描述符后，由用户空间传入内核空间中，调用内核文件系统提供的poll接口检测是否有变化。在获取到结果后将结果存入`fd_set_bits`结构中再从内核空间传回用户空间。
+`select`接口底层使用`fd_set_bits`结构存储文件描述符位图，这个结构实际是`unsigned long`，将多个文件描述符存储在一起，每一位代表一个文件描述符。在用户配置好需要监听的文件描述符后，由用户空间传入内核空间中，调用内核文件系统提供的`poll`接口检测是否有变化。在获取到结果后将结果存入`fd_set_bits`结构中再从内核空间传回用户空间。
 
 每一次的检测都需要对传入的位图进行遍历，还需要从用户空间和内核空间之间相互传递数据，同时监听的最大文件描述符受到进程可以打开的最大文件描述符数量限制。
 
@@ -674,7 +677,9 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 **核心思想**
 
-构造一个高精度循环检测
+构造一个高精度循环检测，在首次进入后会将进程陷入阻塞态，直到等待被唤醒进程
+
+
 
 **循环出口：内层循环设置循环结束的标志位**
 
@@ -760,15 +765,15 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 
 `poll`和`select`的原理几乎一致，都是将需要监听的文件描述符传入内核，然后调用`file_operations->poll`接口去检测，底层都是依赖内核的文件系统实现。二者不同的地方在于`select`是构造了一个位图然后，然后在位图中填充文件描述符，`poll`则是使用单链表。但两者的效率并没有太大的区别
 
-由于每次的检测都会涉及到数据在用户空间到内核空间之间的来回拷贝，而且每次检测遍历所有的文件描述符，所以其效率并不高。
+由于每次的检测都会涉及到数据在用户空间到内核空间之间的来回拷贝，而且每次检测遍历所有的文件描述符，所以其效率并不高
 
 
 
 ## 驱动层面对文件系统的监听
 
-**`file_operations->poll`接口**
+### **`file_operations->poll`接口**
 
-### 函数声明
+**函数声明**
 
 在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
 
@@ -786,13 +791,13 @@ struct file_operations {
 } __randomize_layout;
 ```
 
-### 函数实现
+**函数实现**
 
 `struct file_operations`中的`__poll_t`是在驱动代码中实现，不同驱动代码实现方式不同。但都会调用`poll_wait()`函数
 
 在此处列出例子
 
-在`linux-5.4\arch\powerpc\platforms\powernv\opal-prd.c`中可以找到`OPAL`的驱动对于`poll`的实现
+在`linux-5.4\arch\powerpc\platforms\powernv\opal-prd.c`中可以找到**`OPAL`的驱动**对于`poll`的实现
 
 ```c
 static const struct file_operations opal_prd_fops = {
@@ -813,9 +818,15 @@ static __poll_t opal_prd_poll(struct file *file,
 }
 ```
 
-在`linux-5.4\arch\powerpc\kernel\rtasd.c`中可以找到`RTASD`的驱动对于`poll`的实现
+在`linux-5.4\arch\powerpc\kernel\rtasd.c`中可以找到**`RTASD`的驱动**对于`poll`的实现
 
 ```c
+static const struct file_operations proc_rtas_log_operations = {
+	...
+	.poll =		rtas_log_poll,
+	...
+};
+
 static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 {
 	poll_wait(file, &rtas_log_wait, wait);
@@ -823,13 +834,19 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 		return EPOLLIN | EPOLLRDNORM;
 	return 0;
 }
-
-static const struct file_operations proc_rtas_log_operations = {
-	...
-	.poll =		rtas_log_poll,
-	...
-};
 ```
 
 可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
+
+### 内核等待队列
+
+等待队列基本流程如下
+
+在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
+
+![等待队列](./img/驱动文件监听回调-1726902061945-5.jpg)
+
+* 内核等待队列是一个公共的基础模块
+* 上图仅针对于`select`和`poll`模块，其他模块对于等待队列的注册接口和回调函数可能有不同的封装和实现
+* `wak_up_interruptible`是一个对`_wake_up`封装的宏，内核中还存在其他的对`_wake_up`的封装宏，其他模块也会调用。例如`socket`就将`wake_up_interruptible_all`自行封装了一个`sock_def_wakeup`接口用于调用
 
