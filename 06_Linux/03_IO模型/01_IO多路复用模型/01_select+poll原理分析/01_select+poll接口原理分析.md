@@ -847,7 +847,7 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 
 在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
 
-![等待队列](./img/驱动文件监听回调.jpg)
+<img src="./img/驱动文件监听回调.jpg" alt="等待队列" />
 
 * 内核等待队列是一个公共的基础模块
 * 上图仅针对于`select`和`poll`模块，其他模块对于等待队列的注册接口和回调函数可能有不同的封装和实现
