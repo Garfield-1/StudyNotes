@@ -297,8 +297,8 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 	for (;;) {
 		...
-		for (...) { 		// 此处省略循环体...
-			for (...) {  	// 此处省略循环体...
+		for (...) { 		// 第二层循环，此处省略循环体...
+			for (...) {  	// 第三次循环，此处省略循环体...
 			}
 		}
 
@@ -652,7 +652,10 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 		struct poll_list *walk;
 		bool can_busy_loop = false;
 
-		for (...) {}//此处省略循环体
+		for (...) {			// 第二层循环，此处省略循环体
+            for (...) {		// 第三层循环，此处省略循环体
+        	}
+        }
 
 		if (count || timed_out)
 			break;
