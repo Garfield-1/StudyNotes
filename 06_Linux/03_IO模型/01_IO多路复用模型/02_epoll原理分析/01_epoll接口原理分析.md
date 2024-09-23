@@ -447,7 +447,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 对`epoll`节点的操作会首先进入这个函数，然后根据不同的操作类型进入不同的节点
 
-<img src=".\img\红黑树操作接口.jpg" alt="红黑树操作接口" style="zoom: 50%;" />
+<img src=".\img\红黑树操作接口.jpg" alt="红黑树操作接口" style="zoom:50%;" />
 
 #### 2) 查找节点
 

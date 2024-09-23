@@ -142,7 +142,7 @@ typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
 
 ### select函数调用栈
 
-<img src=".\img\01_select函数调用栈.png" alt="01_select函数调用栈" />
+<img src=".\img\01_select函数调用栈.png" alt="01_select函数调用栈"  />
 
 **整体流程分析**
 
@@ -260,6 +260,8 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 > 笔者注：严格地说数据在用户空间和内核空间互相传递并不是在这里完成的，经过`SYSCALL_DEFINE5(select)`的调用后已经进入内核态中。这里只是为方便理解而这样表述
 
 ### do_select函数
+
+**函数流程图**
 
 <img src="./img/do_select流程.jpg" alt="do_select流程" style="zoom: 15%;" />
 
@@ -548,7 +550,7 @@ int main() {
 
 ### poll函数调用栈
 
-<img src=".\img\02_poll函数调用栈.png" alt="02_poll函数调用栈" />
+<img src=".\img\02_poll函数调用栈.png" alt="02_poll函数调用栈"  />
 
 ### do_sys_poll函数
 
@@ -627,6 +629,10 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct tim
 `poll`接口的整体设计思路与`select`可以说几乎一致，都是先创建对应的数据结构然后从用户空间拷贝待检测的文件描述符，检测完成后再拷贝至内核空间。二者的区别只是在于使用了不同的数据结构，所以也使用不同的处理方式。
 
 ### do_poll函数
+
+**函数流程图**
+
+<img src="./img/do_poll流程.jpg" alt="do_poll流程" style="zoom:15%;" />
 
 `do_poll`的设计为三层循环嵌套的结构。外侧循环构建了一个高精度定时循环，内层循环则用于检测和填充文件描述符链表
 
