@@ -163,6 +163,12 @@ typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
+SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
+		fd_set __user *, exp, struct timeval __user *, tvp)
+{
+	return kern_select(n, inp, outp, exp, tvp);
+}
+
 static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 		       fd_set __user *exp, struct timeval __user *tvp)
 {
@@ -559,6 +565,22 @@ int main() {
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
+SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
+		int, timeout_msecs)
+{
+	struct timespec64 end_time, *to = NULL;
+	int ret;
+
+	if (timeout_msecs >= 0) {
+		to = &end_time;
+		poll_select_set_timeout(to, timeout_msecs / MSEC_PER_SEC,
+			NSEC_PER_MSEC * (timeout_msecs % MSEC_PER_SEC));
+	}
+
+	ret = do_sys_poll(ufds, nfds, to);
+    return ret;
+}
+
 static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct timespec64 *end_time)
 {
 	struct poll_wqueues table;
