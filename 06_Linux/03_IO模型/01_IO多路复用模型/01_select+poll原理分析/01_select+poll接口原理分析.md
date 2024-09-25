@@ -22,7 +22,7 @@
 > 1997，poll 发布在 Linux 2.1.23
 > 2002，epoll发布在 Linux 2.5.44
 
-可以看到`select`、`poll` 和 `epoll`，这三个“`IO`多路复用`API`”是相继发布的。这说明了，它们是`IO`多路复用的3个进化版本。因为`API`设计缺陷，无法在不改变 API 的前提下优化内部逻辑。所以用`poll`替代`select`，再用`epoll`替代`poll`
+可以看到`select`、`poll` 和 `epoll`，这三个“`IO`多路复用`API`”是相继发布的。这说明了，它们是`IO`多路复用的3个进化版本。因为`API`设计缺陷，无法在不改变 `API` 的前提下优化内部逻辑。所以用`poll`替代`select`，再用`epoll`替代`poll`
 
 `epoll`和`poll`还有`select`都是监听`socket`的接口，`poll`还有`select`出现的时间更早，但是性能更差。后来在此继承上发展改进得到了`epoll`
 
@@ -30,7 +30,7 @@
 
 ## select原理分析
 
-查看man手册可知select函数的作用
+查看`man`手册可知`select`函数的作用
 
 > select() and pselect() allow a program to monitor multiple file descriptors, waiting until one or more of the file descriptors become "ready" for some class of I/O oper‐ation (e.g., input possible).   A file descriptor is considered ready if it is possible to perform a corresponding I/O operation (e.g., read(2)  without  blocking,  or  a sufficiently small write(2)).
 >
@@ -57,7 +57,7 @@
 
 ### 示例代码
 
-监听标准输入，设置超时时间为5S
+监听标准输入，设置超时时间为`5S`
 
 ```c
 #include <stdio.h>
@@ -694,7 +694,7 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 **第二第三层循环结构**
 
-内层的第二层第三层循环做的事情主要是，遍历struct poll_list结构的链表，检查对应的文件描述符是否有变化，并将结果填充至链表中
+内层的第二层第三层循环做的事情主要是，遍历`struct poll_list`结构的链表，检查对应的文件描述符是否有变化，并将结果填充至链表中
 
 **核心逻辑如下**
 
