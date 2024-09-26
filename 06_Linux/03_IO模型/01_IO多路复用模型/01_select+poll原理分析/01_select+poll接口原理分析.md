@@ -873,7 +873,21 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 
 等待队列基本流程如下
 
-在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
+在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列`wakeup`回调
+
+将`__pollwait`注册为等待队列的`wait`回调
+
+```c
+void poll_initwait(struct poll_wqueues *pwq)
+{
+	init_poll_funcptr(&pwq->pt, __pollwait);
+	pwq->polling_task = current;
+	pwq->triggered = 0;
+	pwq->error = 0;
+	pwq->table = NULL;
+	pwq->inline_index = 0;
+}
+```
 
 <img src="./img/驱动文件监听回调.jpg" alt="等待队列" />
 
