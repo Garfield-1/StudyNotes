@@ -217,6 +217,8 @@ int uloop_timeout_add(struct uloop_timeout *timeout)
 
 **核心思想**
 
+<img src="./img/timeouts链表.jpg" alt="timeouts链表" style="zoom: 50%;" />
+
 整个定时器链表以`time`排序遵循递增的顺序，将时间较大的元素插入尾部
 
 
@@ -593,6 +595,10 @@ int uloop_run_timeout(int timeout)
 	return uloop_status;
 }
 ```
+
+**核心流程**
+
+<img src="./img/uloop_run.jpg" alt="uloop_run" style="zoom:33%;" />
 
 **核心思想**
 
