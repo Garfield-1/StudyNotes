@@ -436,7 +436,7 @@ static void uloop_handle_processes(void)
 		if (pid <= 0)
 			return;
 
-		list_for_each_entry_safe(p, tmp, &processes, list) {
+		list_for_each_entry_safe(p, tmp, &processes, list) { 
 			if (p->pid < pid)
 				continue;
 
