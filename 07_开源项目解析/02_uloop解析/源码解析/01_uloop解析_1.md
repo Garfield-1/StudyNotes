@@ -6,31 +6,17 @@
 
 [openWrt libubox组件之uloop原理分析-CSDN博客](https://blog.csdn.net/weixin_30388677/article/details/98090433)
 
-## 整体框架接口
 
-- 初始化事件循环
 
-　　`int uloop_init(void)`
+## 概述
 
-　　创建一个`epoll`的句柄，最多监控`32`个文件描述符。
+`uloop`的核心数据结构围绕着三个链表进行展开，分别是定时器链表、子进程链表、信号管理链表
 
-　　设置文件描述符属性，如`FD_CLOEXEC`。
+初始化阶段做的工作主要是，创建`epoll`、设置信号处理、设置定时器链表节点和超时回调函数
 
-- 事件循环主处理入口
+整体的架构被设计成，上层一个大循环，循环内部每一次检查超时事件链表和子进程链表，超时事件执行回调并删除链表中的节点，需要通过信号处理的事件也执行回调删除节点。底层使用`epoll`监听`socket`句柄
 
-　　`void uloop_run(void)`
 
-- 销毁事件循环
-
-　　`void uloop_done(void)`
-
-　　关闭`epoll`句柄。
-
-　　清空定时器链表中的所有的定时器。
-
-　　清空进程处理事件链表中删除所有的进程事件节点。
-
-## 定时器模块
 
 ## 使用方法
 
@@ -63,25 +49,62 @@ int main()
 
 
 
-## 概述
-
-`uloop`的核心数据结构围绕着三个链表进行展开，分别是定时器链表、子进程链表、信号管理链表
-
-初始化阶段做的工作主要是，创建`epoll`、设置信号处理、设置定时器链表节点和超时回调函数
-
-整体的架构被设计成，上层一个大循环，循环内部每一次检查超时事件链表和子进程链表，超时事件执行回调并删除链表中的节点，需要通过信号处理的事件也执行回调删除节点。底层使用`epoll`监听`socket`句柄
-
-
-
-整体编码风格十分飘逸，使用大量全局变量控制关键流程且贯穿流程始终，内部多个链表互相影响互相耦合，但整体设计小巧精致少有冗余。
-
-
-
 ## 主体循环
 
 在`uloop`初始化时会创建一个管道，管道的输入存储在一个全局变量中在接收到外部信号时则写这个句柄，管道的输出端使用`epoll`进行监听，监听超时时间即`uloop`超时时间
 
 `uloop`主体结构是一个大循环，在每一轮的循环中去检查数个链表（见下文）的节点元素是否超时，若超时则需要执行其对应的回调函数，并设置新一轮的循环。每一轮的循环的中间间隔时间靠`epoll`监听管道输出端来阻塞进程
+
+### 初始化管道并注册epoll事件
+
+**函数调用栈**
+
+```c
+/* 创建epoll节点 */
+uloop_init_pollfd()
+    ->epoll_create()
+
+uloop_init()
+    /* 创建管道，使用epoll监听管道输出端 */
+	->waker_init()
+    	->pipe(fds)
+    	->uloop_fd_add(&waker_fd, ULOOP_READ)
+    		->register_poll(sock, flags)
+    			->epoll_ctl(poll_fd, op, fd->fd, &ev)
+    /* 注册信号回调函数，回调函数写入管道输出端 */
+	->uloop_setup_signals()
+		->uloop_install_handler()
+			->uloop_signal_wake()
+				->write(waker_pipe, &sigbyte, 1)
+```
+
+**核心流程图**
+
+核心思想是创建一个管道，并注册一部分外部信号的回调。使用`epoll`来监听管道的输出端，而在信号的回调中向管道的输入端写入数据。利用了`epoll_wait`的阻塞特性来作为底层的定时设置
+
+<img src="./img/uloop_init.jpg" alt="uloop_init" style="zoom:50%;" />
+
+**核心循环流程**
+
+**函数调用栈**
+
+```c
+/* 设置epoll监听管道输出端，并设置超时时间 */
+uloop_run()
+    ->uloop_run_timeout(-1)
+    	->next_time = uloop_get_next_timeout();
+		->uloop_run_events(next_time);
+			->uloop_fetch_events
+                ->epoll_wait(poll_fd, events, ARRAY_SIZE(events), timeout);
+```
+
+**核心流程图**
+
+`uloop`的主循环实际上是在监听句柄的输出端，如果没有外部信号则该管道的输出端会一直不活跃。`uloop`便是利用了`epoll`阻塞式的特性来实现循环的等待并且在有外部中断信号时可以优雅的退出这个循环
+
+在主循环中每一轮去检查定时器链表和进程管理链表（见后文）来实现固定间隔事件处理事件的效果
+
+<img src="./img/主循环.jpg" alt="主循环" style="zoom:80%;" />
 
 
 
