@@ -130,7 +130,7 @@ int listen(int sockfd, int backlog);
 **返回值**
 
 - **成功**：返回 `0` 表示
-- `失败`：返回 `-1` 表示出错，并且设置了 `errno` 以指示错误原因
+- **失败**：返回 `-1` 表示出错，并且设置了 `errno` 以指示错误原因
 
 
 
@@ -235,7 +235,7 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags);
 
 #### `close`函数
 
-close 一个套接字的默认行为是把套接字标记为已关闭，然后立即返回到调用进程
+`close` 一个套接字的默认行为是把套接字标记为已关闭，然后立即返回到调用进程
 
 **函数原型**
 
