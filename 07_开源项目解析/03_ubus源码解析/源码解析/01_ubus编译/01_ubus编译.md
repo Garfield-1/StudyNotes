@@ -19,15 +19,15 @@
 
 ```
 git clone https://github.com/json-c/json-c.git
-git clone http://git.openwrt.org/project/libubox.git或https://github.com/openwrt/libubox
-git clone https://github.com/openwrt/ubus或https://github.com/openwrt/ubus
+git clone https://github.com/openwrt/libubox
+git clone https://github.com/openwrt/ubus
 ```
 
 
 
 ## 编译方法
 
-下载`json-c、libubox、ubus`源代码，解压重并命名文件夹(不要修改源码)，保证文件目录结构如下。
+下载`json-c、libubox、ubus`源代码，解压重并命名文件夹(不要修改源码)，保证文件目录结构如下。**同时保证`cmake`文件具有可执行权限**
 
 复制粘贴运行本文档中的编译脚本，脚本运行参数`all`
 
@@ -200,23 +200,27 @@ esac
 
 * **终端1：**
 
-  `su root` 切换`root`
-
-​	`ubusd`  拉起`ubusd`进程
+  ```shell
+  su root
+  
+  ubusd	#ubusd进程
+  ```
 
 * **终端2：**
 
-  `su root` 切换`root`
-
-​	`ubus listen test` //监听`ubus`
+  ```shell
+  su root
+  
+  ubus listen test	#监听ubus
+  ```
 
 * **终端3：**
 
-  `su root` 切换`root`
-
-​	`ubus send test '{"hi!":"hello!"}'`
-
-
+  ```shell
+  su root
+  
+  ubus send test '{"hi!":"hello!"}'	#发送ubus
+  ```
 
 如上述操作失败，可尝试将`json-c`、`libubox`和`ubus`的动态库库路径添加至系统动态库搜索路径
 

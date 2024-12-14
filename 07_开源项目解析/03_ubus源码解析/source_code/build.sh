@@ -89,10 +89,11 @@ ubus_build() {
         mkdir -p $depend_libs_path
     fi
 
+    cp $ubus_path/*.h $depend_inc_path &&
     cp $ubus_build_path/ubus $depend_path &&
     cp $ubus_build_path/ubusd $depend_path &&
-    cp $ubus_build_path/libubus.* $depend_path &&
-    cp $ubus_build_path/libubusd_library.* $depend_path
+    cp $ubus_build_path/libubus.* $depend_libs_path &&
+    cp $ubus_build_path/libubusd_library.* $depend_libs_path
 }
 
 clean() {
