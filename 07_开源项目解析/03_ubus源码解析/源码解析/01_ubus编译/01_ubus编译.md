@@ -107,8 +107,8 @@ libubox_build() {
     cp $jsonC_build_path/*.h $depend_inc_path &&
     cp $jsonC_path/*.h $depend_inc_path &&
 
-    cmake -D json=$depend_libs_path/libjson-c.so -D CMAKE_C_FLAGS="-I $depend_inc_path"\
-        -D BUILD_LUA:BOOL=OFF -D BUILD_EXAMPLES:BOLL=OFF -D BUILD_STATIC=ON $libubox_path
+    cmake -Djson=$depend_libs_path/libjson-c.so -DCMAKE_C_FLAGS="-I $depend_inc_path"\
+        -DBUILD_LUA:BOOL=OFF -DBUILD_EXAMPLES:BOLL=OFF -DBUILD_STATIC=ON $libubox_path -DCMAKE_BUILD_TYPE=Debug
 
     make &&
 
@@ -135,9 +135,9 @@ ubus_build() {
     fi
     cp $libubox_path/*.h $depend_inc_path/libubox &&
 
-    cmake -D json=$depend_libs_path/libjson-c.so -D ubox_library=$depend_libs_path/libubox.so \
-        -D blob_library=$depend_libs_path/libblobmsg_json.so -D ubox_include_dir:PATH=$depend_inc_path -D BUILD_LUA=OFF\
-        -D BUILD_STATIC=ON $ubus_path
+    cmake -Djson=$depend_libs_path/libjson-c.so -Dubox_library=$depend_libs_path/libubox.so \
+        -Dblob_library=$depend_libs_path/libblobmsg_json.so -Dubox_include_dir:PATH=$depend_inc_path -DBUILD_LUA=OFF\
+        -DBUILD_STATIC=ON $ubus_path -DCMAKE_BUILD_TYPE=Debug
 
     make &&
 
