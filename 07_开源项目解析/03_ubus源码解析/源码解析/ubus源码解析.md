@@ -20,5 +20,50 @@
 `ubus`同样基于这套流程，其中`ubusd`实现`server`，其他进程实现`client`，例如`ubus(cli)`、`netifd`、`procd`；
 两个`client`通信需要通过`server`转发。
 
-## 使用方法
+
+
+## 核心数据结构
+
+### **struct ubus_context**
+
+```c
+struct ubus_context
+{
+	struct list_head requests;
+	struct avl_tree objects;
+	struct list_head pending;
+
+	struct uloop_fd sock;
+	struct uloop_timeout pending_timer;
+
+	uint32_t local_id;
+	uint16_t request_seq;
+	bool cancel_poll;
+	int stack_depth;
+
+	void (*connection_lost)(struct ubus_context *ctx);
+	void (*monitor_cb)(struct ubus_context *ctx, uint32_t seq, struct blob_attr *data);
+
+	struct ubus_msghdr_buf msgbuf;
+	uint32_t msgbuf_data_len;
+	int msgbuf_reduction_counter;
+
+	struct list_head auto_subscribers;
+	struct ubus_event_handler auto_subscribe_event_handler;
+};
+```
+
+
+
+## 关键接口
+
+`ubus`源码中提供了一个官方`demo`，具体编译和使用方法参考[ubus编译和使用方法](https://github.com/Garfield-1/StudyNotes/tree/master/07_%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E8%A7%A3%E6%9E%90/03_ubus%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/01_ubus%E7%BC%96%E8%AF%91)。
+
+### uloop_init
+
+初始化uloop库，可参考[uloop源码解析](https://github.com/Garfield-1/StudyNotes/tree/master/07_%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E8%A7%A3%E6%9E%90/02_uloop%E8%A7%A3%E6%9E%90/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90)，此处不再赘述
+
+### ubus_connect
+
+创建一个`struct ubus_context`节点
 

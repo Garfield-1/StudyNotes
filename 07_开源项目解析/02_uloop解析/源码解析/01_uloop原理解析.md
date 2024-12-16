@@ -605,7 +605,7 @@ int uloop_run_timeout(int timeout)
 	uloop_status = 0;
 	uloop_cancelled = false;
 	do {
-		uloop_process_timeouts();				// 检测uloop链表中所有元素，将超时的时间从链表中删除
+		uloop_process_timeouts();				// 检测uloop链表中所有元素，将超时的事件从链表中删除
 
 		if (do_sigchld)							// 是否收到SIGCHLD信号，若收到则为true
 			uloop_handle_processes();			// 检查所有已结束的子进程，在链表中删除节点，并调用回调函数处理
