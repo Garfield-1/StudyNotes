@@ -10,10 +10,11 @@ libubox_build_path=$base_path/libubox_build
 
 ubus_path=$base_path/ubus
 ubus_build_path=$base_path/ubus_build
+ubus_examples_build_path=$ubus_path/examples/build
 
 depend_path=$base_path/products_and_depends
-depend_libs_path=$depend_path/depend_libs
-depend_inc_path=$depend_path/depend_inc
+depend_libs_path=$depend_path/lib
+depend_inc_path=$depend_path/include
 
 # json-c库编译
 jsonC_build() {
@@ -94,6 +95,19 @@ ubus_build() {
     cp $ubus_build_path/ubusd $depend_path &&
     cp $ubus_build_path/libubus.* $depend_libs_path &&
     cp $ubus_build_path/libubusd_library.* $depend_libs_path
+
+    ubus_examples_build
+}
+
+# ubus官方demo编译
+ubus_examples_build() {
+    if [ ! -d "$ubus_examples_build_path" ]; then
+        mkdir -p $ubus_examples_build_path
+    fi
+
+    cd $ubus_examples_build_path
+    cmake .. -DBUILD_EXAMPLES=ON -DCMAKE_PREFIX_PATH=$depend_path -Dubox_library=ubox -DCMAKE_BUILD_TYPE=Debug
+    make
 }
 
 clean() {
@@ -101,7 +115,8 @@ clean() {
     rm -rf $jsonC_build_path &&
     rm -rf $libubox_build_path &&
     rm -rf $ubus_build_path &&
-    rm -rf $depend_path
+    rm -rf $depend_path &&
+    rm -rf $ubus_examples_build_path
 }
 
 build_all() {
