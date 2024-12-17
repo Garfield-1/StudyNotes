@@ -309,11 +309,6 @@ esac
     Got line: msg4: test received a message: blah
     Sending count up to '100200'; string has length '593629'
     Server validated our count up to '100200'
-    Avg time per iteration: 106 usec
-    Got line: msg5: test received a message: blah
-    Avg time per iteration: 129 usec
-    Got line: msg6: test received a message: blah
-    Sending count up to '100300'; string has length '594333'
     ```
 
 **如果运行时提示找不到依赖库则需手动配置环境依赖（设置 `LD_LIBRARY_PATH`）**
