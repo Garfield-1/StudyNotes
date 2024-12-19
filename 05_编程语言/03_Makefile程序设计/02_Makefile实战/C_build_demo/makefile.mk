@@ -17,7 +17,7 @@ $(EXEC_BIN): $(TARGETS)
 $(EXEC_LIB): $(TARGETS)
 	$(CC) -shared -fPIC -o $@ $(TARGETS)
 
-%.o: %.c
+$(TARGETS): %.o: %.c
 	$(CC) -c $(CFLAGS) $(INC_DIR) $< -o $@
 
 .PHONY: clean
