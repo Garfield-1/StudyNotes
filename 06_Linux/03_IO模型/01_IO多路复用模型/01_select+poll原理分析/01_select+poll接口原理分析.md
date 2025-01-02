@@ -59,6 +59,8 @@
 
 监听标准输入，设置超时时间为`5S`
 
+以下代码节选自`man`手册，`select`部分
+
 ```c
 #include <stdio.h>
 #include <stdlib.h>
@@ -194,6 +196,8 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 ### core_sys_select函数
 
+将用户态传入的待监听的位图传入内核态，并使用`do_select`进行监听
+
 **核心逻辑如下**
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
@@ -263,8 +267,6 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 `select`接口使用`fd_set_bits`结构保存记录文件描述符，`core_sys_select`函数中创建对应类型的变量。记录从用户空间传入的待检测文件描述符，使用`do_select`执行实际的监听动作，然后将结果传回用户空间。
 
-> 笔者注：严格地说数据在用户空间和内核空间互相传递并不是在这里完成的，经过`SYSCALL_DEFINE5(select)`的调用后已经进入内核态中。这里只是为方便理解而这样表述
-
 ### do_select函数
 
 **函数流程图**
@@ -284,7 +286,7 @@ int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
   最外层循环做的事情主要是
   
   1. 申请和销毁资源，校验传入的参数
-  2. 创建一个高精度，可阻塞当前进程的循环
+  2. 创建一个高精度，可**挂起当前进程**的循环
   3. 设置循环退出的出口条件
 
 **核心逻辑如下**
@@ -304,7 +306,8 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
     slack = select_estimate_accuracy(end_time); // 获取高精度定时的误差范围，用于后续高精度定时器使用
 
 	for (;;) {
-		...
+		/* 此处省略一层循环中的部分代码逻辑 */
+        ...
 		for (...) { 		// 第二层循环，此处省略循环体...
 			for (...) {  	// 第三次循环，此处省略循环体...
 			}
@@ -342,9 +345,9 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 **核心思想**
 
-在函数内部的`for(;;)`死循环中，人为**构造一个高精度的循环检测**，其实现的最重要的地方在于利用`busy_loop_timeout`的**低精度检测**控制内部循环的流程，在内部流程结束后使用`poll_schedule_timeout`**高精度定时器**阻塞进程进行进程管理
+在函数内部的`for(;;)`死循环中，**构造一个高精度的循环检测**，其实现的最重要的地方在于利用`busy_loop_timeout`的**低精度检测**控制内部循环的流程，在内部流程结束后使用`poll_schedule_timeout`**高精度定时器**挂起当前进程
 
-笔者猜测此处使用两个检测函数的考量是，这种忙等待的场景，对于时间非常敏感每次检测超时不能太长，所以使用精度较低但是速度更快的函数控制内部循环。但是如果需要阻塞进程的话，对于时间的敏感度较高，使用开销速度较慢但是精度更高的函数进行进程的控制
+> **笔者注：**这里为什么是两个检测函数，猜测此处使用两个检测函数的考量是，这种忙等待的场景，对于时间非常敏感每次检测超时不能太长，所以使用精度较低但是速度更快的函数控制内部循环。但是如果需要阻塞进程的话，对于时间的敏感度较高，使用开销速度较慢但是精度更高的函数进行进程的控制
 
 最外层的一层循环，是一个死循环。循环的**退出条件**是
 
@@ -520,6 +523,10 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 
 ## poll原理分析
+
+`poll`接口实现和功能和实现的思路与`select`几乎一致。
+
+区别在于`poll`接口的编码设计可读性更强，同时底层存储待监听的句柄使用的数据结构不同可监听的句柄数量不同，`select`接口使用位图存储，`poll`使用链表存储。
 
 ### 示例代码
 
