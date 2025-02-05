@@ -55,6 +55,14 @@ struct ubus_context
 
 
 
+## 核心数据结构
+
+**`struct ubus_context`结构**
+
+<img src="./img/%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84.png" alt="核心数据结构" style="zoom:200%;" />
+
+其中的`AVL`树的部分，通过`ubus_add_object_cb`接口添加节点`ubus_remove_object_cb`接口删除节点，待后续完善
+
 ## 关键接口
 
 `ubus`源码中提供了一个官方`demo`，具体编译和使用方法参考[ubus编译和使用方法](https://github.com/Garfield-1/StudyNotes/tree/master/07_%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E8%A7%A3%E6%9E%90/03_ubus%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/01_ubus%E7%BC%96%E8%AF%91)。
