@@ -63,15 +63,36 @@ struct ubus_context
 
 其中的`AVL`树的部分，通过`ubus_add_object_cb`接口添加节点`ubus_remove_object_cb`接口删除节点，待后续完善
 
-## 关键接口
+## 官方demo流程解析
 
-`ubus`源码中提供了一个官方`demo`，具体编译和使用方法参考[ubus编译和使用方法](https://github.com/Garfield-1/StudyNotes/tree/master/07_%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E8%A7%A3%E6%9E%90/03_ubus%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/01_ubus%E7%BC%96%E8%AF%91)。
+`ubus`源码中提供了一个官方`demo`，具体编译和使用方法参考[ubus编译和使用方法](https://github.com/Garfield-1/StudyNotes/tree/master/07_%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E8%A7%A3%E6%9E%90/03_ubus%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90/01_ubus%E7%BC%96%E8%AF%91)
 
-### uloop_init
+这里以`ubus`提供的官方`demo`为基础进行切入，这里对其中的关键节点添加了打印信息用作后续分析参考
 
-初始化uloop库，可参考[uloop源码解析](https://github.com/Garfield-1/StudyNotes/tree/master/07_%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE%E8%A7%A3%E6%9E%90/02_uloop%E8%A7%A3%E6%9E%90/%E6%BA%90%E7%A0%81%E8%A7%A3%E6%9E%90)，此处不再赘述
 
-### ubus_connect
 
-创建一个`struct ubus_context`节点
+### server端
 
+从server端的日志可以看到，在启动
+
+```
+[main] start 
+[server_main] start 
+[test_watch] start 
+Watching object 9e6685f8: Success
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+[test_notify] start 
+```
+
+
+
+### client端
