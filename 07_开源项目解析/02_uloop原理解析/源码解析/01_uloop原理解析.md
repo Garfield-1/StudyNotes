@@ -10,6 +10,8 @@
 
 ## 概述
 
+`uloop`是一个基于`epoll`建立可以提供一种定时执行任务的能力
+
 `uloop`的核心数据结构围绕着三个链表进行展开，分别是定时器链表、子进程链表、信号管理链表
 
 初始化阶段做的工作主要是，创建`epoll`、设置信号处理、设置定时器链表节点和超时回调函数
@@ -46,65 +48,6 @@ int main()
 ```
 
 上述程序效果：每隔`5S`打印一次
-
-
-
-## 主体循环
-
-在`uloop`初始化时会创建一个管道，管道的输入存储在一个全局变量中在接收到外部信号时则写这个句柄，管道的输出端使用`epoll`进行监听，监听超时时间即`uloop`超时时间
-
-`uloop`主体结构是一个大循环，在每一轮的循环中去检查数个链表（见下文）的节点元素是否超时，若超时则需要执行其对应的回调函数，并设置新一轮的循环。每一轮的循环的中间间隔时间靠`epoll`监听管道输出端来阻塞进程
-
-### 初始化管道并注册epoll事件
-
-**函数调用栈**
-
-```c
-/* 创建epoll节点 */
-uloop_init_pollfd()
-    ->epoll_create()
-
-uloop_init()
-    /* 创建管道，使用epoll监听管道输出端 */
-	->waker_init()
-    	->pipe(fds)
-    	->uloop_fd_add(&waker_fd, ULOOP_READ)
-    		->register_poll(sock, flags)
-    			->epoll_ctl(poll_fd, op, fd->fd, &ev)
-    /* 注册信号回调函数，回调函数写入管道输出端 */
-	->uloop_setup_signals()
-		->uloop_install_handler()
-			->uloop_signal_wake()
-				->write(waker_pipe, &sigbyte, 1)
-```
-
-**核心流程图**
-
-核心思想是创建一个管道，并注册一部分外部信号的回调。使用`epoll`来监听管道的输出端，而在信号的回调中向管道的输入端写入数据。利用了`epoll_wait`的阻塞特性来作为底层的定时设置
-
-<img src="./img/uloop_init.jpg" alt="uloop_init" style="zoom:50%;" />
-
-**核心循环流程**
-
-**函数调用栈**
-
-```c
-/* 设置epoll监听管道输出端，并设置超时时间 */
-uloop_run()
-    ->uloop_run_timeout(-1)
-    	->next_time = uloop_get_next_timeout();
-		->uloop_run_events(next_time);
-			->uloop_fetch_events
-                ->epoll_wait(poll_fd, events, ARRAY_SIZE(events), timeout);
-```
-
-**核心流程图**
-
-`uloop`的主循环实际上是在监听句柄的输出端，如果没有外部信号则该管道的输出端会一直不活跃。`uloop`便是利用了`epoll`阻塞式的特性来实现循环的等待并且在有外部中断信号时可以优雅的退出这个循环，这里的超时时间便是根据定时器链表中的事件计算，先计算超时事件再设置`epoll`监听
-
-在主循环中每一轮去检查定时器链表和进程管理链表（见后文）来实现固定间隔事件处理事件的效果
-
-<img src="./img/主循环.jpg" alt="主循环" style="zoom:80%;" />
 
 
 
@@ -207,7 +150,7 @@ struct uloop_signal
 
 
 
-## 定时器链表管理
+## 定时器链表管理接口
 
 ### `uloop_timeout_add`函数
 
@@ -327,7 +270,7 @@ static void uloop_process_timeouts(void)
 
 
 
-## 子进程管理链表管理
+## 子进程管理链表管理接口
 
 ### `uloop_process_add`函数
 
@@ -445,7 +388,7 @@ static void uloop_handle_processes(void)
 
 
 
-## 信号管理链表管理
+## 信号管理链表管理接口
 
 ### `uloop_signal_add`函数
 
@@ -525,7 +468,9 @@ int uloop_signal_delete(struct uloop_signal *s)
 
 
 
-## 初始化定时器
+## 整体流程
+
+### 1. 初始化定时器
 
 `uloop_init`函数
 
@@ -550,9 +495,7 @@ int uloop_init(void)
 
 本质是对`epoll`的一层封装，`uloop_init_pollfd`中创建`epoll`节点，后续在上层设置互斥锁防止出现死锁等问题。后续设置信号量监听回调函数
 
-
-
-## 设置定时器超时时间
+### 2. 设置定时器超时时间
 
 `uloop_timeout_set`函数
 
@@ -582,62 +525,42 @@ int uloop_timeout_set(struct uloop_timeout *timeout, int msecs)
 
 获取当前系统时间，然后在此基础上设置超时时间，将待设置的配置添加到`uloop`的链表中
 
+### 3. 初始化管道并注册epoll事件
 
+在`uloop`初始化时会创建一个管道，管道的输入存储在一个全局变量中在接收到外部信号时则写这个句柄，管道的输出端使用`epoll`进行监听，监听超时时间即`uloop`超时时间
 
-### `uloop_run_timeout`函数
+`uloop`主体结构是一个大循环，在每一轮的循环中去检查数个链表的节点元素是否超时，若超时则需要执行其对应的回调函数，并设置新一轮的循环。每一轮的循环的中间间隔时间靠`epoll`监听管道输出端来阻塞进程
 
-核心接口，对定时器链表和子进程链表中的
+**函数调用栈**
 
 ```c
-int uloop_run_timeout(int timeout);
+/* 创建epoll节点 */
+uloop_init_pollfd()
+    ->epoll_create()
 
-static inline int uloop_run(void)
-{
-	return uloop_run_timeout(-1);
-}
-
-int uloop_run_timeout(int timeout)
-{
-	int next_time = 0;
-
-	uloop_run_depth++;
-
-	uloop_status = 0;
-	uloop_cancelled = false;
-	do {
-		uloop_process_timeouts();				// 检测uloop链表中所有元素，将超时的事件从链表中删除
-
-		if (do_sigchld)							// 是否收到SIGCHLD信号，若收到则为true
-			uloop_handle_processes();			// 检查所有已结束的子进程，在链表中删除节点，并调用回调函数处理
-
-		if (uloop_cancelled)
-			break;
-
-		next_time = uloop_get_next_timeout();	// 计算下个事件超时离当前时间多久
-		if (timeout >= 0 && (next_time < 0 || timeout < next_time))
-				next_time = timeout;
-		uloop_run_events(next_time);			//通过epoll监听文件句柄，超时时间设置为next_time
-	} while (!uloop_cancelled && timeout < 0);
-
-	--uloop_run_depth;
-
-	return uloop_status;
-}
+uloop_init()
+    /* 创建管道，使用epoll监听管道输出端 */
+	->waker_init()
+    	->pipe(fds)
+    	->uloop_fd_add(&waker_fd, ULOOP_READ)
+    		->register_poll(sock, flags)
+    			->epoll_ctl(poll_fd, op, fd->fd, &ev)
+    /* 注册信号回调函数，回调函数写入管道输出端 */
+	->uloop_setup_signals()
+		->uloop_install_handler()
+			->uloop_signal_wake()
+				->write(waker_pipe, &sigbyte, 1)
 ```
 
-**核心流程**
+**核心流程图**
 
-<img src="./img/uloop_run流程.jpg" alt="uloop_run流程" />
+核心思想是创建一个管道，并注册一部分外部信号的回调。使用`epoll`来监听管道的输出端，而在信号的回调中向管道的输入端写入数据。利用了`epoll_wait`的阻塞特性来作为底层的定时设置
 
-**核心思想**
+<img src="./img/uloop_init.jpg" alt="uloop_init" style="zoom:50%;" />
 
-最外层记录循环的深度，内层使用一个大的`while`循环作为函数的核心逻辑，使用`uloop_cancelled`和`timeout`共同控制循环
+### 4. 监听`epoll`事件
 
-
-
-## 监听`epoll`事件
-
-### `uloop_fetch_events`函数
+**`uloop_fetch_events`函数**
 
 ```c
 static int cur_nfds;
@@ -693,3 +616,79 @@ static int uloop_fetch_events(int timeout)
 **核心思想**
 
 本质是对`epoll_wait`的一层封装，函数内部的`cur_fds`为全局变量，循环中的主要操作实际上是对这个全局数组进行赋值的操作，和将`epoll`中的句柄取出来赋值的操作。
+
+### 5. 核心循环
+
+**核心循环流程**
+
+**函数调用栈**
+
+```c
+/* 设置epoll监听管道输出端，并设置超时时间 */
+uloop_run()
+    ->uloop_run_timeout(-1)
+    	->next_time = uloop_get_next_timeout();
+		->uloop_run_events(next_time);
+			->uloop_fetch_events
+                ->epoll_wait(poll_fd, events, ARRAY_SIZE(events), timeout);
+```
+
+**核心流程图**
+
+`uloop`的主循环实际上是在监听句柄的输出端，如果没有外部信号则该管道的输出端会一直不活跃。`uloop`便是利用了`epoll`阻塞式的特性来实现循环的等待并且在有外部中断信号时可以优雅的退出这个循环，这里的超时时间便是根据定时器链表中的事件计算，先计算超时事件再设置`epoll`监听
+
+在主循环中每一轮去检查定时器链表和进程管理链表（见后文）来实现固定间隔事件处理事件的效果
+
+<img src="./img/主循环.jpg" alt="主循环" style="zoom:80%;" />
+
+**`uloop_run_timeout`函数**
+
+核心接口，对定时器链表和子进程链表中的
+
+```c
+int uloop_run_timeout(int timeout);
+
+static inline int uloop_run(void)
+{
+	return uloop_run_timeout(-1);
+}
+
+int uloop_run_timeout(int timeout)
+{
+	int next_time = 0;
+
+	uloop_run_depth++;
+
+	uloop_status = 0;
+	uloop_cancelled = false;
+	do {
+		uloop_process_timeouts();				// 检测uloop链表中所有元素，将超时的事件从链表中删除
+
+		if (do_sigchld)							// 是否收到SIGCHLD信号，若收到则为true
+			uloop_handle_processes();			// 检查所有已结束的子进程，在链表中删除节点，并调用回调函数处理
+
+		if (uloop_cancelled)
+			break;
+
+		next_time = uloop_get_next_timeout();	// 计算下个事件超时离当前时间多久
+		if (timeout >= 0 && (next_time < 0 || timeout < next_time))
+				next_time = timeout;
+		uloop_run_events(next_time);			//通过epoll监听文件句柄，超时时间设置为next_time
+	} while (!uloop_cancelled && timeout < 0);
+
+	--uloop_run_depth;
+
+	return uloop_status;
+}
+```
+
+**核心流程**
+
+<img src="./img/uloop_run流程.jpg" alt="uloop_run流程" />
+
+**核心思想**
+
+最外层记录循环的深度，内层使用一个大的`while`循环作为函数的核心逻辑，使用`uloop_cancelled`和`timeout`共同控制循环
+
+
+
