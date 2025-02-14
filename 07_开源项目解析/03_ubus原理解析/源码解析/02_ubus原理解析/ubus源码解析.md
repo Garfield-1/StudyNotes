@@ -73,26 +73,84 @@ struct ubus_context
 
 ### server端
 
-从server端的日志可以看到，在启动
+从`server`端的日志可以看到（日志详情见附件`server_log.txt`）
 
-```
-[main] start 
-[server_main] start 
-[test_watch] start 
-Watching object 9e6685f8: Success
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
-[test_notify] start 
+在启动进程后首先初始化`uloop`并添加uloop定时事件，这里关于定时器的间隔时间待进一步确认。从函数调用栈上可以清楚的看到，整个`ubus`的`server`端是建立在一个`uloop`为基础的循环之上的
+
+这里列出具体的函数调用栈
+
+```c
+->uloop_init
+->ubus_connect
+->ubus_add_uloop
+->server_main
+->ubus_free
+->uloop_done
 ```
 
 
 
 ### client端
+
+```cpp
+[main] start 
+[client_main] start 
+[test_client_notify_cb] start 
+Avg time per iteration: 137 usec
+Subscribers active: 1
+[test_client_notify_cb] start 
+[test_client_fd_cb] start 
+Got fd from the server, watching...
+[test_client_complete_cb] start 
+completed request, ret: 0
+Avg time per iteration: 142 usec
+[test_client_fd_data_cb] start 
+Got line: msg1: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100100'; string has length '592926'
+[test_count_data_cb] start 
+Server validated our count up to '100100'
+[test_client_fd_data_cb] start 
+Got line: msg2: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 148 usec
+[test_client_fd_data_cb] start 
+Got line: msg3: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 134 usec
+[test_client_fd_data_cb] start 
+Got line: msg4: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100200'; string has length '593629'
+[test_count_data_cb] start 
+Server validated our count up to '100200'
+[test_client_notify_cb] start 
+Avg time per iteration: 139 usec
+[test_client_fd_data_cb] start 
+Got line: msg5: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 138 usec
+[test_client_fd_data_cb] start 
+Got line: msg6: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100300'; string has length '594333'
+[test_count_data_cb] start 
+Server validated our count up to '100300'
+[test_client_notify_cb] start 
+Avg time per iteration: 140 usec
+[test_client_fd_data_cb] start 
+Got line: msg7: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 136 usec
+[test_client_fd_data_cb] start 
+Got line: msg8: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100400'; string has length '595036'
+[test_count_data_cb] start 
+Server validated our count up to '100400'
+```
+
