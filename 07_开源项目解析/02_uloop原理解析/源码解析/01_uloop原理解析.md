@@ -608,5 +608,61 @@ int uloop_run_timeout(int timeout)
 
 ### 1. `uloop_fd_add`函数
 
-由于uloop底层实际上是epoll，所以如果需要监听某个句柄则可以直接调用`uloop_fd_add`函数。这会将待监听的句柄添加到`struct uloop_fd`中，其默认采用非阻塞和水平触发。
+由于`uloop`底层实际上是`epoll`，所以如果需要监听某个句柄则可以直接调用`uloop_fd_add`函数。这会将待监听的句柄添加到`struct uloop_fd`中，其默认采用非阻塞和水平触发
+
+`uloop`中使用了一个全局变量`cur_fds`来存储对应的事件
+
+```c
+static struct uloop_fd_event cur_fds[ULOOP_MAX_EVENTS];
+```
+
+`uloop_fetch_events`函数中会对其进行赋值
+
+```c
+static int uloop_fetch_events(int timeout)
+{
+	int n, nfds;
+
+	nfds = epoll_wait(poll_fd, events, ARRAY_SIZE(events), timeout);
+	for (n = 0; n < nfds; ++n) {
+		struct uloop_fd_event *cur = &cur_fds[n];
+		struct uloop_fd *u = events[n].data.ptr;
+		...
+		cur->fd = u;
+    	...
+    }
+	return nfds;
+}
+```
+
+在`uloop_run_events`函数中对其进行调用
+
+> 笔者注：此处删除了大量字段，仅保留了核心部分逻辑
+
+```c
+static void uloop_run_events(int64_t timeout)
+{
+	struct uloop_fd_event *cur;
+	struct uloop_fd *fd;
+
+	while (cur_nfds > 0) {
+		struct uloop_fd_stack stack_cur;
+		unsigned int events;
+
+		cur = &cur_fds[cur_fd++];
+		cur_nfds--;
+
+		fd = cur->fd;
+
+		stack_cur.fd = fd;
+		fd_stack = &stack_cur;
+		do {
+			stack_cur.events = 0;
+			fd->cb(fd, events);
+		} while (stack_cur.fd && events);
+
+		return;
+	}
+}
+```
 
