@@ -10,15 +10,15 @@
 
 ## 概述
 
-`uloop`是一个基于`epoll`建立可以提供一种定时执行任务的能力
+`uloop`是一个基于`epoll`建立可以提供一种定时执行任务的能力，`uloop`的核心数据结构围绕着三个链表进行展开，分别是定时器链表、子进程链表、信号管理链表，其中信号管理链表主要是用于管理内部定时任务的销毁动作
 
-`uloop`的核心数据结构围绕着三个链表进行展开，分别是定时器链表、子进程链表、信号管理链表
+整体架构的设计是，对外部提供创建监听句柄、子进程任务的外部接口。并注册外部信号量处理的回调函数，在外部收到外部的信号时，结束当前的定时任务。内部维护中每两次循环之间的间隔由每个事件设置的超时时间决定，底层是由`epoll_wait`等待预设好的事件
 
-初始化阶段做的工作主要是，创建`epoll`、设置信号处理、设置定时器链表节点和超时回调函数
+其中最重要的核心部分是定时器链表的管理和维护，每一轮都会先找到定时任务链表中的第一个节点，计算这个任务和当前时间的插值，用这个插值作为下一次循环的等待时间
 
-整体的架构被设计成，上层一个大循环，循环内部每一次检查超时事件链表和子进程链表，超时事件执行回调并删除链表中的节点，需要通过信号处理的事件也执行回调删除节点。底层使用`epoll`监听`socket`句柄
+**整体结构如下图**
 
-
+<img src="./img/uloop%E6%95%B4%E4%BD%93%E6%9E%B6%E6%9E%84.jpg" alt="uloop整体架构" />
 
 ## 使用方法
 
@@ -51,42 +51,13 @@ int main()
 
 
 
+-----
+
+
+
 ## 核心数据结构
 
-### 全局变量
-
-```c
-/* 管理事件循环的epoll机制的文件描述符 */    
-static int poll_fd = -1;
-
-/* 事件循环是否被取消,用于标记事件循环是否应终止执行 */
-bool uloop_cancelled = false;
-
-/* 是否需要处理SIGCHLD信号,当子进程终止时会发送到父进程。将其设置为true表示uloop应处理子进程的退出状态 */
-bool uloop_handle_sigchld = true;
-
-/* 存储事件循环的状态码 */
-static int uloop_status = 0;
-
-/* 指示是否需要处理SIGCHLD信号,用于内部控制信号处理逻辑 */
-static bool do_sigchld = false;
-
-/* 用于存储当前事件循环中所有注册的文件描述符的事件信息 */
-static struct uloop_fd_event cur_fds[ULOOP_MAX_EVENTS];
-
-/* 当前文件描述符的索引或标识符 */
-static int cur_fd;
-
-/* 当前文件描述符的数量 */
-static int cur_nfds;
-
-/* 记录事件循环的运行深度或层级 */
-static int uloop_run_depth = 0;
-```
-
-
-
-### **`timeouts`链表**
+### 定时任务**`timeouts`链表**
 
 定时器链表，记录定时器的状态
 
@@ -107,52 +78,9 @@ struct uloop_timeout
 };
 ```
 
+#### 定时任务链表管理接口
 
-
-### `processes`链表
-
-子进程管理链表,管理和处理子进程的状态和事件
-
-```c
-static struct list_head processes = LIST_HEAD_INIT(processes);
-
-struct uloop_process
-{
-	struct list_head list;		//链表头，用于链表操作
-	bool pending;				//进程的状态是否处于“待处理”状态
-
-	uloop_process_handler cb;	//回调函数指针
-	pid_t pid;					//管理的子进程的PID
-};
-```
-
-
-
-### `signals`链表
-
-信号管理链表,管理和处理系统信号
-
-```c
-static struct list_head signals = LIST_HEAD_INIT(signals);
-
-typedef void (*uloop_signal_handler)(struct uloop_signal *s);
-
-struct uloop_signal
-{
-	struct list_head list;			//链表头，用于链表操作
-	struct sigaction orig;			//信号的原始处理器的设置
-	bool pending;					//指示信号是否处于“待处理”状态
-
-	uloop_signal_handler cb;		//回调函数指针
-	int signo;						//存储了信号的编号
-};
-```
-
-
-
-## 定时器链表管理接口
-
-### `uloop_timeout_add`函数
+**`uloop_timeout_add`函数**
 
 新增定时器节点
 
@@ -193,9 +121,7 @@ int uloop_timeout_add(struct uloop_timeout *timeout)
 
 整个定时器链表以`time`排序遵循递增的顺序，将时间较大的元素插入尾部
 
-
-
-### `uloop_clear_timeouts`函数
+**`uloop_clear_timeouts`函数**
 
 函数主要作用是，清空定时器链表
 
@@ -229,9 +155,7 @@ int uloop_timeout_cancel(struct uloop_timeout *timeout)
 
 遍历链表，从链表中删除遍历到的每一个元素，并将进程状态`p->pending`置为`flase`
 
-
-
-### `uloop_process_timeouts`函数
+**`uloop_process_timeouts`函数**
 
 定时器链表管理**核心接口**。遍历整个链表执行已经到达时间的节点回调，并清除定时器
 
@@ -270,9 +194,26 @@ static void uloop_process_timeouts(void)
 
 
 
-## 子进程管理链表管理接口
+### 子进程管理`processes`链表
 
-### `uloop_process_add`函数
+将待检测的子进程注册后会在子进程执行结束后执行提前注册的回调，需要注意的是**`uloop`不支持多线程，多线程下会出现死锁问题**
+
+```c
+static struct list_head processes = LIST_HEAD_INIT(processes);
+
+struct uloop_process
+{
+	struct list_head list;		//链表头，用于链表操作
+	bool pending;				//进程的状态是否处于“待处理”状态
+
+	uloop_process_handler cb;	//回调函数指针
+	pid_t pid;					//管理的子进程的PID
+};
+```
+
+#### 子进程管理链表管理接口
+
+**`uloop_process_add`函数**
 
 添加新节点
 
@@ -307,9 +248,7 @@ int uloop_process_add(struct uloop_process *p)
 
 按照升序排序将新节点插入链表中
 
-
-
-### `uloop_clear_processes`函数
+**`uloop_clear_processes`函数**
 
 清空链表
 
@@ -342,9 +281,7 @@ int uloop_process_delete(struct uloop_process *p)
 
 遍历链表，从链表中删除遍历到的每一个元素，并将进程状态`p->pending`置为`flase`
 
-
-
-### `uloop_handle_processes`函数
+**`uloop_handle_processes`函数**
 
 子进程管理核心接口，
 
@@ -388,9 +325,29 @@ static void uloop_handle_processes(void)
 
 
 
-## 信号管理链表管理接口
+### 信号管理`signals`链表
 
-### `uloop_signal_add`函数
+信号管理链表,主要的作用是管理外部的信号和子进程链表的信号
+
+```c
+static struct list_head signals = LIST_HEAD_INIT(signals);
+
+typedef void (*uloop_signal_handler)(struct uloop_signal *s);
+
+struct uloop_signal
+{
+	struct list_head list;			//链表头，用于链表操作
+	struct sigaction orig;			//信号的原始处理器的设置
+	bool pending;					//指示信号是否处于“待处理”状态
+
+	uloop_signal_handler cb;		//回调函数指针
+	int signo;						//存储了信号的编号
+};
+```
+
+#### 信号管理链表管理接口
+
+**`uloop_signal_add`函数**
 
 添加新的信号到信号管理链表中
 
@@ -438,9 +395,7 @@ int uloop_signal_add(struct uloop_signal *s)
 
 信号管理链表的接口，与子进程和定时器管理链表的接口非常相似，先将节点添加到链表中然后设置回调。不同的是对于信号处理的回调函数不能直接进行绑定，需要通过`sigaction`系统调用来实现
 
-
-
-### `uloop_signal_delete`函数
+**`uloop_signal_delete`函数**
 
 **源代码如下**
 
@@ -468,11 +423,21 @@ int uloop_signal_delete(struct uloop_signal *s)
 
 
 
+----
+
+
+
 ## 整体流程
 
-### 1. 初始化定时器
+### 1. 初始化uloop
 
-`uloop_init`函数
+初始化`uloop`的动作在底层对应的实际上是初始化了一个管道，并注册`epoll`事件监听管道的读端；在`uloop`初始化时会创建一个管道，管道的输入存储在一个全局变量中在接收到外部信号时则写这个句柄，管道的输出端使用`epoll`进行监听，监听超时时间即`uloop`超时时间
+
+**`uloop`主体结构是一个大循环**，在每一轮的循环中去检查数个链表的节点元素是否超时，若超时则需要执行其对应的回调函数，并设置新一轮的循环。每一轮的循环的中间**间隔时间靠`epoll`监听管道输出端来阻塞进程**
+
+
+
+**`uloop_init`函数**
 
 ```c
 int uloop_init(void)
@@ -494,6 +459,39 @@ int uloop_init(void)
 **核心思想**
 
 本质是对`epoll`的一层封装，`uloop_init_pollfd`中创建`epoll`节点，后续在上层设置互斥锁防止出现死锁等问题。后续设置信号量监听回调函数
+
+
+
+关于`uloop_init`函数的内部实现的具体调用栈如下
+
+**函数调用栈**
+
+```c
+/* 创建epoll节点 */
+uloop_init_pollfd()
+    ->epoll_create()
+
+uloop_init()
+    /* 创建管道，使用epoll监听管道输出端 */
+	->waker_init()
+    	->pipe(fds)
+    	->uloop_fd_add(&waker_fd, ULOOP_READ)
+    		->register_poll(sock, flags)
+    			->epoll_ctl(poll_fd, op, fd->fd, &ev)
+    /* 注册信号回调函数，回调函数写入管道输出端 */
+	->uloop_setup_signals()
+		->uloop_install_handler()
+			->uloop_signal_wake()
+				->write(waker_pipe, &sigbyte, 1)
+```
+
+**核心流程图**
+
+核心思想是创建一个管道，并注册一部分外部信号的回调。使用`epoll`来监听管道的输出端，而在信号的回调中向管道的输入端写入数据。利用了`epoll_wait`的阻塞特性来作为底层的定时设置
+
+**这里需要特别注意的是`uloop_fd_add`函数是直接对外暴露的**，如果需要添加对某个句柄的监听可直接调用这个接口
+
+<img src="./img/uloop_init.jpg" alt="uloop_init" style="zoom:50%;" />
 
 ### 2. 设置定时器超时时间
 
@@ -525,99 +523,7 @@ int uloop_timeout_set(struct uloop_timeout *timeout, int msecs)
 
 获取当前系统时间，然后在此基础上设置超时时间，将待设置的配置添加到`uloop`的链表中
 
-### 3. 初始化管道并注册epoll事件
-
-在`uloop`初始化时会创建一个管道，管道的输入存储在一个全局变量中在接收到外部信号时则写这个句柄，管道的输出端使用`epoll`进行监听，监听超时时间即`uloop`超时时间
-
-`uloop`主体结构是一个大循环，在每一轮的循环中去检查数个链表的节点元素是否超时，若超时则需要执行其对应的回调函数，并设置新一轮的循环。每一轮的循环的中间间隔时间靠`epoll`监听管道输出端来阻塞进程
-
-**函数调用栈**
-
-```c
-/* 创建epoll节点 */
-uloop_init_pollfd()
-    ->epoll_create()
-
-uloop_init()
-    /* 创建管道，使用epoll监听管道输出端 */
-	->waker_init()
-    	->pipe(fds)
-    	->uloop_fd_add(&waker_fd, ULOOP_READ)
-    		->register_poll(sock, flags)
-    			->epoll_ctl(poll_fd, op, fd->fd, &ev)
-    /* 注册信号回调函数，回调函数写入管道输出端 */
-	->uloop_setup_signals()
-		->uloop_install_handler()
-			->uloop_signal_wake()
-				->write(waker_pipe, &sigbyte, 1)
-```
-
-**核心流程图**
-
-核心思想是创建一个管道，并注册一部分外部信号的回调。使用`epoll`来监听管道的输出端，而在信号的回调中向管道的输入端写入数据。利用了`epoll_wait`的阻塞特性来作为底层的定时设置
-
-<img src="./img/uloop_init.jpg" alt="uloop_init" style="zoom:50%;" />
-
-### 4. 监听`epoll`事件
-
-**`uloop_fetch_events`函数**
-
-```c
-static int cur_nfds;
-
-static void uloop_run_events(int64_t timeout)
-{
-    ...
-	cur_nfds = uloop_fetch_events(timeout);
-    ...
-}
-
-static int uloop_fetch_events(int timeout)
-{
-	int n, nfds;
-
-	nfds = epoll_wait(poll_fd, events, ARRAY_SIZE(events), timeout);
-	for (n = 0; n < nfds; ++n) {
-		struct uloop_fd_event *cur = &cur_fds[n];
-		struct uloop_fd *u = events[n].data.ptr;
-		unsigned int ev = 0;
-
-		cur->fd = u;
-		if (!u)
-			continue;
-
-		if (events[n].events & (EPOLLERR|EPOLLHUP)) {
-			u->error = true;
-			if (!(u->flags & ULOOP_ERROR_CB))
-				uloop_fd_delete(u);
-		}
-
-		if(!(events[n].events & (EPOLLRDHUP|EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP))) {
-			cur->fd = NULL;
-			continue;
-		}
-
-		if(events[n].events & EPOLLRDHUP)
-			u->eof = true;
-
-		if(events[n].events & EPOLLIN)
-			ev |= ULOOP_READ;
-
-		if(events[n].events & EPOLLOUT)
-			ev |= ULOOP_WRITE;
-
-		cur->events = ev;
-	}
-
-	return nfds;
-}
-```
-
-**核心思想**
-
-本质是对`epoll_wait`的一层封装，函数内部的`cur_fds`为全局变量，循环中的主要操作实际上是对这个全局数组进行赋值的操作，和将`epoll`中的句柄取出来赋值的操作。
-
-### 5. 核心循环
+### 3. 核心循环
 
 **核心循环流程**
 
@@ -691,4 +597,16 @@ int uloop_run_timeout(int timeout)
 最外层记录循环的深度，内层使用一个大的`while`循环作为函数的核心逻辑，使用`uloop_cancelled`和`timeout`共同控制循环
 
 
+
+----
+
+
+
+## 外部接口
+
+此处列出几个关键的外部接口
+
+### 1. `uloop_fd_add`函数
+
+由于uloop底层实际上是epoll，所以如果需要监听某个句柄则可以直接调用`uloop_fd_add`函数。这会将待监听的句柄添加到`struct uloop_fd`中，其默认采用非阻塞和水平触发。
 
