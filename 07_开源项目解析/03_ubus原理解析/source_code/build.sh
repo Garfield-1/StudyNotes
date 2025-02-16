@@ -17,7 +17,8 @@ depend_libs_path=$depend_path/lib
 depend_inc_path=$depend_path/include
 
 # json-c库编译
-jsonC_build() {
+jsonC_build()
+{
     echo "Start compiling jsonc"
     
     mkdir $jsonC_build_path
@@ -36,7 +37,8 @@ jsonC_build() {
 }
 
 # libubox库编译
-libubox_build() {
+libubox_build()
+{
     echo "Start compiling libubox"
 
     mkdir $libubox_build_path
@@ -67,7 +69,8 @@ libubox_build() {
 }
 
 # ubus库编译
-ubus_build() {
+ubus_build()
+{
     echo "Start compiling ubus"
 
     mkdir $ubus_build_path
@@ -98,17 +101,24 @@ ubus_build() {
 }
 
 # ubus官方demo编译
-ubus_examples_build() {
+ubus_examples_build()
+{
+    echo "Start compiling libubox"
+
     if [ ! -d "$ubus_examples_build_path" ]; then
         mkdir -p $ubus_examples_build_path
     fi
 
     cd $ubus_examples_build_path
-    cmake .. -DBUILD_EXAMPLES=ON -DCMAKE_PREFIX_PATH=$depend_path -Dubox_library=ubox -DCMAKE_BUILD_TYPE=Debug
+    cmake .. -DBUILD_EXAMPLES=ON -DCMAKE_BUILD_TYPE=Debug\
+            -DCMAKE_C_FLAGS="-I $depend_inc_path -L $depend_libs_path -lubox"\
+            -Djson=$depend_libs_path/libjson-c.so -Dubox_library=$depend_libs_path/libubox.so\
+            -Dblob_library=$depend_libs_path/libblobmsg_json.so
     make
 }
 
-clean() {
+clean()
+{
     echo "Clean up old files"
     rm -rf $jsonC_build_path &&
     rm -rf $libubox_build_path &&
@@ -117,11 +127,12 @@ clean() {
     rm -rf $ubus_examples_build_path
 }
 
-build_all() {
+build_all()
+{
     jsonC_build
     libubox_build
     ubus_build
-    #ubus_examples_build
+    ubus_examples_build
 }
 
 # 检查传递的参数并调用相应的函数
@@ -134,6 +145,9 @@ case "$1" in
         ;;
     ubus)
         ubus_build
+        ;;
+    ubus_examples)
+        ubus_examples_build
         ;;
     all)
         build_all
