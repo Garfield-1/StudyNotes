@@ -81,7 +81,7 @@ ubus_build() {
 
     cmake -Djson=$depend_libs_path/libjson-c.so -Dubox_library=$depend_libs_path/libubox.so \
         -Dblob_library=$depend_libs_path/libblobmsg_json.so -Dubox_include_dir:PATH=$depend_inc_path -DBUILD_LUA=OFF\
-        -DBUILD_STATIC=ON $ubus_path -DCMAKE_BUILD_TYPE=Debug
+        -DBUILD_SHARED_LIBS=ON $ubus_path -DCMAKE_BUILD_TYPE=Debug
 
     make &&
 
@@ -95,8 +95,6 @@ ubus_build() {
     cp $ubus_build_path/ubusd $depend_path &&
     cp $ubus_build_path/libubus.* $depend_libs_path &&
     cp $ubus_build_path/libubusd_library.* $depend_libs_path
-
-    ubus_examples_build
 }
 
 # ubus官方demo编译
@@ -123,6 +121,7 @@ build_all() {
     jsonC_build
     libubox_build
     ubus_build
+    #ubus_examples_build
 }
 
 # 检查传递的参数并调用相应的函数
