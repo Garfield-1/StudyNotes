@@ -1,6 +1,15 @@
 # ubus源码解析
 
-> 笔者注：ubus项目内容繁杂相关解析文档的编写非一日之功，日后必定会对此文本进行拆分，分作各个小模块以便阅读和维护
+> 笔者注：ubus项目内容繁杂相关解析文档的编写非一日之功，本文从ubus的官方demo实现进行切入，逐步分析ubus的实现原理
+
+
+
+## 大纲
+
+**本文档尚未完成，此大纲仅用于梳理思路**
+
+* `ubus`底层使用`socket`建立通信连接
+* `ubus`有一个发送消息队列
 
 
 
@@ -15,10 +24,10 @@
 3. `client`端和`server`端相互发送消息；
 4. `client`端或`server`端收到对方消息后，针对具体消息进行相应处理。
 
-![20170926223831050](./img/20170926223831050.png)
+![ubus架构图](E:\work\GtihubCode\StudyNotes\07_开源项目解析\03_ubus原理解析\源码解析\02_ubus原理解析\img\ubus架构图.jpg)
 
 `ubus`同样基于这套流程，其中`ubusd`实现`server`，其他进程实现`client`，例如`ubus(cli)`、`netifd`、`procd`；
-两个`client`通信需要通过`server`转发。
+两个`client`通信需要通过`server`转发
 
 
 
