@@ -82,7 +82,7 @@ static void ubus_process_pending_msg(struct uloop_timeout *timeout)
 
 ### 总结
 
-[ubus](vscode-file://vscode-app/e:/VSCode/Microsoft VS Code/resources/app/out/vs/code/electron-sandbox/workbench/workbench.html) 并没有单独的线程去维护请求队列。相反，它依赖于事件循环 (`uloop`) 来处理请求队列中的事件。当事件循环运行时，它会处理所有挂起的事件，包括请求的响应。因此，只有在事件循环运行时，程序才会处理请求队列中的事件。
+`ubus`并没有单独的线程去维护请求队列。相反，它依赖于事件循环 (`uloop`) 来处理请求队列中的事件。当事件循环运行时，它会处理所有挂起的事件，包括请求的响应。因此，只有在事件循环运行时，程序才会处理请求队列中的事件。
 
 ## ubus简介
 
