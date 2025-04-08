@@ -95,7 +95,7 @@ static void ubus_process_pending_msg(struct uloop_timeout *timeout)
 3. `client`端和`server`端相互发送消息；
 4. `client`端或`server`端收到对方消息后，针对具体消息进行相应处理。
 
-![ubus架构图](E:\work\GtihubCode\StudyNotes\07_开源项目解析\03_ubus原理解析\源码解析\02_ubus原理解析\img\ubus架构图.jpg)
+![ubus架构图](.\img\ubus架构图.jpg)
 
 `ubus`同样基于这套流程，其中`ubusd`实现`server`，其他进程实现`client`，例如`ubus(cli)`、`netifd`、`procd`；
 两个`client`通信需要通过`server`转发
