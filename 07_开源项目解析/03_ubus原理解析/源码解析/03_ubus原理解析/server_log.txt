@@ -1,0 +1,45 @@
+[main] start 
+[server_main] start 
+[test_watch] start 
+Watching object 9e6685f8: Success
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello] start 
+[test_hello_reply] start 
+[test_hello_fd_reply] start 
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello_fd_reply] start 
+[test_count] start 
+[count_to_number] start 
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello_fd_reply] start 
+[test_count] start 
+[count_to_number] start 
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello_fd_reply] start 
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello_fd_reply] start 
+[test_count] start 
+[count_to_number] start 
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello_fd_reply] start 
+[test_notify] start 
+...
+[test_notify] start 
+[test_hello_fd_reply] start 
+[test_count] start 
+[count_to_number] start 
+[test_handle_remove] start 
+Object 9e6685f8 went away
+[test_hello_fd_reply] start

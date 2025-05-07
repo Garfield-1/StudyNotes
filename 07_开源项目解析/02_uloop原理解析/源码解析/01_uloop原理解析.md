@@ -620,6 +620,8 @@ static struct uloop_fd_event cur_fds[ULOOP_MAX_EVENTS];
 
 `uloop_fetch_events`函数中会对其进行赋值
 
+> 笔者注：此处删除了大量字段，仅保留了核心部分逻辑
+
 ```c
 static int uloop_fetch_events(int timeout)
 {

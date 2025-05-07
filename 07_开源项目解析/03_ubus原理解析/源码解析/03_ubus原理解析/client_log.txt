@@ -1,0 +1,59 @@
+[main] start 
+[client_main] start 
+[test_client_notify_cb] start 
+Avg time per iteration: 137 usec
+Subscribers active: 1
+[test_client_notify_cb] start 
+[test_client_fd_cb] start 
+Got fd from the server, watching...
+[test_client_complete_cb] start 
+completed request, ret: 0
+Avg time per iteration: 142 usec
+[test_client_fd_data_cb] start 
+Got line: msg1: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100100'; string has length '592926'
+[test_count_data_cb] start 
+Server validated our count up to '100100'
+[test_client_fd_data_cb] start 
+Got line: msg2: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 148 usec
+[test_client_fd_data_cb] start 
+Got line: msg3: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 134 usec
+[test_client_fd_data_cb] start 
+Got line: msg4: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100200'; string has length '593629'
+[test_count_data_cb] start 
+Server validated our count up to '100200'
+[test_client_notify_cb] start 
+Avg time per iteration: 139 usec
+[test_client_fd_data_cb] start 
+Got line: msg5: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 138 usec
+[test_client_fd_data_cb] start 
+Got line: msg6: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100300'; string has length '594333'
+[test_count_data_cb] start 
+Server validated our count up to '100300'
+[test_client_notify_cb] start 
+Avg time per iteration: 140 usec
+[test_client_fd_data_cb] start 
+Got line: msg7: test received a message: blah
+[test_client_notify_cb] start 
+Avg time per iteration: 136 usec
+[test_client_fd_data_cb] start 
+Got line: msg8: test received a message: blah
+[test_count] start 
+[count_to_number] start 
+Sending count up to '100400'; string has length '595036'
+[test_count_data_cb] start 
+Server validated our count up to '100400'
