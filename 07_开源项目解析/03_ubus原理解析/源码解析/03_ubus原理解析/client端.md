@@ -224,6 +224,8 @@ static void client_main(void)
 
 **"hello"方法回调**
 
+`hello`方法回调相对来说复杂了很多，在`client`端发起请求后，`server`端响应后，会创建定时器来间隔`1S`的循环发送
+
 
 
 ### test_client_notify_cb
