@@ -19,6 +19,10 @@ main
         ->ubus_connect_ctx
     //使用uloop监听刚才创建的ctx->sock.cb，在其对应的回调函数中去处理守护进程发来的消息
     ->ubus_add_uloop
+    ->client_main
+    	//分别演示了ubus的同步消息和异步消息
+    	->ubus_invoke("watch");
+		->ubus_invoke_async("hello");
 ```
 
 这里需要特别的对`ubus_connect_ctx`函数展开解读，这个函数中执行了关键的初始化动作
@@ -180,17 +184,17 @@ static void client_main(void)
 
 **核心思想**
 
-`client`端的演示主要从这个函数开始
+`client`端的演示主要从这个函数开始，函数中实现了发起了一个同步请求`watch`和一个异步请求`hello`
 
-首先是通过`ubus_add_object`把`test_client_object`注册到`ubus`中，然后通过`ubus_lookup_id`找到`"test"`对应的`id`，然后调用了`"test"`的`"watch"`方法和`"hello"`方法。经过走读代码发现`"test"`实际上是在`server`端中声明的一个`ubus`接口。其中的`test_client_notify_cb`则是用于统计性能
+首先是通过`ubus_add_object`把`test_client_object`注册到`ubus`中，然后通过`ubus_lookup_id`找到`"test"`对应的`id`，然后调用了`"test"`的`"watch"`方法和`hello`方法。`test`和`hello`实际上是在`server`端中声明的`ubus`接口
 
 
 
-### ubus/examples下的示例分析
+### test_watch方法
 
-**"watch"方法回调**
+`watch`方法相对简单，是一个单向的同步消息，消息中携带了一个`test_client_object`对象的`id`，请求`server`端订阅这个`test_client_object`对象。订阅后如果有调用 `ubus_notify` 函数来发出一个事件/通知时，`ubusd`会将这个通知转发给所有订阅了该对象的订阅者
 
-`watch`方法非常简单，是一个单向的同步消息，在`client`端中发送数据，在`server`端中接收数据然后打印出来。
+**订阅者会注册两个回调函数`cb`和`remove_cb`**，分别是收到订阅事件发生(`cb`)和订阅对象取消订阅(`remove_cb`)。订阅事件是由**被订阅对象**通过`ubus_notify`发送来触发的
 
 * **client端**
 
@@ -202,11 +206,19 @@ static void client_main(void)
   blobmsg_add_u32(&b, "id", test_client_object.id);
   //ubus_invoke函数会等待watch方法结束并返回，参数中的3000就是超时时间3000ms
   ubus_invoke(ctx, id, "watch", b.head, NULL, 0, 3000);
+  //一直循环的通过ubus_notify发送test_client_object事件
+  test_client_notify_cb(&notify_timer);
   ```
+
+  再`client`端中注册了一个`ubus`对象和其对应的回调函数，并将这个对象的`id`发送给`server`端，请求`server`端订阅这个`ubus`对象
+
+  **发起test_client_object事件**
+
+  在注册`test_client_object`之后，`client`端会在`test_client_notify_cb`函数中通过`ubus_notify`发送`test_client_object`事件，这会触发注册者(`server`)的回调函数
 
 * **server端**
 
-  从解析`ubus`消息然后从中读取`WATCH_ID`这个字段，然后打印到标准输出中
+  从解析`ubus`消息然后从中读取`WATCH_ID`这个字段，然后通过`ubus_subscribe`注册对应的`ubus`对象
 
   > 笔者注：此处源码除注释外未作增删
   
@@ -223,8 +235,11 @@ static void client_main(void)
   	if (!tb[WATCH_ID])
   		return UBUS_STATUS_INVALID_ARGUMENT;
   
+      //设置注册ubus对象的卸载回调
   	test_event.remove_cb = test_handle_remove;
-  	test_event.cb = test_notify;
+  	//设置注册ubus对象的触发回调
+      test_event.cb = test_notify;
+      //注册client端发来的ubus对象
   	ret = ubus_subscribe(ctx, &test_event, blobmsg_get_u32(tb[WATCH_ID]));
   	fprintf(stderr, "Watching object %08x: %s\n", blobmsg_get_u32(tb[WATCH_ID]), ubus_strerror(ret));
   	return ret;
@@ -233,11 +248,11 @@ static void client_main(void)
   
   **核心思想**
   
-  从这个示例可以看到`client`端一般是发起请求，`server`端实际上只是负责接收和解析。真正负责消息的转发和`ubus object`节点管理实际上是由守护进程来实现的
+  `watch`方法的实现主要是接收传入的消息，从其中解析出`ubus`对象的`id`，向`ubusd`注册这个`ubus`对象并设置对应的触发事件回调和取消订阅事件的回调
 
 
 
-**"hello"方法回调**
+### test_hello方法
 
 `hello`方法是另一个`client`端和`server`端的通信实例`demo`，相对来说复杂了很多
 
@@ -245,25 +260,62 @@ static void client_main(void)
 
 * **client端**
 
-  clinent端主要的逻辑就是封装
+  `clinent`端主要的逻辑是发送一个异步的`ubus`消息，调用`hello`方法。并注册了两个回调分别在`server`端响应的句柄和异步请求完成的回调
 
   ```c
   //ubus/examples/client.c:client_main
   blob_buf_init(&b, 0);
   blobmsg_add_string(&b, "msg", "blah");
+  //发起一个ubus异步请求
   ubus_invoke_async(ctx, id, "hello", b.head, &req);
+  //server端发送的消息处理函数
   req.fd_cb = test_client_fd_cb;
+  //异步请求完成的回调函数
   req.complete_cb = test_client_complete_cb;
+  //结束异步请求
   ubus_complete_request_async(ctx, &req);
+  ```
+
+  **消息处理**
+
+  由于`ubus`异步调用中，`client`端和`server`端之间的消息通信主要是靠读写管道来实现，所以`client`端处理`server`端的消息也基本上是围绕着处理管道的文件描述符来进行的。主要涉及到两个函数`test_client_fd_cb`和`test_client_fd_data_cb`，分别是使用`ustream`来将管道读端的文件描述符转化为`ustream_fd`然后再去读取其中的内容
+
+  **对应源代码**
+
+  > 笔者注：为了方便阅读，此处省略了部分逻辑
+
+  ```c
+  static void test_client_fd_data_cb(struct ustream *s, int bytes)
+  {
+  	char *data, *sep;
+  	int len;
+  
+  	data = ustream_get_read_buf(s, &len);
+  	sep = strchr(data, '\n');
+  
+  	*sep = 0;
+  	fprintf(stderr, "Got line: %s\n", data);
+  	ustream_consume(s, sep + 1 - data);
+  }
+  
+  static void test_client_fd_cb(struct ubus_request *req, int fd)
+  {
+  	static struct ustream_fd test_fd;
+  
+  	fprintf(stderr, "Got fd from the server, watching...\n");
+  
+  	test_fd.stream.notify_read = test_client_fd_data_cb;
+  	ustream_fd_init(&test_fd, fd);
+  }
   ```
 
 * **server端**
 
+  `server`端的处理主要是通过`uloop`设置循环，然后向管道的写端写入数据，在`client`端读取管道的读端，**流程见下图**。关于为什么可以使用管道在两个进程见通信，这部分的底层实现需要分析`ubusd`源码，这里不做展开
+  
   ![管道通信](./img/管道通信.jpg)
 
 
 
 
-
-### test_client_notify_cb
 
