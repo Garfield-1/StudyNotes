@@ -1,10 +1,10 @@
-# ubus client端原理分析
+# ubus examples原理分析
 
 > 笔者注：本文分析的是ubus源码中的官方demo，源码见：ubus/examples/client.c
 
 
 
-## 整体流程
+## client整体流程
 
 整体流程上，`ubus`的运行需要三部分`ubusd`守护进程、`server`端和`client`端，本文对于`client`端的实现和`client`端与守护进程和`server`端的交互进行分析
 
@@ -30,6 +30,7 @@ main
 > 笔者注：为了方便阅读，此处省略了部分逻辑
 
 ```c
+// ubus/libubus.c
 int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 {
 	uloop_init();
@@ -48,9 +49,10 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 	INIT_LIST_HEAD(&ctx->pending);
 	INIT_LIST_HEAD(&ctx->auto_subscribers);
 	avl_init(&ctx->objects, ubus_cmp_id, false, NULL);
-    //path含义是守护进程与client端通信使用的socket可以在程序启动时输入参数来指定
-    //如果没有指定。那么ctx->sock.fd使用默认值UBUS_UNIX_SOCKET
-    //UBUS_UNIX_SOCKET在编译时指定，通常是/var/run/ubus/ubus.sock
+    /* path含义是守护进程与client端通信使用的socket可以在程序启动时输入参数来指定
+     * 如果没有指定。那么ctx->sock.fd使用默认值UBUS_UNIX_SOCKET
+     * UBUS_UNIX_SOCKET在编译时指定，通常是/var/run/ubus/ubus.sock
+     */
 	ubus_reconnect(ctx, path);
 
 	return 0;
@@ -99,9 +101,12 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 
 `main`中会使用`ubus_add_uloop`监听`ctx->sock.cb`，并在回调函数`ubus_handle_data`中去处理守护进程发送的消息
 
-**对应源码**
+**ubus_handle_data函数**
+
+> 笔者注：此处源码除注释外未作增删
 
 ```c
+// ubus/libubus-io.c
 void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 {
 	struct ubus_context *ctx = container_of(u, struct ubus_context, sock);
@@ -132,7 +137,7 @@ void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 
 
 
-## 各个DEMO测试模块
+## client各个DEMO测试模块
 
 在`ubus`的`examples`目录下有数个以`test_`开头的函数，组成了这个演示`demo`
 
@@ -145,6 +150,7 @@ void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 > 笔者注：为了方便阅读，此处省略了部分逻辑
 
 ```c
+// ubus/examples/client.c
 static void client_main(void)
 {
 	static struct ubus_request req;
@@ -180,19 +186,21 @@ static void client_main(void)
 
 
 
-### server端的"test"对象
+### ubus/examples下的示例分析
 
 **"watch"方法回调**
 
-`watch`方法非常简单，在`client`端中发送数据，在`server`端中接收数据然后打印出来
+`watch`方法非常简单，是一个单向的同步消息，在`client`端中发送数据，在`server`端中接收数据然后打印出来。
 
 * **client端**
 
   封装`ubus`消息，将 `test_client_object.id`封装在`id`字段中发送
 
   ```c
+  //ubus/examples/client.c:client_main
   blob_buf_init(&b, 0);
   blobmsg_add_u32(&b, "id", test_client_object.id);
+  //ubus_invoke函数会等待watch方法结束并返回，参数中的3000就是超时时间3000ms
   ubus_invoke(ctx, id, "watch", b.head, NULL, 0, 3000);
   ```
 
@@ -200,7 +208,10 @@ static void client_main(void)
 
   从解析`ubus`消息然后从中读取`WATCH_ID`这个字段，然后打印到标准输出中
 
+  > 笔者注：此处源码除注释外未作增删
+  
   ```c
+  // ubus/examples/server.c
   static int test_watch(struct ubus_context *ctx, struct ubus_object *obj,
   		      struct ubus_request_data *req, const char *method,
   		      struct blob_attr *msg)
@@ -219,13 +230,40 @@ static void client_main(void)
   	return ret;
   }
   ```
+  
+  **核心思想**
+  
+  从这个示例可以看到`client`端一般是发起请求，`server`端实际上只是负责接收和解析。真正负责消息的转发和`ubus object`节点管理实际上是由守护进程来实现的
 
 
 
 **"hello"方法回调**
 
-`hello`方法回调相对来说复杂了很多，在`client`端发起请求后，`server`端响应后，会创建定时器来间隔`1S`的循环发送
+`hello`方法是另一个`client`端和`server`端的通信实例`demo`，相对来说复杂了很多
+
+**`hello`方法实现`client`端和`server`端的通信使用的是`ubus_invoke_async`和`ubus_request_set_fd`。**首先在`client`端通过`ubus_invoke_async`去调用`hello`方法同时会注册一个名字叫`fd_cb`的回调函数，在这里通过`ustream`库来达到对传入的管道读端的异步`IO`。然后在`server`端创建管道将管道读端通过`ubus_request_set_fd`发送到`client`端，在`server`端向管道写端写入数据。这里使用管道可能是为了避免资源竞争和省略加锁的步骤
+
+* **client端**
+
+  clinent端主要的逻辑就是封装
+
+  ```c
+  //ubus/examples/client.c:client_main
+  blob_buf_init(&b, 0);
+  blobmsg_add_string(&b, "msg", "blah");
+  ubus_invoke_async(ctx, id, "hello", b.head, &req);
+  req.fd_cb = test_client_fd_cb;
+  req.complete_cb = test_client_complete_cb;
+  ubus_complete_request_async(ctx, &req);
+  ```
+
+* **server端**
+
+  ![管道通信](./img/管道通信.jpg)
+
+
 
 
 
 ### test_client_notify_cb
+
