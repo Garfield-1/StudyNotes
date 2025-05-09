@@ -41,17 +41,24 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 	memset(ctx, 0, sizeof(*ctx));
 
 	ctx->sock.fd = -1;
+    //设置监听socket的回调，在监听到socket活跃后立刻执行
 	ctx->sock.cb = ubus_handle_data;
+    //设置ubus连接断开时的回调
 	ctx->connection_lost = ubus_default_connection_lost;
+    //设置处理消息队列的回调，一些消息可能没有被及时处理，就会被放的消息处理队列中
 	ctx->pending_timer.cb = ubus_process_pending_msg;
 	
     //UBUS_MSG_CHUNK_SIZE是65536
 	ctx->msgbuf.data = calloc(1, UBUS_MSG_CHUNK_SIZE);
 	ctx->msgbuf_data_len = UBUS_MSG_CHUNK_SIZE;
 
+    //存储客户端发起的、正在等待响应的 ubus 请求
 	INIT_LIST_HEAD(&ctx->requests);
+    //暂存那些因为当前调用栈深度或其他原因不能立即处理的传入 ubus 消息
 	INIT_LIST_HEAD(&ctx->pending);
+    //管理那些需要自动重新订阅的事件订阅者
 	INIT_LIST_HEAD(&ctx->auto_subscribers);
+    //存储此 ubus 上下文注册的本地 ubus 对象
 	avl_init(&ctx->objects, ubus_cmp_id, false, NULL);
     /* path含义是守护进程与client端通信使用的socket可以在程序启动时输入参数来指定
      * 如果没有指定。那么ctx->sock.fd使用默认值UBUS_UNIX_SOCKET
@@ -74,17 +81,29 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 
 `ubus_connect_ctx`函数主要用于创建新的`ubus`对象`ctx`，这个对象使用全局变量进行存储。这里主要是创建`ctx`对应的句柄、回调并将事件注册到对应的链表和一个`avl`树中
 
-**需要分析一下这些回调和链表还有这个avl树的作用是什么？**
 
 
+## client端/server端与ubus守护进程通信
 
-## client端与ubus守护进程通信
+### 守护进程接收client端/server端消息
 
-### 守护进程接收client端消息
+`ubus`中的`client`端或`server`端与守护进程`ubusd`进程的通信是依靠于`socket`句柄，在程序启动时可以使用参数指定使用什么句柄，如果没有指定那么就会使用`cmake`中指定默认句柄路径，`cmake`中会为`UBUS_UNIX_SOCKET`宏去赋值
 
-`ubus`的守护进程`ubusd`和`client`端进程的通信是依靠于`socket`句柄，在程序启动时可以使用参数指定使用什么句柄，如果没有指定那么就会使用`cmake`中指定默认句柄路径，`cmake`中会为`UBUS_UNIX_SOCKET`宏去赋值
+**进程间通信socket初始化流程**
 
 在程序运行时就会使用`UBUS_UNIX_SOCKET`中存储的句柄来通信
+
+```c
+->ubus_connect
+    ->ubus_connect_ctx
+      //设置监听socket的回调
+      ctx->sock.cb = ubus_handle_data;
+    	->ubus_reconnect
+    	  //UBUS_UNIX_SOCKET会被默认配置成/var/run/ubus/ubus.sock
+    	  ctx->sock.fd = usock(USOCK_UNIX, UBUS_UNIX_SOCKET, NULL);
+```
+
+
 
 **通信过程函数调用栈**
 
@@ -94,16 +113,15 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
     ->ubus_start_request
         ->__ubus_start_request
             ->ubus_send_msg
-    			//这里使用sendmsg函数通过fg去发送消息给守护进程
-    			//fd实际上是ctx->sock.fd这个句柄会被默认配置成/var/run/ubus/ubus.sock
+    			//这里使用sendmsg函数通过ctx->sock.fd去发送消息给守护进程
     			->sendmsg(fd, &msghdr, 0)
 ```
 
 
 
-### clinet接收守护进程消息
+### client端/server端接收守护进程消息
 
-`main`中会使用`ubus_add_uloop`监听`ctx->sock.cb`，并在回调函数`ubus_handle_data`中去处理守护进程发送的消息
+`main`中会使用`ubus_add_uloop`监听`ctx->sock.fd`，并在回调函数`ubus_handle_data`中去处理守护进程发送的消息
 
 **ubus_handle_data函数**
 
@@ -141,7 +159,7 @@ void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 
 
 
-## client各个DEMO测试模块
+## 各个DEMO测试模块
 
 在`ubus`的`examples`目录下有数个以`test_`开头的函数，组成了这个演示`demo`
 
@@ -194,7 +212,7 @@ static void client_main(void)
 
 `watch`方法相对简单，是一个单向的同步消息，消息中携带了一个`test_client_object`对象的`id`，请求`server`端订阅这个`test_client_object`对象。订阅后如果有调用 `ubus_notify` 函数来发出一个事件/通知时，`ubusd`会将这个通知转发给所有订阅了该对象的订阅者
 
-**订阅者会注册两个回调函数`cb`和`remove_cb`**，分别是收到订阅事件发生(`cb`)和订阅对象取消订阅(`remove_cb`)。订阅事件是由**被订阅对象**通过`ubus_notify`发送来触发的
+**订阅者会注册两个回调函数`cb`和`remove_cb`**，分别是收到订阅事件发生(`cb`)和订阅对象取消订阅(`remove_cb`)，订阅事件是由**被订阅对象**通过`ubus_notify`发送来触发的
 
 * **client端**
 
