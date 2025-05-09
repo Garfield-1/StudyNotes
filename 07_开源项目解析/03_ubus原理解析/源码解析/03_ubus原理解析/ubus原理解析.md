@@ -86,19 +86,18 @@ static void ubus_process_pending_msg(struct uloop_timeout *timeout)
 
 ## ubus简介
 
-`ubus`是`OpenWrt`中的进程间通信机制，类似于桌面版`linux`的`dbus`，`Android`的`binder`。`ubus`相当于简化版的`dbus`，`ubus`基于`unix socket`实现，`socket`绑定到一个本地文件，具有较高的效率；
+`ubus`是`OpenWrt`中的进程间通信机制，类似于桌面版`linux`的`dbus`，`Android`的`binder`。`ubus`基于`unix socket`实现，`socket`绑定到一个本地文件，具有较高的效率；
 
 `unix socket`是`C/S`模型，建立一个`socket`连接，`server`端和`client`端分别要做如下步骤：
 
-1. 建立一个`socket server`端，绑定到一个本地`socket`文件，监听`client`的连接；
-2. 建立一个或多个`socket client`端，连接到`server`端；
-3. `client`端和`server`端相互发送消息；
-4. `client`端或`server`端收到对方消息后，针对具体消息进行相应处理。
+1. 建立一个`socket server`端，绑定到一个本地`socket`文件，监听`client`的连接
+2. 建立一个或多个`socket client`端，连接到`server`端
+3. `client`端和`server`端相互发送消息
+4. `client`端或`server`端收到对方消息后，针对具体消息进行相应处理
 
 ![ubus架构图](.\img\ubus架构图.jpg)
 
-`ubus`同样基于这套流程，其中`ubusd`实现`server`，其他进程实现`client`，例如`ubus(cli)`、`netifd`、`procd`；
-两个`client`通信需要通过`server`转发
+`ubus`同样基于这套流程，其中`ubusd`实现`server`，其他进程实现`client`，例如`ubus(cli)`、`netifd`、`procd`；两个`client`通信需要通过`ubusd`转发
 
 
 
@@ -143,30 +142,7 @@ struct ubus_context
 
 其中的`AVL`树的部分，通过`ubus_add_object_cb`接口添加节点`ubus_remove_object_cb`接口删除节点，待后续完善
 
-## 官方demo流程解析
 
-`ubus`源码中提供了一个官方`demo`，具体编译和使用方法参考`ubus`编译和使用方法
-
-这里以`ubus`提供的官方`demo`为基础进行切入，这里对其中的关键节点添加了打印信息用作后续分析参考
-
-
-
-### server端
-
-从`server`端的日志可以看到（日志详情见附件`server_log.txt`）
-
-在启动进程后首先初始化`uloop`并添加uloop定时事件，这里关于定时器的间隔时间待进一步确认。从函数调用栈上可以清楚的看到，整个`ubus`的`server`端是建立在一个`uloop`为基础的循环之上的
-
-这里列出具体的函数调用栈
-
-```c
-->uloop_init
-->ubus_connect
-->ubus_add_uloop
-->server_main
-->ubus_free
-->uloop_done
-```
 
 
 
