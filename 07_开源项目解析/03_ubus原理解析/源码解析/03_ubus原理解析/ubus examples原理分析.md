@@ -1,6 +1,6 @@
 # ubus examples原理分析
 
-> 笔者注：本文分析的是ubus源码中的官方demo，源码见：ubus/examples/client.c
+> 笔者注：本文分析的是ubus源码中的官方demo，见源码目录的./ubus/examples/client.c
 
 
 
