@@ -1,1 +1,0 @@
-gcc demo.c -lm
