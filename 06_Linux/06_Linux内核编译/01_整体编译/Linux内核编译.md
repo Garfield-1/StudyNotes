@@ -96,7 +96,7 @@ pi@XX-00070:~/code/linux-5.4$ make clean
   CLEAN   modules.builtin.modinfo
 ```
 
-### 执行编译动作
+### 执行编译动作（待完成）
 
 1. **初始化和版本定义**:
 
