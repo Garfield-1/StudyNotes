@@ -7,18 +7,18 @@
 在关闭`wifi`的密码，设置为开放连接，直接使用手机连接路由器`wifi`，读取`hostapd`的日志如下
 
 ```shell
-Tue Apr 22 21:52:30 2025 daemon.info hostapd: wlan1: STA 1e:ab:56:dc:cc:49 IEEE 802.11: authenticated
-Tue Apr 22 21:52:30 2025 daemon.info hostapd: wlan1: STA 1e:ab:56:dc:cc:49 IEEE 802.11: associated (aid 1)
-Tue Apr 22 21:52:30 2025 daemon.info hostapd: wlan1: STA 1e:ab:56:dc:cc:49 RADIUS: starting accounting session A8FF112BFD77B744
+Tue Apr 22 21:52:30 2025 daemon.info hostapd: wlan1: STA xx:xx:xx:xx:cc:49 IEEE 802.11: authenticated
+Tue Apr 22 21:52:30 2025 daemon.info hostapd: wlan1: STA xx:xx:xx:xx:cc:49 IEEE 802.11: associated (aid 1)
+Tue Apr 22 21:52:30 2025 daemon.info hostapd: wlan1: STA xx:xx:xx:xx:cc:49 RADIUS: starting accounting session A8FF112BFD77B744
 ```
 
 开启`wifi`密码，可以看到开启`wifi`密码后会明显的多出一条关于`wpa`的日志
 
 ```shell
-Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA c6:94:dd:f0:0a:fb IEEE 802.11: authenticated
-Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA c6:94:dd:f0:0a:fb IEEE 802.11: associated (aid 1)
-Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA c6:94:dd:f0:0a:fb RADIUS: starting accounting session D7F2785787303561
-Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA c6:94:dd:f0:0a:fb WPA: pairwise key handshake completed (RSN)
+Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb IEEE 802.11: authenticated
+Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb IEEE 802.11: associated (aid 1)
+Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb RADIUS: starting accounting session D7F2785787303561
+Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb WPA: pairwise key handshake completed (RSN)
 ```
 
 
