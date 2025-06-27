@@ -37,3 +37,5 @@ typedef struct wait_queue_head wait_queue_head_t;
 
 ## 关键API
 
+### 初始化
+
