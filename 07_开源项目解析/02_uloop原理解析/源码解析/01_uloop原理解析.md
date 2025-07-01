@@ -59,9 +59,242 @@ int main()
 
 **监听句柄是否活跃**
 
+程序创建了一个`TCP 8888`的端口并监听它，使用`uloop`设置回调在`socket`活跃时调用。程序整体分两部分，创建句柄并用`uloop`监听的`server`侧和连接`socket`的`client`端
+
+**uloop_server侧程序如下:**
+
 ```c
-//待补充
-//监听套接字、管道等文件描述符的可读、可写或错误状态
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#include "uloop.h"
+
+#define PORT 8888
+#define MAX_CONN 10
+
+static struct uloop_fd server_fd;
+
+static inline void close_server_fd(int sock)
+{
+	close(sock);
+}
+
+int create_server_socket()
+{
+	int sock;
+	struct sockaddr_in server_addr;
+
+	sock = socket(AF_INET, SOCK_STREAM, 0);
+	if (sock < 0) {
+		perror("socket");
+		return -1;
+	}
+
+	// 设置地址可重用
+	int reuse = 1;
+	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse)) < 0) {
+		perror("setsockopt");
+		close(sock);
+		return -1;
+	}
+
+	memset(&server_addr, 0, sizeof(server_addr));
+	server_addr.sin_family = AF_INET;
+	server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	server_addr.sin_port = htons(PORT);
+
+	if (bind(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+		perror("bind");
+		close(sock);
+		return -1;
+	}
+
+	if (listen(sock, MAX_CONN) < 0) {
+		perror("listen");
+		close(sock);
+		return -1;
+	}
+
+	printf("Server listening on port %d...\n", PORT);
+
+	return sock;
+}
+
+// 当有新的客户端连接时，此回调函数将被调用
+static void server_cb(struct uloop_fd *u, unsigned int events)
+{
+	int conn_fd = 0;
+	char client_ip[INET_ADDRSTRLEN] = {0};
+	const char *msg = "Hello from uloop server!\n";
+	struct sockaddr_in client_addr = {0};
+	socklen_t client_len = sizeof(client_addr);
+
+    if (events & ULOOP_READ) {
+        conn_fd = accept(u->fd, (struct sockaddr *)&client_addr, &client_len);
+        if (conn_fd < 0) {
+            perror("accept");
+            return;
+        }
+
+        inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, INET_ADDRSTRLEN);
+        printf("New connection from %s:%d\n", client_ip, ntohs(client_addr.sin_port));
+
+        write(conn_fd, msg, strlen(msg));
+        close(conn_fd);
+        printf("Connection closed.\n");
+    }
+
+	return;
+}
+
+void server_run(int sock)
+{
+	uloop_init();
+
+    server_fd.fd = sock;
+    server_fd.cb = server_cb; 
+    server_fd.flags = ULOOP_READ; // 监听可读事件
+
+    uloop_fd_add(&server_fd, ULOOP_READ);
+    uloop_run();
+
+	uloop_done();
+
+	return;
+}
+
+int main(int argc, char **argv)
+{
+    int sock = create_server_socket();
+
+	server_run(sock);
+    close_server_fd(sock);
+    printf("Server shut down.\n");
+
+    return 0;
+}
+```
+
+**clinet侧：**
+
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+
+#define SERVER_IP "127.0.0.1"
+#define SERVER_PORT 8888
+#define BUFFER_SIZE 1024
+
+int client_uloop(int sock)
+{
+    struct sockaddr_in server_addr = {0};
+    char buffer[BUFFER_SIZE] = {0};
+
+    memset(&server_addr, 0, sizeof(server_addr));
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(SERVER_PORT);
+    if (inet_pton(AF_INET, SERVER_IP, &server_addr.sin_addr) <= 0) {
+        perror("inet_pton");
+        close(sock);
+        return 1;
+    }
+
+    if (connect(sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
+        perror("connect");
+        close(sock);
+        return 1;
+    }
+
+    printf("Connected to server at %s:%d\n", SERVER_IP, SERVER_PORT);
+
+    ssize_t bytes_received = read(sock, buffer, sizeof(buffer) - 1);
+    if (bytes_received < 0) {
+        perror("read");
+    } else if (bytes_received == 0) {
+        printf("Server closed the connection.\n");
+    } else {
+        buffer[bytes_received] = '\0';
+        printf("Received message: %s", buffer);
+    }
+
+    close(sock);
+
+    return 0;
+}
+
+// 客户端程序：连接到服务器并接收消息
+void do_loop()
+{
+    int sock;
+
+    while (1) {
+        sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) {
+            perror("socket");
+            return;
+        }
+
+        if (client_uloop(sock))
+            perror("client_uloop failed");
+        sleep(1);
+    }
+
+    return;
+}
+
+int main(int argc, char **argv)
+{
+    do_loop();
+
+    return 0;
+}
+```
+
+**上程序效果：**
+
+* `server`侧创建一个`TCP 8888`端口，在有新的`client`端接入时会打印`New connection from client_ip:client_port`
+
+* `client`端程序的作用已1S的间隔不断的去连接本机的`TCP 8888`端口，这里只是为了演示用，实际上任何程序接入`server`端都是可以的
+
+**日志：**
+
+```shell
+# server端
+./server.out
+Server listening on port 8888...
+New connection from 127.0.0.1:48498
+Connection closed.
+New connection from 127.0.0.1:48504
+Connection closed.
+New connection from 127.0.0.1:48516
+Connection closed.
+New connection from 127.0.0.1:48520
+Connection closed.
+New connection from 127.0.0.1:48532
+Connection closed.
+
+# client端
+./client.out 
+Connected to server at 127.0.0.1:8888
+Received message: Hello from uloop server!
+Connected to server at 127.0.0.1:8888
+Received message: Hello from uloop server!
+Connected to server at 127.0.0.1:8888
+Received message: Hello from uloop server!
+Connected to server at 127.0.0.1:8888
+Received message: Hello from uloop server!
+Connected to server at 127.0.0.1:8888
+Received message: Hello from uloop server!
 ```
 
 
