@@ -301,9 +301,64 @@ Received message: Hello from uloop server!
 
 **进程监控**
 
+程序通过`fork`函数创建了一个子进程并在父进程中使用`uloop`来监听子进程的状态，当被监听的进程退出时就会调用对应的回调函数`process_cb`
+
 ```c
-//待补充
-//监听子进程的终止事件。当一个由 uloop 监控的子进程退出时，可以触发一个回调函数来处理善后工作，例如重新启动进程或记录日志
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/wait.h>
+
+#include "uloop.h"
+
+static struct uloop_process child_process;
+
+// 进程事件回调函数
+static void process_cb(struct uloop_process *p, int ret)
+{
+	printf("Process %d exited with status %d\n", p->pid, WEXITSTATUS(ret));
+}
+
+int main(int argc, char **argv)
+{
+	pid_t pid;
+
+	// 初始化 uloop
+	uloop_init();
+
+	pid = fork();
+
+	if (pid < 0) {
+		perror("fork");
+		return 1;
+	}
+
+	if (pid == 0) {
+		// 子进程
+		printf("Child process started, PID: %d\n", getpid());
+		sleep(2); // 模拟子进程工作
+		printf("Child process exiting\n");
+		exit(42);
+	}
+
+	// 父进程
+	printf("Parent process, watching child PID: %d\n", pid);
+
+	// 设置 uloop_process
+	child_process.cb = process_cb;
+	child_process.pid = pid;
+
+	// 将进程添加到 uloop 监视
+	uloop_process_add(&child_process);
+
+	// 启动 uloop 事件循环
+	uloop_run();
+
+	// 清理 uloop
+	uloop_done();
+
+	return 0;
+}
 ```
 
 
