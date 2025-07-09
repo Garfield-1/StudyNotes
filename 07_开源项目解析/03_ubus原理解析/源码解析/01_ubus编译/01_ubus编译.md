@@ -245,11 +245,20 @@ esac
 
 如上述操作失败，可尝试将`json-c`、`libubox`和`ubus`的动态库库路径添加至系统动态库搜索路径
 
-1. 切换`root`执行 ：`su root` 
+* 临时设置动态库加载路径
 
-2. 将动态库路径添加至系统动态库搜索路径：`echo [依赖库路径] >> /etc/ld.so.conf`
+    ```shell
+    #设置临时动态库加载路径
+    export LD_LIBRARY_PATH=/path/to/lib:$LD_LIBRARY_PATH
+    ```
 
-3. 更新动态库搜索路径：`ldconfig`
+* 长期设置动态库加载路径
+    1. 切换`root`执行 ：`su root` 
+
+    2. 将动态库路径添加至系统动态库搜索路径：`echo [依赖库路径] >> /etc/ld.so.conf`
+
+    3. 更新动态库搜索路径：`ldconfig`
+
 
 
 ### 运行官方demo
