@@ -1,5 +1,11 @@
 # STL容器的成员函数
 
+> 参考文档：
+>
+> [STL/CLR 库参考 | Microsoft Learn](https://learn.microsoft.com/zh-cn/cpp/dotnet/stl-clr-library-reference?view=msvc-170)
+
+
+
 ## 1. 容器常用方法
 
 `STL`提供了一系列封装好的接口和方法，他们大多数都是通用的，但也有例外。这里列举了一部分
