@@ -1,10 +1,8 @@
 # STL 容器
 
-## 标准序列容器
-
 ## vector
 
-向量`（Vector）`是一个封装了动态大小数组的顺序容器`（Sequence Container）`。跟任意其它类型容器一样，它能够存放各种类型的对象。可以简单的认为，`vector`是一个可变大小数组。支持快速随机访问，在尾部之外的位置插入或删除元素可能很慢
+向量`（Vector）`以线性排列方式存储给定类型的元素，并允许快速随机访问任何元素，长度可变并且可以支持任意类型的元素。可以简单的认为，`vector`是一个可变大小数组。支持快速随机访问
 
 `vector`有自己的定义规则，同时也包含了一系列函数可用于操作`vector`的内容，可以便捷的对`vector`成员进行增删改查等操作
 
@@ -19,26 +17,64 @@
 * 能够感知内存分配器的
   * 容器使用一个内存分配器对象来动态地处理它的存储需求。在使用时会自动申请和释放内存
 
-### 2. 构造函数
+### 2. vector构造函数
 
-- `vector()`:创建一个空`vector`
-- `vector(int nSize)`:创建一个`vector`,元素个数为`nSize`
-- `vector(int nSize,const t& t)`:创建一个`vector`，元素个数为`nSize`,且值均为`t`
-- `vector(const vector&)`:复制构造函数
-- `vector(begin,end)`:复制[`begin`,`end`)区间内另一个数组的元素到`vector`中
+- `vector<T> arr`
 
-例如
+    创建一个空`vector`
 
-```cpp
-vector<int> arr1;								//一个空数组
-vector<int> arr2 {1, 2, 3, 4, 5};				//包含1、2、3、4、5五个变量
-vector<int> arr3(4);							//开辟4个空间，值默认为0
-vector<int> arr4(5, 3);							//5个值为3的数组
-vector<int> arr5(arr4);							//将arr4的所有值复制进去，和arr4一样
-vector<int> arr6(arr4.begin(), arr4.end());		//将arr4的值从头开始到尾复制
-vector<int> arr7(arr4.rbegin(), arr4.rend());	//将arr4的值从尾到头复制
-vector<vector<int> > obj(5, vector<int>(6)); 	//定义二维动态数组5行6列
-```
+    ```cpp
+    vector<int> arr1;  //一个空数组
+    ```
+
+- `vector<T> arr(int nSize)`
+
+    创建一个`vector`,元素个数为`nSize`
+
+    ```cpp
+    vector<int> arr3(4);    //开辟4个空间，值默认为0
+    ```
+
+- `vector<T> arr(int nSize,const t& t)`
+
+    创建一个`vector`，元素个数为`nSize`,且值均为`t`
+
+    ```cpp
+    vector<int> arr4(5, 3);	//5个值为3的数组
+    ```
+
+- `vector<T> arr{int size1, int size2, int size3, int size4}`
+
+    创建一个包含四个元素的`vector`
+
+    ```cpp
+    vector<int> arr2 {1, 2, 3, 4, 5}; //包含1、2、3、4、5五个变量
+    ```
+
+- `vector<T> arr(const vector&)`
+
+    复制构造函数
+
+    ```cpp
+    vector<int> arr5(arr4);  //将arr4的所有值复制进去，和arr4一样
+    ```
+
+- `vector<T> arr(begin,end)`
+
+    复制[`begin`,`end`)区间内另一个数组的元素到`vector`中
+
+    ```cpp
+    vector<int> arr6(arr4.begin(), arr4.end());		//将arr4的值从头开始到尾复制
+    vector<int> arr7(arr4.rbegin(), arr4.rend());	//将arr4的值从尾到头复制
+    ```
+
+- `vector<vector<T>> arr(x, <vector<T>(y))`
+
+    定义二维动态数组`x`行`y`列
+
+    ```cpp
+    vector<vector<int>> obj(5, vector<int>(6)); 	//定义二维动态数组5行6列
+    ```
 
 ### 3. 遍历vector
 
@@ -70,11 +106,91 @@ vector<vector<int> > obj(5, vector<int>(6)); 	//定义二维动态数组5行6列
 
 ## string
 
-与`vector`相似的容器，但专门用于保存字符。随机访问快。在尾部插入/删除速度快
+### 1. string特性
+
+`string`是`c++`中的字符串类型，相当于`C`语言中的`char *`其本质是一个封装好的类
+
+**C++中的string与传统C字符串比较：**
+
+| 操作            | string                         | C字符串              |
+| --------------- | ------------------------------ | -------------------- |
+| 声明字符串      | `string s;`                    | `char s[100];`       |
+| 取得第`i`个字符 | `s[i];`                        | `s[i];`              |
+| 字符串长度      | `s.length();`<br />`s.size();` | `strlen(s);`         |
+| 读取一行        | `getline(cin, s);`             | `gets(s);`           |
+| 设置字符串      | `s="TTTT";`                    | `strcpy(s, "TTTT");` |
+| 字符串相加      | `s=s+"TTTT"`                   | `strcat(s, "TTTT");` |
+| 字符串比较      | `s=="TTTT";`                   | `strcmp(s, "TTTT");` |
+
+### 2. string的构造函数
+
+* `string();` 
+
+    默认构造，创建一个空字符串
+
+* `string(const char* s);`
+
+    使用字符串初始化
+
+* `string(const string& str);`
+
+    拷贝构造，使用一个`string`对象初始化另一个`string`对象
+
+* `string(int n,char c);`
+
+    使用`n`个字符`c`初始化
+
+
 
 ## deque
 
-双端队列。支持快速随机访问。在头尾位置插入/删除速度很快
+### 1. deque特性
+
+`deque`容器为一个给定类型(可以是用户自定义类型)的元素进行线性处理，像向量一样，它能够快速地随机访问任一个元素，并且能够高效地插入和删除容器的尾部元素。但它又与`vector`不同，`deque`支持高效插入和删除容器的头部元素，因此也叫做双端队列
+
+### 2. deque的构造函数
+
+* `deque<T> deq;`
+
+    默认构造函数 - 创建空`deque`
+
+    ```cpp
+    deque<int> dq1
+    ```
+
+* `deque<T> deq(n, ele);`
+
+    构造函数将`n`个`ele`拷贝给本身
+
+    ```cpp
+    deque<int> dq2(5);      // 5个默认值(0)
+    deque<int> dq3(5, 10);  // 5个值为10的元素
+    ```
+
+* `deque<T> deq(begin, end);`
+
+    构造函数将`[begin, end]`区间中的元素拷贝给本身
+
+    ```cpp
+    deque<int> source = {1, 2, 3, 4, 5};
+    deque<int> dq4(source.begin(), source.end()); //从其他容器复制
+    ```
+
+* `deque<T> deq(const deque &deq);`
+
+    拷贝构造函数
+
+    ```cpp
+    deque<int> dq5(dq4);
+    ```
+
+* `deque<T> deq{}`
+
+    初始化列表构造函数
+
+    ```cpp
+    deque<int> dq7{1, 2, 3, 4, 5}
+    ```
 
 ## list
 
@@ -87,10 +203,3 @@ vector<vector<int> > obj(5, vector<int>(6)); 	//定义二维动态数组5行6列
 ## array
 
 固定大小数组。支持快速随机访问。不能添加或删除元素
-
-## 标准关联容器
-
-* set
-* multiset
-* map
-* multimap
