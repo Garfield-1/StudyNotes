@@ -2,7 +2,7 @@
 
 ## vector
 
-向量`（Vector）`以线性排列方式存储给定类型的元素，并允许快速随机访问任何元素，长度可变并且可以支持任意类型的元素。可以简单的认为，`vector`是一个可变大小数组。支持快速随机访问
+向量`Vector`以线性排列方式存储给定类型的元素，并允许快速随机访问任何元素，长度可变并且可以支持任意类型的元素。可以简单的认为，`vector`是一个可变大小数组。支持快速随机访问
 
 `vector`有自己的定义规则，同时也包含了一系列函数可用于操作`vector`的内容，可以便捷的对`vector`成员进行增删改查等操作
 
@@ -21,59 +21,59 @@
 
 - `vector<T> arr`
 
-    创建一个空`vector`
+    创建一个空向量`arr`
 
     ```cpp
-    vector<int> arr1;  //一个空数组
+    vector<int> arr;  //一个空数组
     ```
 
 - `vector<T> arr(int nSize)`
 
-    创建一个`vector`,元素个数为`nSize`
+    创建一个向量`arr`,元素个数为`nSize`
 
     ```cpp
-    vector<int> arr3(4);    //开辟4个空间，值默认为0
+    vector<int> arr(4);    //开辟4个空间，值默认为0
     ```
 
 - `vector<T> arr(int nSize,const t& t)`
 
-    创建一个`vector`，元素个数为`nSize`,且值均为`t`
+    创建一个向量`arr`，元素个数为`nSize`,且值均为`t`
 
     ```cpp
-    vector<int> arr4(5, 3);	//5个值为3的数组
+    vector<int> arr(5, 3);	//5个值为3的数组
     ```
 
 - `vector<T> arr{int size1, int size2, int size3, int size4}`
 
-    创建一个包含四个元素的`vector`
+    创建一个包含四个元素的向量`arr`
 
     ```cpp
-    vector<int> arr2 {1, 2, 3, 4, 5}; //包含1、2、3、4、5五个变量
+    vector<int> arr {1, 2, 3, 4, 5}; //包含1、2、3、4、5五个变量
     ```
 
 - `vector<T> arr(const vector&)`
 
-    复制构造函数
+    复制构造函数，构造向量`arr`
 
     ```cpp
-    vector<int> arr5(arr4);  //将arr4的所有值复制进去，和arr4一样
+    vector<int> arr(arr4);  //将arr4的所有值复制进去，和arr4一样
     ```
 
 - `vector<T> arr(begin,end)`
 
-    复制[`begin`,`end`)区间内另一个数组的元素到`vector`中
+    复制`[begin,end)`区间内另一个数组的元素到`vector`中
 
     ```cpp
-    vector<int> arr6(arr4.begin(), arr4.end());		//将arr4的值从头开始到尾复制
-    vector<int> arr7(arr4.rbegin(), arr4.rend());	//将arr4的值从尾到头复制
+    vector<int> arr(arr4.begin(), arr4.end());		//将arr4的值从头开始到尾复制
+    vector<int> arr(arr4.rbegin(), arr4.rend());	//将arr4的值从尾到头复制
     ```
 
 - `vector<vector<T>> arr(x, <vector<T>(y))`
 
-    定义二维动态数组`x`行`y`列
+    定义二维动态数组`arr`规格为`x`行`y`列
 
     ```cpp
-    vector<vector<int>> obj(5, vector<int>(6)); 	//定义二维动态数组5行6列
+    vector<vector<int>> arr(5, vector<int>(6)); 	//定义二维动态数组5行6列
     ```
 
 ### 3. 遍历vector
@@ -124,21 +124,47 @@
 
 ### 2. string的构造函数
 
-* `string();` 
+* `string s1;` 
 
-    默认构造，创建一个空字符串
+    默认构造，创建一个空字符串`s1`
 
-* `string(const char* s);`
+    ```cpp
+    string s1;  // 默认构造
+    ```
 
-    使用字符串初始化
+* `string s1(const char* s);`
 
-* `string(const string& str);`
+    使用字符串初始化字符串`s1`
 
-    拷贝构造，使用一个`string`对象初始化另一个`string`对象
+    ```cpp
+    string s1("text");  // C字符串构造
+    ```
 
-* `string(int n,char c);`
+* `string s1(const string& str);`
 
-    使用`n`个字符`c`初始化
+    拷贝构造，使用一个`string`对象初始化另一个`string`对象`s2`
+
+    ```cpp
+    string s1("text");
+    string s2(s1);  // 拷贝构造
+    ```
+
+* `string s1(int n,char c);`
+
+    使用`n`个字符`c`初始化字符串`s1`
+
+    ```cpp
+    string s1(10, 'x');  // 重复字符
+    ```
+
+* `string s2(const string& str, x, y);`
+
+    使用字符串的第`x`到第`y`位构造字符串`s2`
+
+    ```cpp
+    string s1("text");
+    string s2(s1, 1, 3);               // 子串构造
+    ```
 
 
 
@@ -152,44 +178,44 @@
 
 * `deque<T> deq;`
 
-    默认构造函数 - 创建空`deque`
+    默认构造函数 - 创建空`deque deq`
 
     ```cpp
-    deque<int> dq1
+    deque<int> deq
     ```
 
 * `deque<T> deq(n, ele);`
 
-    构造函数将`n`个`ele`拷贝给本身
+    构造函数将`n`个`ele`拷贝给本身，创建`deque deq`
 
     ```cpp
-    deque<int> dq2(5);      // 5个默认值(0)
-    deque<int> dq3(5, 10);  // 5个值为10的元素
+    deque<int> deq(5);      // 5个默认值(0)
+    deque<int> deq(5, 10);  // 5个值为10的元素
     ```
 
 * `deque<T> deq(begin, end);`
 
-    构造函数将`[begin, end]`区间中的元素拷贝给本身
+    构造函数将`[begin, end]`区间中的元素拷贝给本身，创建`deque deq`
 
     ```cpp
     deque<int> source = {1, 2, 3, 4, 5};
-    deque<int> dq4(source.begin(), source.end()); //从其他容器复制
+    deque<int> deq(source.begin(), source.end()); //从其他容器复制
     ```
 
 * `deque<T> deq(const deque &deq);`
 
-    拷贝构造函数
+    拷贝构造函数，创建`deque deq`
 
     ```cpp
-    deque<int> dq5(dq4);
+    deque<int> deq(dq4);
     ```
 
 * `deque<T> deq{}`
 
-    初始化列表构造函数
+    初始化列表构造函数，创建`deque deq`
 
     ```cpp
-    deque<int> dq7{1, 2, 3, 4, 5}
+    deque<int> deq{1, 2, 3, 4, 5}
     ```
 
 ## list
