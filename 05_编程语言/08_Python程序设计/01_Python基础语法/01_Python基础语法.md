@@ -1,5 +1,3 @@
-[TOC]
-
 # Python基础语法
 
 `Python` 是一个高层次的结合了解释性、编译性、互动性和面向对象的脚本语言。不同于`C/C++`语言需要编译成可执行文件，`python`执行时需要一个解释器来执行`python`源码
@@ -9,6 +7,8 @@
 > 1.菜鸟教程python语法部分
 >
 > [Python 教程 — Python 3.13.5 文档](https://docs.python.org/zh-cn/3.13/tutorial/)
+
+
 
 ## 变量类型
 
@@ -165,11 +165,11 @@ runoob
 
 ### 5. Dictionary（字典）
 
-`dictionary`（字典）是除列表以外`python`之中最灵活的内置数据结构类型。列表是有序的对象集合，字典是无序的对象集合。
+`dictionary`（字典）是除列表以外`python`之中最灵活的内置数据结构类型。列表是有序的对象集合，字典是无序的对象集合
 
-两者之间的区别在于字典当中的元素是通过键来存取的，而不是通过偏移存取。
+两者之间的区别在于字典当中的元素是通过键来存取的，而不是通过偏移存取
 
-字典用`{ }`标识。字典由索引`key`和它对应的值`value`组成。
+字典用`{ }`标识，字典由索引`key`和它对应的值`value`组成
 
 **如下实例：**
 
@@ -459,12 +459,11 @@ printme("再次调用同一函数")
 **示例：**
 
 ```python
-while True:
-    try:
-        x = int(input("请输入一个数字: "))
-        break
-    except ValueError:
-        print("您输入的不是数字，请再次尝试输入！")
+try:
+    fh = open("testfile", "w")
+    fh.write("这是一个测试文件，用于测试异常!!")
+except IOError:
+    print "Error: 没有找到文件或读取文件失败"
 ```
 
 **`try`语句后也可以加上else语句，如果try中的执行语句没有发生异常则执行else中的语句**
@@ -472,6 +471,19 @@ while True:
 **整体流程如下图：**
 
 ![try_except_else](./img/try_except_else.jpg)
+
+**例如：**
+
+```python
+try:
+    fh = open("testfile", "w")
+    fh.write("这是一个测试文件，用于测试异常!!")
+except IOError:
+    print "Error: 没有找到文件或读取文件失败"
+else:
+    print "内容写入文件成功"
+    fh.close()
+```
 
 ### except ... as ...语句
 
@@ -544,6 +556,28 @@ async def main():
 **整体流程如下图：**
 
 ![finally语句](./img/finally语句.jpg)
+
+**需要注意的：**
+
+* 完整的格式顺序是：`try —> except X —> except —> else—> finally`
+* 如果`else`和`finally`都存在的话，`else`必须在`finally`之前，`finally`必须在整个程序的最后
+
+**例如：**
+
+```python
+try:
+    Nomal execution block
+except A:
+    Exception A handle
+except B:
+    Exception B handle
+except:
+    Other Exception handle
+else:
+	if no exception, get here
+finally:
+    print('finally')
+```
 
 
 
