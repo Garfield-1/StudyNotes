@@ -81,8 +81,6 @@ void ustream_fd_init(struct ustream_fd *sf, int fd)
 
 ![运行队列句柄](./img/运行队列句柄.jpg)
 
-
-
 ## 管道输出端的最终使用
 
 在`q_initd_run`函数中通过`fork`创建了新的进程执行待运行的命令，又通过管道将新进程的标准输出和标准错误重定向

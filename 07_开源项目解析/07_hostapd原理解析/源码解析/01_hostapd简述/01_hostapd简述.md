@@ -2,8 +2,6 @@
 
 > 笔者注：当前主流的hostapd实现是采用的Jouni Malinen的版本，后文中也是也是围绕这个版本来展开的
 
-
-
 ## hostapd是什么
 
 这里附上不同的解读
@@ -20,8 +18,6 @@
 >
 >Jouni Malinen的hostapd是用于接入点和身份验证服务器的用户空间守护进程。它可以用于使用Linux计算机创建无线热点。它实现了IEEE 802.11接入点管理、IEEE 802.1X/WPA/WPA2/EAP认证器、RADIUSclient、EAP服务器和RADIUS认证服务器。当前版本支持Linux（Host AP, MadWifi,Prism54）和一些使用内核mac80211子系统的驱动程序)，QNX, FreeBSD （net80211）和DragonFlyBSD
 
-
-
 **`hostapd`源码`README`**
 
 > Originally, hostapd was an optional user space component for Host AP driver. It adds more features to the basic IEEE 802.11 management included in the kernel driver: using external RADIUS authentication
@@ -36,8 +32,6 @@
 >
 > 当前版本包括对其他驱动程序的支持，一个集成的EAP服务器（即，允许完整的身份验证而不需要外部RADIUS认证服务器），以及用于EAP身份验证的RADIUS认证服务器。
 
-
-
 ## hostapd可以做什么
 
 **使用场景**
@@ -46,9 +40,6 @@
 - 无线热点：在 `Linux` 系统上使用 `hostapd` 可以将笔记本电脑或树莓派配置为无线热点
 - 企业无线网络：通过 `RADIUS` 服务器和 `hostapd` 配置企业级无线网络
 
-
-
 ## 工作原理
 
 `hostapd` 通过与无线网卡驱动交互，控制无线网卡的工作模式，将其切换为 `AP` 模式（Access Point Mode）并通过配置文件定义无线网络的参数（如 `SSID`、密码、信道等）
-

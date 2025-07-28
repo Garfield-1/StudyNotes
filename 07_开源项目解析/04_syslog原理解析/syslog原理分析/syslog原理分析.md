@@ -1,18 +1,16 @@
 # syslog原理分析
 
-**参考文档**
-
-[RFC 3164: The BSD Syslog Protocol (rfc-editor.org)](https://www.rfc-editor.org/rfc/rfc3164)
-
-[syslog协议介绍_syslog是什么协议-CSDN博客](https://blog.csdn.net/chdhust/article/details/50989785)
-
-[Busybox的syslogd认识与使用 - ArnoldLu - 博客园](https://www.cnblogs.com/arnoldlu/p/10583233.html)
-
-[sysklogd源码](https://github.com/troglobit/sysklogd)
-
-[BusyBox源码](https://www.busybox.net/)
-
-
+> 参考文档
+>
+> [RFC 3164: The BSD Syslog Protocol (rfc-editor.org)](https://www.rfc-editor.org/rfc/rfc3164)
+>
+> [syslog协议介绍_syslog是什么协议-CSDN博客](https://blog.csdn.net/chdhust/article/details/50989785)
+>
+> [Busybox的syslogd认识与使用 - ArnoldLu - 博客园](https://www.cnblogs.com/arnoldlu/p/10583233.html)
+>
+> [sysklogd源码](https://github.com/troglobit/sysklogd)
+>
+> [BusyBox源码](https://www.busybox.net/)
 
 ## 概述
 
@@ -20,8 +18,6 @@
 
 * `Syslog`服务端通常是`syslogd`或更现代的 `rsyslog`、`syslog-ng` 或 `systemd-journald`）负责接收来自客户端的日志消息，存储它们，并可能根据配置转发到其他日志服务器或应用程序。服务端是`syslog`的核心，它处理日志的存储、转发和管理
 * `Syslog` 客户端是指发送日志消息的应用程序、服务或内核。它将日志消息发送给`syslog`服务端（日志守护进程）。客户端通过 `syslog()`函数或者类似工具将日志消息发送到 `syslogd`或其他日志守护进程
-
-
 
 ## 日志信息的获取
 
@@ -66,8 +62,6 @@
 * `/proc/kmsg`句柄
 
     `/proc/kmsg`是一个只读的伪`FIFO`文件，且里面的消息只能被读取一次。当多个进程同时尝试读取该文件时，每个进程将只能读取到一部分日志内容
-
-
 
 ## busybox实现
 
@@ -162,4 +156,3 @@ static void do_syslogd(void)
 1. 配置信号量
 2. 配置`socket`用于读取`/dev/log`，并将读取的结果作为`syslog`记录
 3. 循环读取`/dev/log`的内容直到，有外部信号量使`syslogd`进程退出
-

@@ -5,15 +5,11 @@
 编译器默认使用`gcc`
 `cmake version>=3.13`
 
-
-
 ## 依赖关系
 
 `ubus`编译依赖`json-c`和`libubox`
 
 `libubox`依赖`json-c`
-
-
 
 ## 源码下载路径
 
@@ -22,8 +18,6 @@ git clone https://github.com/json-c/json-c.git
 git clone https://github.com/openwrt/libubox
 git clone https://github.com/openwrt/ubus
 ```
-
-
 
 ## 编译方法
 
@@ -38,8 +32,6 @@ git clone https://github.com/openwrt/ubus
 ├── libubox
 └── ubus
 ```
-
-
 
 ## 编译脚本
 
@@ -205,8 +197,6 @@ case "$1" in
 esac
 ```
 
-
-
 ## 在Ubuntu上运行ubus
 
 ### 在Ubuntu上安装相关库
@@ -258,8 +248,6 @@ esac
     2. 将动态库路径添加至系统动态库搜索路径：`echo [依赖库路径] >> /etc/ld.so.conf`
 
     3. 更新动态库搜索路径：`ldconfig`
-
-
 
 ### 运行官方demo
 
@@ -329,5 +317,3 @@ esac
 ```shell
 export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 ```
-
-​	

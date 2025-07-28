@@ -2,8 +2,6 @@
 
 > 笔者注：本文分析的是ubus源码中的官方demo，见源码目录的./ubus/examples/client.c
 
-
-
 ## client整体流程
 
 整体流程上，`ubus`的运行需要三部分`ubusd`守护进程、`server`端和`client`端，本文对于`client`端的实现和`client`端与守护进程和`server`端的交互进行分析
@@ -26,8 +24,6 @@ main
 ```
 
 这里需要特别的对`ubus_connect_ctx`函数展开解读，这个函数中执行了关键的初始化动作
-
-
 
 **ubus_connect_ctx函数**
 
@@ -81,8 +77,6 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 
 `ubus_connect_ctx`函数主要用于创建新的`ubus`对象`ctx`，这个对象使用全局变量进行存储。这里主要是创建`ctx`对应的句柄、回调并将事件注册到对应的链表和一个`avl`树中
 
-
-
 ## client端/server端与ubus守护进程通信
 
 ### 守护进程接收client端/server端消息
@@ -103,8 +97,6 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
     	  ctx->sock.fd = usock(USOCK_UNIX, UBUS_UNIX_SOCKET, NULL);
 ```
 
-
-
 **通信过程函数调用栈**
 
 ```c
@@ -116,8 +108,6 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
     			//这里使用sendmsg函数通过ctx->sock.fd去发送消息给守护进程
     			->sendmsg(fd, &msghdr, 0)
 ```
-
-
 
 ### client端/server端接收守护进程消息
 
@@ -157,15 +147,11 @@ void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 
 这里可以看到函数中使用了一个`while(1)`的循环，在循环中会处理所有的与守护进程通信使用的句柄发送的消息，直到完全处理结束
 
-
-
 ## 各个DEMO测试模块
 
 在`ubus`的`examples`目录下有数个以`test_`开头的函数，组成了这个演示`demo`
 
 `client`端的演示中，最重要的是`client_main`函数
-
-
 
 **client_main函数**
 
@@ -205,8 +191,6 @@ static void client_main(void)
 `client`端的演示主要从这个函数开始，函数中实现了发起了一个同步请求`watch`和一个异步请求`hello`
 
 首先是通过`ubus_add_object`把`test_client_object`注册到`ubus`中，然后通过`ubus_lookup_id`找到`"test"`对应的`id`，然后调用了`"test"`的`"watch"`方法和`hello`方法。`test`和`hello`实际上是在`server`端中声明的`ubus`接口
-
-
 
 ### test_watch方法
 
@@ -267,8 +251,6 @@ static void client_main(void)
   **核心思想**
   
   `watch`方法的实现主要是接收传入的消息，从其中解析出`ubus`对象的`id`，向`ubusd`注册这个`ubus`对象并设置对应的触发事件回调和取消订阅事件的回调
-
-
 
 ### test_hello方法
 
@@ -332,8 +314,3 @@ static void client_main(void)
   `server`端的处理主要是通过`uloop`设置循环，然后向管道的写端写入数据，在`client`端读取管道的读端，**流程见下图**。关于为什么可以使用管道在两个进程见通信，这部分的底层实现需要分析`ubusd`源码，这里不做展开
   
   ![管道通信](./img/管道通信.jpg)
-
-
-
-
-

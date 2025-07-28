@@ -10,8 +10,6 @@
 
 ![OpenWrt架构导出导入文件](./img/OpenWrt%E6%9E%B6%E6%9E%84%E5%AF%BC%E5%87%BA%E5%AF%BC%E5%85%A5%E6%96%87%E4%BB%B6.jpg)
 
-
-
 以下用配置文件导出举例
 
 ## js代码
@@ -36,8 +34,6 @@ handleBackup: function() {
     });
 },
 ```
-
-
 
 ## uhttpd模块
 
@@ -72,8 +68,6 @@ static void init_defaults_pre(void)
 option cgi_prefix	/cgi-bin
 ```
 
-
-
 ## cgi-io模块
 
 `cig-io`模块实际上主要是实现业务上的逻辑，按照业务要求将数据获取后写入到自身进程的标准输出中，此处详细代码省略；
@@ -98,4 +92,3 @@ define Package/cgi-io/install
 	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-exec
 endef
 ```
-

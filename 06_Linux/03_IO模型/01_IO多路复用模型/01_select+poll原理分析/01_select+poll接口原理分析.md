@@ -8,8 +8,6 @@
 >
 > [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)
 
-
-
 ## 发展历史
 
 ### **API 发布的时间线**
@@ -25,8 +23,6 @@
 可以看到`select`、`poll` 和 `epoll`，这三个“`IO`多路复用`API`”是相继发布的。这说明了，它们是`IO`多路复用的3个进化版本。因为`API`设计缺陷，无法在不改变 `API` 的前提下优化内部逻辑。所以用`poll`替代`select`，再用`epoll`替代`poll`
 
 `epoll`和`poll`还有`select`都是监听`socket`的接口，`poll`还有`select`出现的时间更早，但是性能更差。后来在此继承上发展改进得到了`epoll`
-
-
 
 ## select原理分析
 
@@ -519,9 +515,6 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
 
 每一次的检测都需要对传入的位图进行遍历，还需要从用户空间和内核空间之间相互传递数据，同时监听的最大文件描述符受到进程可以打开的最大文件描述符数量限制。
 
-
-
-
 ## poll原理分析
 
 `poll`接口实现和功能和实现的思路与`select`几乎一致。
@@ -717,8 +710,6 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 构造一个高精度循环检测，在首次进入后会将进程陷入阻塞态，直到等待被唤醒进程
 
-
-
 **循环出口：内层循环设置循环结束的标志位**
 
 **第二第三层循环结构**
@@ -804,8 +795,6 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 `poll`和`select`的原理几乎一致，都是将需要监听的文件描述符传入内核，然后调用`file_operations->poll`接口去检测，底层都是依赖内核的文件系统实现。二者不同的地方在于`select`是构造了一个位图然后，然后在位图中填充文件描述符，`poll`则是使用单链表。但两者的效率并没有太大的区别
 
 由于每次的检测都会涉及到数据在用户空间到内核空间之间的来回拷贝，而且每次检测遍历所有的文件描述符，所以其效率并不高
-
-
 
 ## 驱动层面对文件系统的监听
 
@@ -901,4 +890,3 @@ void poll_initwait(struct poll_wqueues *pwq)
 * 内核等待队列是一个公共的基础模块
 * 上图仅针对于`select`和`poll`模块，其他模块对于等待队列的注册接口和回调函数可能有不同的封装和实现
 * `wak_up_interruptible`是一个对`_wake_up`封装的宏，内核中还存在其他的对`_wake_up`的封装宏，其他模块也会调用。例如`socket`就将`wake_up_interruptible_all`自行封装了一个`sock_def_wakeup`接口用于调用
-

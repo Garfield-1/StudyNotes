@@ -6,8 +6,6 @@
 
 [openWrt libubox组件之uloop原理分析-CSDN博客](https://blog.csdn.net/weixin_30388677/article/details/98090433)
 
-
-
 ## 概述
 
 `uloop`是一个基于`epoll`建立的轻量级事件循环库，它允许程序以单线程、非阻塞的方式处理多种事件源。主要提供了`timeout`定时器处理和文件描述符触发事件的监控的能力
@@ -54,8 +52,6 @@ int main()
 ```
 
 上述程序效果：每隔`5S`打印一次
-
-
 
 **监听句柄是否活跃**
 
@@ -297,8 +293,6 @@ Connected to server at 127.0.0.1:8888
 Received message: Hello from uloop server!
 ```
 
-
-
 **进程监控**
 
 程序通过`fork`函数创建了一个子进程并在父进程中使用`uloop`来监听子进程的状态，当被监听的进程退出时就会调用对应的回调函数`process_cb`
@@ -361,11 +355,7 @@ int main(int argc, char **argv)
 }
 ```
 
-
-
 -----
-
-
 
 ## 核心数据结构
 
@@ -504,8 +494,6 @@ static void uloop_process_timeouts(void)
 
 遍历整个定时器链表，将时间超过当前时间的节点清除，然后执行对应回调
 
-
-
 ### 子进程管理`processes`链表
 
 将待检测的子进程注册后会在子进程执行结束后执行提前注册的回调，需要注意的是**`uloop`不支持多线程，多线程下会出现死锁问题**
@@ -635,8 +623,6 @@ static void uloop_handle_processes(void)
 }
 ```
 
-
-
 ### 信号管理`signals`链表
 
 信号管理链表,主要的作用是管理外部的信号和子进程链表的信号
@@ -733,11 +719,7 @@ int uloop_signal_delete(struct uloop_signal *s)
 
 将节点从链表中删除，并将回调函数重置
 
-
-
-----
-
-
+-----
 
 ## 整体流程
 
@@ -746,8 +728,6 @@ int uloop_signal_delete(struct uloop_signal *s)
 初始化`uloop`的动作在底层对应的实际上是初始化了一个管道，并注册`epoll`事件监听管道的读端；在`uloop`初始化时会创建一个管道，管道的输入存储在一个全局变量中在接收到外部信号时则写这个句柄，管道的输出端使用`epoll`进行监听，监听超时时间即`uloop`超时时间
 
 **`uloop`主体结构是一个大循环**，在每一轮的循环中去检查数个链表的节点元素是否超时，若超时则需要执行其对应的回调函数，并设置新一轮的循环。每一轮的循环的中间**间隔时间靠`epoll`监听管道输出端来阻塞进程**
-
-
 
 **`uloop_init`函数**
 
@@ -771,8 +751,6 @@ int uloop_init(void)
 **核心思想**
 
 本质是对`epoll`的一层封装，`uloop_init_pollfd`中创建`epoll`节点，后续在上层设置互斥锁防止出现死锁等问题。后续设置信号量监听回调函数
-
-
 
 关于`uloop_init`函数的内部实现的具体调用栈如下
 
@@ -908,11 +886,7 @@ int uloop_run_timeout(int timeout)
 
 最外层记录循环的深度，内层使用一个大的`while`循环作为函数的核心逻辑，使用`uloop_cancelled`和`timeout`共同控制循环
 
-
-
-----
-
-
+-----
 
 ## 外部接口
 
@@ -979,4 +953,3 @@ static void uloop_run_events(int64_t timeout)
 	}
 }
 ```
-

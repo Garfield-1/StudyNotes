@@ -2,8 +2,6 @@
 
 程序分为`server`端，和`client`端，使用`socket`进行通信，端口使用`12345`
 
-
-
 ## 编译
 
 执行如下代码进行编译
@@ -46,4 +44,3 @@ Connected to server.
 Message sent to server: Hello, Server!
 Received from server: Hello, Client!
 ```
-

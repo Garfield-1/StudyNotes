@@ -64,4 +64,3 @@
   提供强大的`Git`管理功能
 
 <img src="./image/图3_GitLens.png" alt="图3_GitLens" />
-

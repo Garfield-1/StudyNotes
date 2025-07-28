@@ -1,7 +1,5 @@
 # 从手机连接wifi看hostapd流程
 
-
-
 ## wifii连接过程
 
 在关闭`wifi`的密码，设置为开放连接，直接使用手机连接路由器`wifi`，读取`hostapd`的日志如下
@@ -20,8 +18,6 @@ Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb IEEE 
 Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb RADIUS: starting accounting session D7F2785787303561
 Tue Apr 22 23:13:40 2025 daemon.info hostapd: wlan0: STA xx:xx:xx:xx:0a:fb WPA: pairwise key handshake completed (RSN)
 ```
-
-
 
 **从syslog中看**
 
@@ -45,8 +41,6 @@ main
 
 从代码调用栈上来是`wifi`连接后触发了`hostapd`中对于管理帧处理的流程，这段逻辑开始来自`netlink`事件上报，然后触发`hostapd`中的状态机中，接着状态机处理管理帧报文时打印了这些日志
 
-
-
 在源码中新增一些日志后可以分析道更加详细的日志，看到更加详细函数调用栈
 
 ```c
@@ -63,8 +57,6 @@ wpa_driver_nl80211_init_nl_global
 ```
 
 这里的`wpa_supplicant_event`实际上是在`main`函数中注册的函数回调入口
-
-
 
 ## netlink初始化注册
 
@@ -83,8 +75,6 @@ cosnt struct wpa_driver_ops wpa_driver_nl80211_ops{
 	->nl80211_global_init
 		->wpa_driver_nl80211_init_nl_global
 ```
-
-
 
 ## 整体流程总结
 

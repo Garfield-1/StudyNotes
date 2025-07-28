@@ -4,8 +4,6 @@
 
 本文讲到的`Reason Code`和`Status Code`就是其中的管理帧的两个位
 
-
-
 ## Reason Code位
 
 当对方不适合加入网络时，工作站会送出`Disassociation`（解除连接）或`Deauthentication`（解除身份认证）帧作为应答。这些帧当中包含一个长度`16bit`的`Reason Code`（原因代码）位，表示对方的做法有误
@@ -38,8 +36,6 @@
 | 23   | `802.11i 802.1X`身份认证失败<br/>`802.1X authentication failure` |
 | 24   | `802.11i`所设定的使用政策拒绝所提议的密钥锁组<br/>`Proposed cipher suite rejected due to configured policy` |
 | 25   | 保留，未使用<br/>`Reserved; unused`                          |
-
-
 
 ## Status Code 位
 
@@ -76,4 +72,3 @@
 | 45       | `802.11i`不支持`RSN IE`性能<br/>`RSN IE capabilites are not supported` |
 | 46       | `802.11i`密码锁组被使用政策拒绝<br/>`Cipher suite rejected due to policy` |
 | 47-63    | `535`保留给未来的标准使用<br/>`Reserved for future standardization work` |
-

@@ -6,8 +6,6 @@
 >
 > https://zh.wikipedia.org/wiki/%E7%B6%B2%E8%B7%AF%E6%8F%92%E5%BA%A7
 
-
-
 ## 类型
 
 1. **数据报套接字（`SOCK_DGRAM`）**
@@ -22,19 +20,13 @@
 
     原始套接字是一种网络套接字。允许直接发送和接受IP数据包并且不需要任何传输层协议格式。原始套接字主要用于一些协议的开发，可以进行比较底层的操作。
 
-
-
 ## `socket`流程
 
 ![socket连接过程](./img/socket连接过程.png)
 
-
-
 ## 关键接口
 
 `socket`使用时有几个常用的接口
-
-
 
 ### `socket`函数
 
@@ -90,8 +82,6 @@ int socket(int domain, int type, int protocol);
 int sock = socket(AF_INET, SOCK_STREAM, 0);
 ```
 
-
-
 ### `bind`函数
 
 `bind`函数的作用是通过绑定一个其他`func`函数生成一个依赖于`func`的新的函数对象，复用`func`函数的实现，但是可以改变这个func的参数数量和顺序，可以绑定普通函数、全局函数，静态函数，成员函数，而且其参数可以支持占位符（std::placeholders::_1，std::placeholders::_2）来改变参数的顺序，并且可以设置func中默认的几个参数来减少输入参数的数量。
@@ -112,7 +102,6 @@ int bind(int sockfd, const struct sockaddr *addr,socklen_t addrlen);
 - **失败**：返回 `-1`，并设置 `errno` 来指示错误原因
 
 
-
 ### `listen`函数
 
 `listen`函数的作用是将一个套接字标记为监听状态，准备接受客户端的连接请求。它通常在创建并绑定一个服务器端套接字后使用，表示服务器愿意接受来自客户端的连接
@@ -131,7 +120,6 @@ int listen(int sockfd, int backlog);
 
 - **成功**：返回 `0` 表示
 - **失败**：返回 `-1` 表示出错，并且设置了 `errno` 以指示错误原因
-
 
 
 ### `accept`函数
@@ -156,7 +144,6 @@ int accept(int sockfd, struct sockaddr *addr, socklen_t *addrlen);
 - **失败**：返回 `-1`，并设置 `errno` 来指示错误原因
 
 
-
 ### `connect`函数
 
 `connect`函数的功能可以用一句话来概括，就是完成面向连接的协议的连接过程，它是主要连接的。面向连接的协议，在建立连接的时候总会有一方先发送数据，那么谁调用了`connect`谁就是先发送数据的一方
@@ -177,7 +164,6 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 
 - **成功**：返回 `0` 表示连接成功
 - **失败**：返回 `-1`，并设置 `errno` 以指示错误原因
-
 
 
 ### `send`函数
@@ -205,7 +191,6 @@ ssize_t send(int sockfd, const void *buf, size_t len, int flags);
 - **失败**：返回 `-1`，并设置 `errno` 来指示错误原因
 
 
-
 ### `recv`函数
 
 `recv()` 函数用于从已经建立连接的套接字接收数据。它是 接收数据 的核心函数，通常在服务器端用于接收客户端发送的数据，或者在客户端接收从服务器传来的响应数据
@@ -228,7 +213,6 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags);
 
 - **成功**：返回实际接收的字节数（可以小于请求的 `len`，特别是在流套接字（如 TCP）中）。如果返回 0，表示连接已关闭
 - **失败**：返回 `-1`，并设置 `errno` 来指示错误原因
-
 
 
 ### `close`函数&`shutdown`函数

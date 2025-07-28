@@ -14,8 +14,6 @@
 >
 > [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)
 
-
-
 ## 一、 发展历史
 
 ### **API 发布的时间线**
@@ -32,16 +30,12 @@
 
 `epoll`和`poll`还有`select`都是监听`socket`的接口，`poll`还有`select`出现的时间更早，但是性能更差。后来在此继承上发展改进得到了`epoll`
 
-
-
 ## 二、epoll是什么
 
 `epoll`是一种`I/O`事件通知机制，是`linux`内核实现`IO`多路复用的一个实现。
  `IO`多路复用是指，在一个操作里同时监听多个输入输出源，在其中一个或多个输入输出源可用的时候返回，然后对其的进行读写操作。
 
 `epoll`的通俗解释是一种当文件描述符的内核缓冲区非空的时候，发出可读信号进行通知，当写缓冲区不满的时候，发出可写信号通知的机制
-
-
 
 ## 三、epoll接口示例代码
 
@@ -106,8 +100,6 @@ cleanup:
     return 0;
 }
 ```
-
-
 
 ## 四、核心数据结构
 
@@ -369,10 +361,6 @@ error_create_wakeup_source:
 
 <img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
-
-
-
-
 #### 3) `struct eppoll_entry`
 
 每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
@@ -397,8 +385,6 @@ struct eppoll_entry
 	wait_queue_head_t *whead;
 };
 ```
-
-
 
 ### 4.2 `epoll`红黑树操作接口
 
@@ -637,8 +623,6 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 }
 ```
 
-
-
 ### 4.3 关键链表及相关接口
 
 #### 1) `epitem->ovflist`链表和`epitem->rdlink`链表
@@ -738,8 +722,6 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 
 <img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 20%;" />
 
-
-
 #### 3)  eventpoll->wq等待队列链表
 
 函数调用栈
@@ -769,8 +751,6 @@ ep_ptable_queue_proc
             ->curr = list_next_entry(bookmark, entry);
             ->curr->func(curr, mode, wake_flags, key);
 ```
-
-
 
 ## 五、对文件句柄的监听
 
@@ -850,10 +830,6 @@ static const struct file_operations proc_rtas_log_operations = {
 在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
 
 ![等待队列](./img/驱动文件监听回调.jpg)
-
-
-
-
 
 ### 5.2 `epoll`对监听文件句柄的实现
 
@@ -940,8 +916,6 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 				  locked) & epi->event.events;
 }
 ```
-
-
 
 ## 六、关键流程回调函数
 
@@ -1064,15 +1038,11 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 }
 ```
 
-
-
 ## 七、`epoll`基本流程
 
 ### 7.1 **`epoll`基本流程**
 
 <img src=".\img\02_epoll接口流程.jpg" alt="02_epoll接口流程" style="zoom: 33%;" />
-
-
 
 ### 7.2 创建epoll实例接口
 
@@ -1190,8 +1160,6 @@ void __fd_install(struct files_struct *files, unsigned int fd, struct file *file
 将其插入`ep`中，此时的`ep`是存放在等待队列中的
 
 <img src=".\img\01_do_epoll_create流程.jpg" alt="01_do_epoll_create流程" style="zoom: 33%;" />
-
-
 
 ### 7.3 操作监听句柄
 
@@ -1457,8 +1425,6 @@ ep_events_available(struct eventpoll *ep)
     ->list_empty_careful(&ep->rdllist)
 ```
 
- 
-
 ## 八、`epoll`与`select`、`poll`的对比
 
 **1) 用户态将文件描述符传入内核的方式**
@@ -1485,8 +1451,6 @@ ep_events_available(struct eventpoll *ep)
 - `poll`：将新的`struct pollfd`结构体数组拷贝传入内核中，继续以上步骤。
 - `epoll`：无需重新构建红黑树，直接沿用已存在的即可。
 
-
-
 ## 九、总结
 
 **epoll更高效的原因**
@@ -1502,4 +1466,3 @@ ep_events_available(struct eventpoll *ep)
 5）`epoll`的边缘触发模式效率高，系统不会充斥大量不关心的就绪文件描述符
 
 > 虽然epoll的性能最好，但是在连接数少并且连接都十分活跃的情况下，select和poll的性能可能比epoll好，毕竟epoll的通知机制需要很多函数回调。
-

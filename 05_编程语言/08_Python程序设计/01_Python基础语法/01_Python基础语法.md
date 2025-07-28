@@ -8,8 +8,6 @@
 >
 > [Python 教程 — Python 3.13.5 文档](https://docs.python.org/zh-cn/3.13/tutorial/)
 
-
-
 ## 变量类型
 
 **Python有五个标准的数据类型：**
@@ -87,8 +85,6 @@ Hello World!Hello World!
 Hello World!TEST
 ```
 
-
-
 ### 3. List（列表）
 
 `List`（列表） 是 `Python` 中使用最频繁的数据类型
@@ -128,8 +124,6 @@ runoob
 ['runoob', 786, 2.23, 'john', 70.2, 123, 'john']
 ```
 
-
-
 ### 4. Tuple（元组）
 
 元组是另一个数据类型，类似于 `List`（列表）
@@ -160,8 +154,6 @@ runoob
 (123, 'john', 123, 'john')
 ('runoob', 786, 2.23, 'john', 70.2, 123, 'john')
 ```
-
-
 
 ### 5. Dictionary（字典）
 
@@ -331,8 +323,6 @@ a^b = 0011 0001
 | 12            | `in not in`                | 成员运算符                                                 |
 | 13            | `not and or`               | 逻辑运算符                                                 |
 
-
-
 ## 流程语句
 
 ### 条件语句
@@ -410,8 +400,6 @@ for fruit in fruits:        # 第二个实例
 '''
 ```
 
-
-
 ## 函数定义
 
 函数定义时需要遵守下面的规则
@@ -438,8 +426,6 @@ def printme( str ):
 printme("我要调用用户自定义函数!")
 printme("再次调用同一函数")
 ```
-
-
 
 ## 异常处理
 
@@ -579,15 +565,11 @@ finally:
     print('finally')
 ```
 
-
-
 ## 内置异常类型
 
 内置异常类型的详细说明见`python3`官方文档，本文不做赘述
 
 > [[内置异常 — Python 3.13.5 文档](https://docs.python.org/zh-cn/3.13/library/exceptions.html#bltin-exceptions)]:
-
-
 
 ## 防止重复包含
 

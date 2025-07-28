@@ -2,16 +2,12 @@
 
 > 笔者注：ubus项目内容繁杂相关解析文档的编写非一日之功，本文从ubus的官方demo实现进行切入，逐步分析ubus的实现原理
 
-
-
 ## 大纲（后续删除）
 
 **本文档尚未完成，此大纲仅用于梳理思路**
 
 * `ubus`底层使用`socket`建立通信连接
 * `ubus`有一个发送消息队列
-
-
 
 在`ubus`中，并没有单独的线程去维护请求队列。请求队列中的事件是在特定的函数调用时被处理的。具体来说，`ubus`使用事件循环 (`uloop`) 来处理请求队列中的事件
 
@@ -78,17 +74,11 @@ static void ubus_process_pending_msg(struct uloop_timeout *timeout)
 }
 ```
 
-
-
 ### 总结
 
 `ubus`并没有单独的线程去维护请求队列。相反，它依赖于事件循环 (`uloop`) 来处理请求队列中的事件。当事件循环运行时，它会处理所有挂起的事件，包括请求的响应。因此，只有在事件循环运行时，程序才会处理请求队列中的事件。
 
-
-
 ----
-
-
 
 ## ubus简介
 
@@ -104,8 +94,6 @@ static void ubus_process_pending_msg(struct uloop_timeout *timeout)
 ![ubus架构图](.\img\ubus架构图.jpg)
 
 `ubus`同样基于这套流程，其中`ubusd`实现`server`，其他进程实现`client`，例如`ubus(cli)`、`netifd`、`procd`；两个`client`通信需要通过`ubusd`转发
-
-
 
 ## 核心数据结构
 
@@ -143,8 +131,3 @@ struct ubus_context
 <img src="./img/%E6%A0%B8%E5%BF%83%E6%95%B0%E6%8D%AE%E7%BB%93%E6%9E%84.jpg" alt="核心数据结构" style="zoom:200%;" />
 
 其中的`AVL`树的部分，通过`ubus_add_object_cb`接口添加节点`ubus_remove_object_cb`接口删除节点，待后续完善
-
-
-
-
-
