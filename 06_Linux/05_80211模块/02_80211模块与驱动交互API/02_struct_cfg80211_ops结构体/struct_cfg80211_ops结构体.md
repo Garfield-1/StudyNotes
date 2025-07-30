@@ -645,3 +645,207 @@ int (*del_virtual_intf)(struct wiphy *wiphy, struct wireless_dev *wdev);
     先删除现有接口，再创建新配置的接口
 
 这个函数是`Wi-Fi`设备动态配置管理的重要组成部分，确保系统能够灵活地创建和销毁虚拟网络接口。
+
+## ops->change_virtual_intf接口
+
+**源码如下：**
+
+```c
+/*
+ * @change_virtual_intf: change type/configuration of virtual interface,
+ *	keep the struct wireless_dev's iftype updated.
+ */
+struct cfg80211_ops {
+    ...
+	int	(*change_virtual_intf)(struct wiphy *wiphy,
+				       struct net_device *dev,
+				       enum nl80211_iftype type,
+				       struct vif_params *params);
+	...
+}
+```
+
+**函数作用：**
+
+这个函数指针允许用户空间程序（如 `iw` 工具）动态地改变无线网络接口的工作模式，比如将接口从 `Station` 模式切换到 `AP` 模式，或者切换到 `Monitor` 模式等。
+
+**参数说明：**
+
+- **`wiphy`**: 指向 `wiphy` 结构体的指针，代表物理无线设备
+- **`dev`**: 指向 `net_device` 结构体的指针，代表要修改的网络接口
+- **`type`**: `nl80211_iftype` 枚举值，指定新的接口类型
+- **`params`**: 指向 `vif_params` 结构体的指针，包含额外的配置参数
+
+**典型使用场景：**
+
+1. **WiFi热点创建**: 将接口从`Station`模式切换到`AP`模式
+
+    ```shell
+    iw dev wlan0 set type __ap
+    ```
+
+2. **网络监控**: 切换到`Monitor`模式进行数据包捕获
+
+    ```shell
+    iw dev wlan0 set type monitor
+    ```
+
+3. **Mesh网络**: 配置设备作为`Mesh`网络节点
+
+    ```shell
+    iw dev wlan0 set type mp
+    ```
+
+这个函数是无线驱动程序必须实现的核心回调之一，它使得`Linux`系统能够灵活地配置无线网络接口的工作模式
+
+## ops->add_key接口
+
+**源码如下：**
+
+```c
+/*
+ * @add_key: add a key with the given parameters. @mac_addr will be %NULL
+ *	when adding a group key.
+ */
+struct cfg80211_ops {
+    ...
+	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, bool pairwise, const u8 *mac_addr,
+			   struct key_params *params);
+	...
+}
+```
+
+**函数作用：**
+
+这个函数指针用于向无线网络接口添加加密密钥，支持各种无线安全协议（如 `WEP`、`WPA/WPA2`、`WPA3`）的密钥管理
+
+**参数说明：**
+
+- **`wiphy`**: 指向物理无线设备结构体，标识具体的无线硬件
+- **`netdev`**: 指向网络设备结构体，表示要配置密钥的网络接口
+- **`key_index`**: 密钥索引（`0-3`），用于标识不同的密钥槽位
+- **`pairwise`**: 布尔值，区分密钥类型：
+    - `true`: 单播密钥（`Pairwise Key`，用于点对点通信）
+    - `false`: 组播密钥（`Group Key`，用于广播/组播通信）
+- **`mac_addr`**: `MAC`地址指针
+    - 对于单播密钥：指向对等设备的`MAC`地址
+    - 对于组播密钥：通常为`NULL`
+- **`params`**: 指向 `key_params` 结构体，包含密钥的详细信息
+
+**key_params结构体：**
+
+```c
+struct key_params {
+	const u8 *key;
+	const u8 *seq;
+	int key_len;
+	int seq_len;
+	u32 cipher;
+	enum nl80211_key_mode mode;
+};
+```
+
+**典型使用场景：**
+
+* `WPA2-PSK` 连接
+
+    当客户端连接到使用`WPA2-PSK`的`AP`时：
+
+    用户空间工具(如`wpa_supplicant`)调用该函数
+
+* `WEP`网络连接：
+
+    * 添加`WEP`密钥
+
+        ```c
+        iw dev wlan0 connect "MyNetwork" key 0:1234567890
+        ```
+
+* 企业级`WPA2`(`802.1X`)：
+
+    *  添加单播密钥(`PTK`)
+
+    * 添加组播密钥(`GTK`)
+
+**常见加密算法：**
+
+- **`WLAN_CIPHER_SUITE_WEP40`**: `WEP 40`位
+- **`WLAN_CIPHER_SUITE_WEP104`**: `WEP 104`位
+- **`WLAN_CIPHER_SUITE_TKIP`**: `TKIP` (`WPA`)
+- **`WLAN_CIPHER_SUITE_CCMP`**: `AES-CCMP` (`WPA2`)
+- **`WLAN_CIPHER_SUITE_GCMP`**: `AES-GCMP` (`WPA3`)
+
+这个函数是无线网络安全的基础，所有的加密通信都依赖于正确的密钥管理
+
+## ops->get_key接口
+
+**源码如下：**
+
+```c
+/*
+ * @get_key: get information about the key with the given parameters.
+ *	@mac_addr will be %NULL when requesting information for a group
+ *	key. All pointers given to the @callback function need not be valid
+ *	after it returns. This function should return an error if it is
+ *	not possible to retrieve the key, -ENOENT if it doesn't exist.
+ */
+struct cfg80211_ops {
+    ...
+	int	(*get_key)(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, bool pairwise, const u8 *mac_addr,
+			   void *cookie,
+			   void (*callback)(void *cookie, struct key_params*));
+	...
+}
+```
+
+**函数作用：**
+
+这个函数指针用于从无线网络接口获取已配置的加密密钥信息，主要用于密钥状态查询、调试和管理目的。与 `add_key` 相对应，它提供了密钥的读取功能
+
+**参数说明：**
+
+- **`wiphy`**: 指向物理无线设备结构体
+- **`netdev`**: 指向要查询密钥的网络接口
+- **`key_index`**: 要查询的密钥索引（`0-3`）
+- **`pairwise`**: 密钥类型标识
+    - `true`: 查询单播密钥（`Pairwise Key`）
+    - `false`: 查询组播密钥（`Group Key`）
+- **`mac_addr`**: 目标`MAC`地址
+    - 单播密钥：对等设备`MAC`地址
+    - 组播密钥：通常为`NULL`
+- **`cookie`**: 用户定义的上下文数据，会传递给回调函数
+- **`callback`**: 回调函数指针，用于异步返回密钥信息
+
+**典型使用场景：**
+
+1. 密钥状态查询
+
+     查询当前连接的PTK状态
+
+2. 调试和诊断
+
+​	遍历所有密钥槽位
+
+3. 密钥同步检查
+
+​	在密钥重协商后验证密钥是否正确安装
+
+**安全考虑：**
+
+出于安全原因，大多数驱动程序实现中：
+
+- 不会返回实际的密钥数据（`key_params->key` 通常为`NULL`）
+- 主要返回密钥的元数据信息：
+    - 密钥长度
+    - 加密算法类型
+    - 序列号信息
+    - 密钥是否存在的状态
+
+**错误处理：**
+
+- **成功**: 返回`0`，通过回调函数返回密钥信息
+- **失败**: 返回负错误码，回调函数参数为`NULL`
+
+这个函数主要用于系统管理和调试，在正常的数据传输过程中很少使用
