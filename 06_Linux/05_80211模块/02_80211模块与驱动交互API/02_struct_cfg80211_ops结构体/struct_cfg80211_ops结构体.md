@@ -849,3 +849,142 @@ struct cfg80211_ops {
 - **失败**: 返回负错误码，回调函数参数为`NULL`
 
 这个函数主要用于系统管理和调试，在正常的数据传输过程中很少使用
+
+## ops->del_key接口
+
+**源码如下：**
+
+```c
+/*
+ * @del_key: remove a key given the @mac_addr (%NULL for a group key)
+ *	and @key_index, return -ENOENT if the key doesn't exist.
+ */
+struct cfg80211_ops {
+    ...
+	int	(*del_key)(struct wiphy *wiphy, struct net_device *netdev,
+			   u8 key_index, bool pairwise, const u8 *mac_addr);
+	...
+}
+```
+
+**函数作用：**
+
+这个函数指针用于从无线网络接口删除指定的加密密钥，通常在断开连接、密钥过期或安全策略变更时调用。它与 `add_key` 配对使用，提供完整的密钥生命周期管理
+
+**参数说明：**
+
+- **`wiphy`**: 指向物理无线设备结构体，标识具体的无线硬件
+- **`netdev`**: 指向要删除密钥的网络接口设备
+- **`key_index`**: 要删除的密钥索引（`0-3`），指定密钥槽位
+- **`pairwise`**: 密钥类型标识符
+    - `true`: 删除单播密钥（`Pairwise Key PTK`）
+    - `false`: 删除组播密钥（`Group Key GTK`）
+- **`mac_addr`**: 目标设备`MAC`地址
+    - 单播密钥：对等设备的`MAC`地址
+    - 组播密钥：通常为`NULL`或广播地址
+
+**典型使用场景：**
+
+* **断开WiFi连接**
+
+    断开连接时清理所有相关密钥
+
+* **密钥重协商**
+
+    `WPA2`密钥更新过程中删除旧密钥
+
+* **AP模式客户端离开**
+
+    `AP`模式下，当客户端断开连接时
+
+* 安全策略变更
+
+    从`WEP`切换到`WPA`时清理所有`WEP`密钥
+
+**密钥删除的时机：**
+
+* 正常流程
+    * **连接断开**: 主动或被动断开WiFi连接
+    * **密钥过期**: 根据安全策略定期更新密钥
+    * **接口模式切换**: 改变接口工作模式前清理密钥
+    * **错误恢复**: 密钥协商失败后的清理
+
+* 紧急情况
+    * **安全事件**: 检测到攻击时立即删除密钥
+    * **硬件重置**: 设备重启或重置前的清理
+    * **驱动卸载**: 模块卸载时的资源清理
+
+**与其他函数的关系：**
+
+```c
+// 典型的密钥管理流程
+add_key()    	  // 添加密钥
+↓
+get_key()   	  // 查询密钥状态
+↓
+set_default_key() // 设置默认密钥
+↓
+del_key()    	  // 删除密钥
+```
+
+这个函数是无线网络安全管理的关键组件，确保密钥的及时清理和系统安全
+
+## ops->set_default_key接口
+
+**源码如下：**
+
+```c
+/*
+ * @set_default_key: set the default key on an interface
+ */
+struct cfg80211_ops {
+    ...
+	int	(*set_default_key)(struct wiphy *wiphy,
+				   struct net_device *netdev,
+				   u8 key_index, bool unicast, bool multicast);
+	...
+}
+```
+
+**函数作用：**
+
+这个函数指针用于指定无线网络接口的默认传输密钥，主要作用是告诉硬件在发送单播和/或组播数据包时应该使用哪个密钥槽位的密钥进行加密
+
+**参数说明：**
+
+- **`wiphy`**: 指向物理无线设备结构体
+- **`netdev`**: 指向要配置的网络接口
+- **`key_index`**: 密钥索引（0-3），指定作为默认密钥的槽位
+- **`unicast`**: 布尔值，指定该密钥是否用于单播数据传输
+    - `true`: 将此密钥设为单播数据的默认密钥
+    - `false`: 不用于单播传输
+- **`multicast`**: 布尔值，指定该密钥是否用于组播/广播数据传输
+    - `true`: 将此密钥设为组播/广播数据的默认密钥
+    - `false`: 不用于组播/广播传输
+
+**典型使用场景：**
+
+* **WEP网络配置**
+
+    `WEP`网络中设置默认密钥
+
+* **WPA/WPA2网络的GTK设置**
+
+    在`WPA2`网络中，设置`GTK`作为组播传输的默认密钥
+
+* **AP**模式密钥配置
+
+    `AP`模式下配置广播密钥，通常在`start_ap`后设置
+
+**调用时序：**
+
+```c
+// 典型的密钥配置流程
+add_key(wiphy, netdev, 0, false, NULL, &key_params);   // 添加密钥
+↓
+set_default_key(wiphy, netdev, 0, false, true);     // 设置为默认
+↓
+// 开始正常数据传输，硬件自动使用默认密钥加密
+```
+
+这个函数是无线网络数据加密传输的关键环节，确保数据包能够使用正确的密钥进行加密
