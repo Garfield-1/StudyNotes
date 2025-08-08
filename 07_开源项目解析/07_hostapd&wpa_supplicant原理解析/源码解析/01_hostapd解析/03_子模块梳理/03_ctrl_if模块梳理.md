@@ -28,11 +28,39 @@ ctrl_interface=/var/run/hostapd
 
 `hostapd`通信时采用的方法是通过文件句柄来进行通信，句柄会存储在`hostapd.conf`中的`ctrl_interface`配置选项中，在读取配置文件时会将这个字段存入`struct hostapd_bss_config`中的`ctrl_interface`字段中用于后续的使用
 
+通信使用的句柄会在`hostapd_ctrl_iface_path`函数中拼接而成
+
+```c
+static char * hostapd_ctrl_iface_path(struct hostapd_data *hapd)
+{
+	char *buf;
+	size_t len;
+
+	if (hapd->conf->ctrl_interface == NULL)
+		return NULL;
+
+	len = os_strlen(hapd->conf->ctrl_interface) +
+		os_strlen(hapd->conf->iface) + 2;
+	buf = os_malloc(len);
+	if (buf == NULL)
+		return NULL;
+
+	os_snprintf(buf, len, "%s/%s",
+		    hapd->conf->ctrl_interface, hapd->conf->iface);
+	buf[len - 1] = '\0';
+	return buf;
+}
+```
+
+这里的`hapd->conf->ctrl_interface`是对应配置文件中的`ctrl_interface`，`hapd->conf->iface`是对应配置文件中的`interface`选项
+
+在配置句柄之后会通过`eloop_register_read_sock`函数来对其进行监听，同时配置对应回调`hostapd_ctrl_iface_receive`用来处理`socket`中的消息
+
 
 
 ## 使用命令
 
-在启动hostapd主进程之后，输入
+在启动`hostapd`主进程之后，输入
 
 ```shell
 sudo ./hostapd_cli -i wlan0 help
