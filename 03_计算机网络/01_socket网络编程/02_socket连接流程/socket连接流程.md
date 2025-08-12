@@ -84,7 +84,7 @@ int sock = socket(AF_INET, SOCK_STREAM, 0);
 
 ### bind函数
 
-`bind`函数的作用是通过绑定一个其他`func`函数生成一个依赖于`func`的新的函数对象，复用`func`函数的实现，但是可以改变这个func的参数数量和顺序，可以绑定普通函数、全局函数，静态函数，成员函数，而且其参数可以支持占位符（std::placeholders::_1，std::placeholders::_2）来改变参数的顺序，并且可以设置func中默认的几个参数来减少输入参数的数量。
+`bind`函数的作用是通过绑定一个其他`func`函数生成一个依赖于`func`的新的函数对象，复用`func`函数的实现，但是可以改变这个`func`的参数数量和顺序，可以绑定普通函数、全局函数，静态函数，成员函数，而且其参数可以支持占位符（std::placeholders::_1，std::placeholders::_2）来改变参数的顺序，并且可以设置`func`中默认的几个参数来减少输入参数的数量。
 
 **函数原型**
 
@@ -92,8 +92,10 @@ int sock = socket(AF_INET, SOCK_STREAM, 0);
 int bind(int sockfd, const struct sockaddr *addr,socklen_t addrlen);
 ```
 
-* `sockfd`：套接字描述符，是通过 `socket()` 创建的套接字。这个套接字将被绑定到指定的地址和端口
-* `addr`：指向一个 `struct sockaddr` 结构体的指针，包含了套接字要绑定到的地址信息。对于 IPv4，通常是一个 `struct sockaddr_in` 结构体
+* `sockfd`：套接字描述符，是通过 `socket()` 创建的套接字。这个套接字将被绑定到服务端的地址和端口
+    - 这里的 `addr` 是本地地址（本地IP和端口），将 `socket` 绑定到本地的某个 `IP` 地址和端口号
+    - **用于服务器端，指定本地监听的地址和端口**
+* `addr`：指向一个 `struct sockaddr` 结构体的指针，包含了套接字要绑定到的地址信息。对于 `IPv4`，通常是一个 `struct sockaddr_in` 结构体
 * `addrlen`：地址结构的大小，通常使用 `sizeof(struct sockaddr_in)` 来表示
 
 **返回值**
@@ -154,7 +156,9 @@ int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen);
 ```
 
 * `sockfd`：客户端的套接字描述符，通常是通过 `socket()` 函数创建的
-* `addr`：指向 `struct sockaddr` 结构体的指针，包含了目标服务器的地址信息（IP 地址和端口）
+    - 这里的 `addr` 是远程地址（目标服务器的`IP`和端口），将 `socket` 连接到远程主机的指定地址和端口
+    - **用于客户端，指定要连接的服务器地址和端口**
+* `addr`：指向 `struct sockaddr` 结构体的指针，包含了目标服务器的地址信息（`IP` 地址和端口）
 * `addrlen`：地址结构的大小，通常可以使用 `sizeof(struct sockaddr_in)`
 
 **返回值**
