@@ -24,7 +24,9 @@ ctrl_interface=/var/run/hostapd
 
 
 
-## 配置句柄
+## hostapd主进程
+
+### 配置句柄
 
 `hostapd`通信时采用的方法是通过文件句柄来进行通信，句柄会存储在`hostapd.conf`中的`ctrl_interface`配置选项中，在读取配置文件时会将这个字段存入`struct hostapd_bss_config`中的`ctrl_interface`字段中用于后续的使用
 
@@ -56,58 +58,7 @@ static char * hostapd_ctrl_iface_path(struct hostapd_data *hapd)
 
 在配置句柄之后会通过`eloop_register_read_sock`函数来对其进行监听，同时配置对应回调`hostapd_ctrl_iface_receive`用来处理`socket`中的消息
 
-
-
-## cli与主进程建立连接
-
-`wpa_ctrl_open2`这个函数中为什么同时调用了`bind`函数和`connect`函数，这里创建的`socket`是客户端还是服务端
-
-### Workspace
-
-这个问题很棒！让我们一步步分析：
-
-### 1. socket类型
-
-- 这里创建的是**UNIX域数据报（SOCK_DGRAM）套接字**，不是TCP流（SOCK_STREAM）。
-- 这种套接字常用于本地进程间通信（IPC）。
-
-### 2. bind的作用
-
-- 这里的`bind`是把**本地地址（ctrl->local）**绑定到这个socket上。
-- 对于UNIX域SOCK_DGRAM套接字，**客户端和服务端都需要有自己的地址**，这样对方才能回复消息。
-- 这里的`ctrl->local.sun_path`是客户端socket的路径（通常是临时文件）。
-
-### 3. connect的作用
-
-- `connect`这里是把socket“连接”到**服务端的地址（ctrl->dest）**。
-- 对于SOCK_DGRAM，`connect`不是建立真正的连接，而是指定默认的目标地址，这样后续可以直接用`send`/`recv`而不用每次都指定目标。
-
-### 4. 客户端还是服务端？
-
-- 这个函数是**客户端**，它主动连接到服务端（通常是wpa_supplicant的控制接口）。
-- 服务端会先bind自己的地址，然后等待客户端消息。
-- 客户端也要bind一个本地地址，这样服务端才能回复。
-
-### 5. 总结
-
-- **bind**：给客户端socket分配一个本地地址，方便服务端回复。
-- **connect**：指定服务端地址，简化后续通信。
-- 这种模式在UNIX域SOCK_DGRAM通信中很常见，和TCP客户端只用connect不同。
-
-------
-
-#### 可能的“坑”
-
-- 如果客户端不bind本地地址，服务端无法回复。
-- 如果本地socket文件没清理干净，bind会失败（代码里有处理）。
-
-------
-
-如需更详细的流程图或例子，欢迎继续提问！
-
-
-
-## 使用命令
+### 使用命令
 
 在启动`hostapd`主进程之后，输入
 
@@ -116,3 +67,41 @@ sudo ./hostapd_cli -i wlan0 help
 ```
 
 `-i`指定端口，`help`查看使用帮助
+
+
+
+## hostapd_cli侧
+
+在`hostapd_cli`的中会使用一个全局变量`static struct wpa_ctrl *ctrl_conn`来存储待使用的`socket`
+
+### 初始化句柄
+
+`hostapd_cli`在与`hostapd`的主进程进行通信时是作为`client`端，在创建与主进程通信的socket时。
+
+* 使用`bind`函数将`socket`绑定本地的一个随机文件
+
+* 使用`connet`将`socket`的目标句柄，这个目标是全局变量`CONFIG_CTRL_IFACE_DIR`中存储与主进程通信使用的句柄的路径，传入端口比如`wlan0`，然后将两者进行拼接
+    * 目标句柄在主进程中也会使用，区别是主进程是读取配置文件获取文件路径
+
+<img src="./img/hostapd_cli_reconnect流程.jpg" alt="hostapd_cli_reconnect流程" style="zoom: 25%;" />
+
+
+
+### 处理用户命令
+
+`hostapd_cli`内部维护了一个全局的结构体数组，存储支持的命令和对应的回调函数。在接收到命令后会首先在数组中找到对应的回调然后调用，最后使用`wpa_ctrl_command`接口来发送和接收数据
+
+<img src="./img/hostapd_cli命令处理.jpg" alt="hostapd_cli命令处理" />
+
+
+
+### 发送和接收数据
+
+数据的发送和接收使用的时之前创建的`socket`句柄，发送后使用`select`监听句柄，并对需要主动处理的事件调用注册好的`hostapd_cli_msg_cb`进行处理
+
+<img src="./img/wpa_ctrl_command流程.jpg" alt="wpa_ctrl_command流程" style="zoom: 25%;" />
+
+### 整体流程
+
+ [client端整体流程.pdf](.\img\client端整体流程.pdf) 
+
