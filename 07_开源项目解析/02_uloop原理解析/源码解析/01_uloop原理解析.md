@@ -22,7 +22,7 @@
 
 ## 主要作用和使用方法
 
-**设置定时任务**
+### **设置定时任务**
 
 `uloop`可以作为一个定时器来使用，执行一些周期性执行的定时任务
 
@@ -53,7 +53,7 @@ int main()
 
 上述程序效果：每隔`5S`打印一次
 
-**监听句柄是否活跃**
+### **监听句柄是否活跃**
 
 程序创建了一个`TCP 8888`的端口并监听它，使用`uloop`设置回调在`socket`活跃时调用。程序整体分两部分，创建句柄并用`uloop`监听的`server`侧和连接`socket`的`client`端
 
@@ -293,7 +293,7 @@ Connected to server at 127.0.0.1:8888
 Received message: Hello from uloop server!
 ```
 
-**进程监控**
+### **进程监控**
 
 程序通过`fork`函数创建了一个子进程并在父进程中使用`uloop`来监听子进程的状态，当被监听的进程退出时就会调用对应的回调函数`process_cb`
 
@@ -721,7 +721,7 @@ int uloop_signal_delete(struct uloop_signal *s)
 
 -----
 
-## 整体流程
+## 定时任务&子进程管理任务整体流程
 
 ### 1. 初始化uloop
 
@@ -888,11 +888,9 @@ int uloop_run_timeout(int timeout)
 
 -----
 
-## 外部接口
+## 监听句柄任务整体流程
 
-此处列出几个关键的外部接口
-
-### 1. `uloop_fd_add`函数
+### `uloop_fd_add`函数
 
 由于`uloop`底层实际上是`epoll`，所以如果需要监听某个句柄则可以直接调用`uloop_fd_add`函数。这会将待监听的句柄添加到`struct uloop_fd`中，其默认采用非阻塞和水平触发
 
