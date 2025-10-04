@@ -1,0 +1,259 @@
+---
+# 语言配置作用域
+Language:        Cpp
+# 访问控制符(public/protected/private)相对类体缩进。-4表示向左缩进4个空格
+AccessModifierOffset: -4
+# 括号/方括号/花括号后续换行的对齐策略。Align 表示参数/元素与首元素对齐
+AlignAfterOpenBracket: Align
+# 是否纵向对齐连续的宏定义。false不对齐
+AlignConsecutiveMacros: false
+# 是否纵向对齐连续的赋值语句。false不对齐
+AlignConsecutiveAssignments: false
+# 是否纵向对齐连续的变量声明。false不对齐
+AlignConsecutiveDeclarations: false
+# 多行字符串中换行符的对齐方式。Right表示与结尾引号对齐
+AlignEscapedNewlines: Right
+# 跨行表达式中的操作数/运算符对齐。true 对齐
+AlignOperands:   true
+# 是否对齐行尾注释。true 对齐
+AlignTrailingComments: true
+# 允许函数所有实参在下一行。false 不允许，按换行规则分布
+AllowAllArgumentsOnNextLine: false
+# 构造器初始化器可全部放在下一行。true 允许
+AllowAllConstructorInitializersOnNextLine: true
+# 允许函数所有形参在下一行。false 不允许，按换行规则分布
+AllowAllParametersOfDeclarationOnNextLine: false
+# 允许短代码块放在单行。Never不允许
+AllowShortBlocksOnASingleLine: Never
+# case 标签后代码是否同一行。false 不允许
+AllowShortCaseLabelsOnASingleLine: false
+# 短函数是否单行。None 不允许
+AllowShortFunctionsOnASingleLine: None
+# 短 lambda 是否单行。All 允许所有短 lambda 单行
+AllowShortLambdasOnASingleLine: All
+# 短 if 是否与语句同一行。Never 从不
+AllowShortIfStatementsOnASingleLine: Never
+# 短循环是否单行。false 不允许
+AllowShortLoopsOnASingleLine: false
+# 函数定义返回类型后是否强制换行。None 不强
+AlwaysBreakAfterDefinitionReturnType: None
+# 函数声明返回类型后是否强制换行。None 不强制
+AlwaysBreakAfterReturnType: None
+# 多行字符串前是否总是断行。false 不强制
+AlwaysBreakBeforeMultilineStrings: false
+# template<> 行后是否断行。Yes 总是断行
+AlwaysBreakTemplateDeclarations: Yes
+# 拆行时是否把调用实参尽量塞同一行。false 不塞，按一参一行
+BinPackArguments: false
+# 拆行时是否把形参尽量塞同一行。false 不塞，按一参一行
+BinPackParameters: false
+# 花括号换行规则
+BraceWrapping:
+  # ，case 后的块大括号另起一行
+  AfterCaseLabel:  true
+  # class 的 { 另起一行
+  AfterClass:      true
+  # if/for/while 的 { 另起一行
+  AfterControlStatement: false
+  # enum 的 { 另起一行
+  AfterEnum:       true
+  # 函数定义的 { 另起一行
+  AfterFunction:   true
+  # namespace 的 { 另起一行
+  AfterNamespace:  true
+  # ObjC 声明的 { 另起一行
+  AfterObjCDeclaration: true
+  # struct 的 { 另起一行
+  AfterStruct:     true
+  # union 的 { 另起一行
+  AfterUnion:      true
+  # extern "C" 块的 { 另起一行
+  AfterExternBlock: true
+  # catch 前断行
+  BeforeCatch:     true
+  # else 前断行
+  BeforeElse:      true
+  # 大括号本身不额外缩进
+  IndentBraces:    false
+  # 空函数体的 {} 拆成两行
+  SplitEmptyFunction: false
+  # 空类/结构体的 {} 拆成两行
+  SplitEmptyRecord: false
+  # 空命名空间的 {} 拆成两行
+  SplitEmptyNamespace: false
+# 折行时二元运算符放在上一行末尾（不前置）
+BreakBeforeBinaryOperators: None
+# 使用 BraceWrapping 的自定义风格
+BreakBeforeBraces: Custom
+# 继承列表中逗号不前置
+BreakBeforeInheritanceComma: false
+# 长继承列表在冒号前断行
+BreakInheritanceList: BeforeColon
+# 三目运算符 ? : 前断行（运算符放下一行行首）
+BreakBeforeTernaryOperators: false
+# 构造器初始化器不在逗号前断行
+BreakConstructorInitializersBeforeComma: false
+# 初始化器列表在冒号前断行
+BreakConstructorInitializers: BeforeColon
+# Java 字段注解后不强制断行
+BreakAfterJavaFieldAnnotations: false
+# 字符串字面值过长时断行。true 断行
+BreakStringLiterals: true
+# 目标最大列宽
+ColumnLimit:     120
+# 注释中允许的预处理指令
+CommentPragmas:  '^ IWYU pragma:'
+# 命名空间缩进。None 不缩进
+CompactNamespaces: false
+# 构造器初始化器全部放在同一行或一行一个。false 按换行规则分布
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
+# 构造器初始化器缩进宽度
+ConstructorInitializerIndentWidth: 4
+# 续行缩进宽度
+ContinuationIndentWidth: 4
+# 是否在 C++11 列表初始化的花括号内加空格。true 加空格
+Cpp11BracedListStyle: true
+# 是否在逗号后加空格。true 加空格
+DeriveLineEnding: true
+# 指针对齐方式。false 按 PointerAlignment 设置
+DerivePointerAlignment: false
+# 启用格式化
+DisableFormat:   false
+# 是否在函数声明的形参列表和实参列表的括号内加空格。false 不加
+ExperimentalAutoDetectBinPacking: false
+# 是否在命名空间注释前加空格。true 加空格
+FixNamespaceComments: true
+# 把这些宏当作 foreach 语句对待以便正确缩进/换行
+ForEachMacros:
+  - foreach
+  - Q_FOREACH
+  - BOOST_FOREACH
+# 保留由空行分隔的包含块，块间不互相重排
+IncludeBlocks:   Preserve
+# 依据正则为 include 分组并按 Priority 排序
+IncludeCategories:
+  - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
+    Priority:        2
+    SortPriority:    0
+  - Regex:           '^(<|"(gtest|gmock|isl|json)/)'
+    Priority:        3
+    SortPriority:    0
+  - Regex:           '.*'
+    Priority:        1
+    SortPriority:    0
+# extern "C" 块内不缩进
+IndentExternBlock: NoIndent
+# 是否按字母顺序排序 include。true 排序
+IncludeIsMainSource: false
+# 主文件的 include 识别正则表达式
+IncludeIsMainRegex: '(Test)?$'
+# 非主文件的 include 识别正则表达式
+IncludeIsMainSourceRegex: ''
+# case/default 与 switch 对齐（不额外缩进）
+IndentCaseLabels: false
+# goto 标签缩进，不顶格
+IndentGotoLabels: true
+# 预处理指令不缩进，顶格
+IndentPPDirectives: None
+# 缩进宽度
+IndentWidth:     4
+# 是否缩进继承列表。false 不缩进
+IndentWrappedFunctionNames: true
+# JS/TS 字符串引号风格保持不变
+JavaScriptQuotes: Leave
+# JS/TS 长 import 允许换行
+JavaScriptWrapImports: true
+# 保留块起始处的空行
+KeepEmptyLinesAtTheStartOfBlocks: true
+# 定义宏块边界的注释标记。'' 表示未使用
+MacroBlockBegin: ''
+MacroBlockEnd:   ''
+# 最多保留 2 个连续空行
+MaxEmptyLinesToKeep: 1
+# 命名空间内不整体增加一级缩进
+NamespaceIndentation: None
+# ObjC 协议列表是否“打包”由长度自动决定
+ObjCBinPackProtocolList: Auto
+# ObjC 块缩进 2
+ObjCBlockIndentWidth: 2
+# @property 属性后不加空格
+ObjCSpaceAfterProperty: false
+# @interface 前的协议列表前加空格
+ObjCSpaceBeforeProtocolList: true
+# 赋值处断行代价（越大越不愿意断）
+PenaltyBreakAssignment: 2
+# 在首个调用实参前断行的代价
+PenaltyBreakBeforeFirstCallParameter: 19
+# 在注释中断行的代价
+PenaltyBreakComment: 300
+# 流插入 << 第一次断行的代价
+PenaltyBreakFirstLessLess: 120
+# 拆分字符串的代价
+PenaltyBreakString: 1000
+# 模板声明处断行代价
+PenaltyBreakTemplateDeclaration: 10
+# 超列宽每个字符的代价（极高，强烈避免超宽）
+PenaltyExcessCharacter: 1000000
+# 返回类型单独一行的代价
+PenaltyReturnTypeOnItsOwnLine: 1000
+# 指针/引用符号靠右：int* p;（星号靠变量名）
+PointerAlignment: Right
+# 不重排注释段落（不改换行）
+ReflowComments:  false
+# 对 include 排序（按分类与字典序）
+SortIncludes:    true
+# 对 using 声明排序（按字典序）
+SortUsingDeclarations: true
+# C 风格强转后不加空格：(int)x
+SpaceAfterCStyleCast: false
+# 逻辑非运算符 ! 后不加空格：if (!condition)
+SpaceAfterLogicalNot: false
+# 模板关键字后加空格：template <typename T>
+SpaceAfterTemplateKeyword: true
+# 一赋值运算符两侧留空格
+SpaceBeforeAssignmentOperators: true
+# C++11 列表初始化前不留空格：T x{1}
+SpaceBeforeCpp11BracedList: false
+# 构造器初始化冒号前留空格
+SpaceBeforeCtorInitializerColon: true
+# 继承冒号前留空格
+SpaceBeforeInheritanceColon: true
+# 只在控制语句前加空格（if (x)），函数调用/声明前不加
+SpaceBeforeParens: Always
+# 范围 for 的冒号前加空格：for (auto x : y)
+SpaceBeforeRangeBasedForLoopColon: true
+# 空块 {} 内不加空格：{}
+SpaceInEmptyBlock: false
+# 空函数参数列表内不加空格：f()
+SpaceInEmptyParentheses: false
+# 花括号内不加空格：f( { a, b } )
+SpacesBeforeTrailingComments: 1
+# 模板参数的尖括号内不加空格：vector<int>
+SpacesInAngles:  false
+# 条件语句的括号内不加空格：if (x)
+SpacesInConditionalStatement: false
+# 宏定义的括号内不加空格：#define FOO(x)
+SpacesInContainerLiterals: true
+# C 风格强转的括号内不加空格：(int)x
+SpacesInCStyleCastParentheses: false
+# 花括号内不加空格：f( { a, b } )
+SpacesInParentheses: false
+# 方括号内不加空格：arr[0]
+SpacesInSquareBrackets: false
+# 函数调用时方括号内不加空格：arr[0]
+SpaceBeforeSquareBrackets: false
+# 控制“定义块”之间是否留空行。这里的“定义块”指函数
+SeparateDefinitionBlocks: Always
+# 按编译器支持的最新标准解析/格式化
+Standard:        Latest
+# 将这些宏视作语句（影响缩进与分号处理）
+StatementMacros:
+  - Q_UNUSED
+  - QT_REQUIRE_VERSION
+# 制表符显示宽度 4（即使 UseTab 为 Never，阅读仍参考此宽度
+TabWidth:        4
+# 使用 LF 行尾（Unix 风格）
+UseCRLF:         false
+# 缩进与对齐全部使用Tab。Never 不使用 Tab，全部用空格
+UseTab:          Never
+...
