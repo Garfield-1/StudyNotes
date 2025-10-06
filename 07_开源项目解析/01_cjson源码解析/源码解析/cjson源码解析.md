@@ -8,8 +8,6 @@
 
 相同等级的元素使用双向链表链接，不同等级的元素使用`child`指针连接。例如：多个`object`并列时或着`object`内部的成员使用双向链表连接，`object`名称与其内部的成员通过`child`连接
 
-上述可得`cjson`底层维护的数据结构实际是一个类似桶的数据结构而非树结构
-
 ```c
 typedef struct cJSON {
 	struct cJSON *next,*prev;	// 双向链表头节点和尾节点
@@ -31,11 +29,15 @@ typedef struct cJSON {
 #define cJSON_Object 6
 ```
 
+每一个`json`节点对应着一个`cJSON`结构，从最外层到最内层可以看做是一级一级，转化成对应的数据结构存储则如下图
+
+<img src="./img/struct cJSON.jpg" alt="struct cJSON" style="zoom:67%;" />
+
 ## 2. 全局变量
 
 `char *ep;`
 
-在记录出错时是在哪个字符，以错误码的方式返回；通过`cJSON_GetErrorPtr()`获取。本文的示例代码中不涉及此接口，后文中也不深入讨论此机制，在此提出仅用于向读者补充`cJSON`整体架构设计。
+在记录出错时是在哪个字符，以错误码的方式返回；通过`cJSON_GetErrorPtr()`获取。本文的示例代码中不涉及此接口，后文中也不深入讨论此机制，在此提出仅用于向读者补充`cJSON`整体架构设计
 
 ## 3. 从字符串解析json流程
 
@@ -230,21 +232,21 @@ static const char *parse_object(cJSON *item, const char *value)
 
 **函数核心思想**
 
-此函数最主要的作用便是填充`cJSON`结构体，`struct cJSON`是`cJSON`中最为核心和基础的数据结构，其核心结构是两个链表节点和一个`child`节点。在解析`json`文件时将其中成员视为具有不同的等级；**相同缩进的成员为同一等级，将同一等级的元素使用双向链表连接，低等级元素则存放在`child`节点中**；填充的`struct cJSON`实现的方式，使用了双层递归的方式去实现。
+此函数最主要的作用便是填充`cJSON`结构体，`struct cJSON`是`cJSON`中最为核心和基础的数据结构，其核心结构是两个链表节点和一个`child`节点。在解析`json`文件时将其中成员视为具有不同的等级；**相同缩进的成员为同一等级，将同一等级的元素使用双向链表连接，低等级元素则存放在`child`节点中**；填充的`struct cJSON`实现的方式，使用了双层递归的方式去实现
 
 **双层递归的函数设计**
 
-对于`object`来说其至少包含两层等级，即`object`名称和成员；对于将名称作为字符串处理。首先提取`object`名称部分，对于后半段成员的处理则是调用`parse_value()`去处理，此时如果内部成员是`object`则会触发**第一层递归**，此时**`child`**节点便作为一个新的根节点，**直到遇到普通的键值对递归结束**，这便是函数前半段的处理。
+对于`object`来说其至少包含两层等级，即`object`名称和成员；对于将名称作为字符串处理。首先提取`object`名称部分，对于后半段成员的处理则是调用`parse_value()`去处理，此时如果内部成员是`object`则会触发**第一层递归**，此时**`child`**节点便作为一个新的根节点，**直到遇到普通的键值对递归结束**，这便是函数前半段的处理
 
-<img src=".\img\01_parse_object函数思想_一层递归.png" alt="02_parse_object函数思想_一层递归" />
+![parse_value步骤1](./img/parse_value步骤1.jpg)
 
 当一层递归结束后，函数后半段创建一个循环遍历`json`文件的每一行，循环中创建一个新节点添加在双向链表后，并提取下个元素的名称填充`child->valuestring`。接着继续调用`parse_value()`如果此时解析的元素是`object`便是**第二层递归**，递归出口与第一层相同。整个循环中会将相同级别成员添加至双向链表，低级别元素添加至`child`节点
 
-<img src=".\img\02_parse_object函数思想_二层递归.png" alt="02_parse_object函数思想_二层递归" />
+![parse_value步骤2](./img/parse_value步骤2.jpg)
 
 二层递归结束后，函数调用栈返回。继续处理一层递归未处理的部分
 
-<img src=".\img\03_parse_object函数思想_一层递归结束.png" alt="02_parse_object函数思想_一层递归结束" />
+![parse_value步骤3](./img/parse_value步骤3.jpg)
 
 实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`因此对这个函数的理解，对整个`cJSON`解析流程的理解至关重要
 
@@ -332,7 +334,7 @@ static const char *skip(const char *in)
 
 不断向后偏移，直到指向的字符的`ACSII`码大于`32`;函数作者非常巧妙的利用了`ASCII`码表的排列的规则，将前`32`位在字符串解析时无法用到的字符舍弃，只保留了有效字符
 
-<img src=".\img\04_ACSII码表.jpg" alt="ACSII码表" />
+<img src=".\img\ACSII码表.jpg" alt="ACSII码表" />
 
 #### `parse_number`函数
 
