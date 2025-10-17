@@ -11,12 +11,10 @@
 
 在各个`linux`子模块中经常可以看到的`module_init`和`module_exit`两个宏，这分别注册了模块的初始化和结束部分需要调用的函数
 
-* **module_init(demo_init)：** 
-
+* **module_init(demo_init)：**
     `module_init`宏的作用是告诉内核，当这个模块被加载时，应该执行名为 `demo_init` 的函数。`demo_init` 函数通常包含模块启动时需要执行的所有初始化代码，比如分配资源、注册设备驱动、创建内核线程等。如果 `demo_init` 函数成功执行并返回 `0`，模块就会成功加载；如果返回错误码，模块加载就会失败
 
 * **module_exit(demo_exit)：**
-
     `module_exit`宏的作用是告诉内核，当这个模块被卸载时，应该执行名为 `demo_exit` 的函数。`demo_exit` 函数负责执行模块退出时所需的所有清理工作，例如释放在 `demo_init` 中分配的资源、注销设备驱动、停止内核线程等。确保所有资源都被正确释放对于维持系统稳定性至关重要
 
 从下文中可以看到`module_init`和`module_exit`宏有着两种不同的实现方式，使用了`MODULE`编译参数来进行区分，其主要的作用是**控制最终编译产物是.KO文件还是完整的Linux镜像**。不管是哪一种情况，二者最终展开都是一系列宏的嵌套，宏的最终展开是的`inline`函数和`GCC`编译参数。也就是说这一系列的逻辑实际上会**在程序的编译阶段完成**
@@ -28,12 +26,12 @@
 ```c
 //linux-5.4/include/linux/module.h
 #ifndef MODULE
-#define module_init(x)	__initcall(x);
+#define module_init(x)    __initcall(x);
 #else
-#define module_init(initfn)					\
-	static inline initcall_t __maybe_unused __inittest(void)		\
-	{ return initfn; }					\
-	int init_module(void) __copy(initfn) __attribute__((alias(#initfn)));
+#define module_init(initfn)                    \
+    static inline initcall_t __maybe_unused __inittest(void)        \
+    { return initfn; }                    \
+    int init_module(void) __copy(initfn) __attribute__((alias(#initfn)));
 #endif
 ```
 
@@ -43,10 +41,10 @@
 
     ```c
     //linux-5.4/include/linux/module.h
-    #define module_init(initfn)					\
-    	static inline initcall_t __maybe_unused __inittest(void)		\
-    	{ return initfn; }					\
-    	int init_module(void) __copy(initfn) __attribute__((alias(#initfn)));
+    #define module_init(initfn)                    \
+        static inline initcall_t __maybe_unused __inittest(void)        \
+        { return initfn; }                    \
+        int init_module(void) __copy(initfn) __attribute__((alias(#initfn)));
     ```
 
     **核心思想：**
@@ -62,16 +60,16 @@
     ```c
     //linux-5.4/include/linux/init.h
     #define ___define_initcall(fn, id, __sec) \
-    	static initcall_t __initcall_##fn##id __used \
-    		__attribute__((__section__(#__sec ".init"))) = fn;
+        static initcall_t __initcall_##fn##id __used \
+            __attribute__((__section__(#__sec ".init"))) = fn;
     
     #define __define_initcall(fn, id) ___define_initcall(fn, id, .initcall##id)
     
-    #define device_initcall(fn)		__define_initcall(fn, 6)
+    #define device_initcall(fn)        __define_initcall(fn, 6)
     
     #define __initcall(fn) device_initcall(fn)
     
-    #define module_init(x)	__initcall(x);
+    #define module_init(x)    __initcall(x);
     ```
 
     **核心思想：**
@@ -87,12 +85,12 @@
 ```c
 //linux-5.4/include/linux/module.h
 #ifndef MODULE
-#define module_exit(x)	__exitcall(x);
+#define module_exit(x)    __exitcall(x);
 #else
-#define module_exit(exitfn)					\
-	static inline exitcall_t __maybe_unused __exittest(void)		\
-	{ return exitfn; }					\
-	void cleanup_module(void) __copy(exitfn) __attribute__((alias(#exitfn)));
+#define module_exit(exitfn)                    \
+    static inline exitcall_t __maybe_unused __exittest(void)        \
+    { return exitfn; }                    \
+    void cleanup_module(void) __copy(exitfn) __attribute__((alias(#exitfn)));
 #endif
 ```
 
@@ -102,10 +100,10 @@
 
     ```c
     //linux-5.4/include/linux/module.h
-    #define module_exit(exitfn)					\
-    	static inline exitcall_t __maybe_unused __exittest(void)		\
-    	{ return exitfn; }					\
-    	void cleanup_module(void) __copy(exitfn) __attribute__((alias(#exitfn)));
+    #define module_exit(exitfn)                    \
+        static inline exitcall_t __maybe_unused __exittest(void)        \
+        { return exitfn; }                    \
+        void cleanup_module(void) __copy(exitfn) __attribute__((alias(#exitfn)));
     ```
 
     **核心思想：**
@@ -118,12 +116,12 @@
 
     ```c
     //linux-5.4/include/linux/module.h
-    #define __exit_call	__used __section(.exitcall.exit)
+    #define __exit_call    __used __section(.exitcall.exit)
     
-    #define __exitcall(fn)						\
-    	static exitcall_t __exitcall_##fn __exit_call = fn
+    #define __exitcall(fn)                        \
+        static exitcall_t __exitcall_##fn __exit_call = fn
     
-    #define module_exit(x)	__exitcall(x)
+    #define module_exit(x)    __exitcall(x)
     ```
 
     **核心思想：**

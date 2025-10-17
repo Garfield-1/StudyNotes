@@ -1,8 +1,6 @@
 # cJSON源码解析
 
-> 源码下载链接https://sourceforge.net/projects/cjson/
-
-
+> 源码下载链接<https://sourceforge.net/projects/cjson/>
 
 ## 1. 核心数据结构
 
@@ -10,13 +8,13 @@
 
 ```c
 typedef struct cJSON {
-	struct cJSON *next,*prev;	// 双向链表头节点和尾节点
-	struct cJSON *child;		// 存储子项
-	int type;					// 节点类型
-	char *valuestring;			// 存储对象数组或键值对的内容
-	int valueint;				// number值的整形存储
-	double valuedouble;			// number值的浮点型存储
-	char *string;				// 存储对象数组或键值对的名称
+    struct cJSON *next,*prev;    // 双向链表头节点和尾节点
+    struct cJSON *child;         // 存储子项
+    int type;                    // 节点类型
+    char *valuestring;           // 存储对象数组或键值对的内容
+    int valueint;                // number值的整形存储
+    double valuedouble;          // number值的浮点型存储
+    char *string;                // 存储对象数组或键值对的名称
 } cJSON;
 
 /* cJSON Types: */
@@ -54,24 +52,24 @@ typedef struct cJSON {
 ```c
 void doit(char *text)
 {
-	char *out;
+    char *out;
     cJSON *json;
 
-	json = cJSON_Parse(text);
-	out = cJSON_Print(json);
-	cJSON_Delete(json);
-	printf("%s\n", out);
-	free(out);
+    json = cJSON_Parse(text);
+    out = cJSON_Print(json);
+    cJSON_Delete(json);
+    printf("%s\n", out);
+    free(out);
 }
 
 int main (int argc, const char * argv[])
 {
-	char text1[] = "{\n\"name\": \"Jack (\\\"Bee\\\") Nimble\", \n\"format\": {\"type\":       \"rect\", \n\"width\":      1920, \n\"height\":     1080, \n\"interlace\":  false,\"frame rate\": 24\n}\n}";	
+    char text1[] = "{\n\"name\": \"Jack (\\\"Bee\\\") Nimble\", \n\"format\": {\"type\":       \"rect\", \n\"width\":      1920, \n\"height\":     1080, \n\"interlace\":  false,\"frame rate\": 24\n}\n}";    
 
     doit(text1);
-	create_objects();
+    create_objects();
 
-	return 0;
+    return 0;
 }
 ```
 
@@ -88,8 +86,8 @@ int main (int argc, const char * argv[])
 ```c
 cJSON *cJSON_New_Item(void)
 {
-	cJSON* node = (cJSON*)malloc(sizeof(cJSON));
-	return node;
+    cJSON* node = (cJSON*)malloc(sizeof(cJSON));
+    return node;
 }
 ```
 
@@ -109,16 +107,16 @@ cJSON *cJSON_New_Item(void)
 /* Parse an object - create a new root, and populate. */
 cJSON *cJSON_ParseWithOpts(const char *value)
 {
-	cJSON *c = cJSON_New_Item();
-	parse_value(c, skip(value));
+    cJSON *c = cJSON_New_Item();
+    parse_value(c, skip(value));
 
-	return c;
+    return c;
 }
 
 /* Default options for cJSON_Parse */
 cJSON *cJSON_Parse(const char *value)
 {
-	return cJSON_ParseWithOpts(value);
+    return cJSON_ParseWithOpts(value);
 }
 ```
 
@@ -141,23 +139,23 @@ cJSON *cJSON_Parse(const char *value)
 ```c
 static const char *parse_value(cJSON *item, const char *value)
 {
-	if (*value == '\"') {
-		return parse_string(item, value);
-	}
+    if (*value == '\"') {
+        return parse_string(item, value);
+    }
 
-	if (*value == '-' || (*value >= '0' && *value <= '9')) {
-		return parse_number(item, value);
-	}
+    if (*value == '-' || (*value >= '0' && *value <= '9')) {
+        return parse_number(item, value);
+    }
 
-	if (*value == '[') {
-		return parse_array(item, value);
-	}
+    if (*value == '[') {
+        return parse_array(item, value);
+    }
 
-	if (*value == '{') {
-		return parse_object(item, value);
-	}
+    if (*value == '{') {
+        return parse_object(item, value);
+    }
 
-	return NULL;	/* failure. */
+    return NULL;    /* failure. */
 }
 ```
 
@@ -173,60 +171,60 @@ static const char *parse_value(cJSON *item, const char *value)
 
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
-   * 将`item`作为根节点，创建一个桶结构存储解析出的`json`内容
-   * 函数使用双层递归设计
+* 将`item`作为根节点，创建一个桶结构存储解析出的`json`内容
+* 函数使用双层递归设计
 
 ```c
 /* Build an object from the text. */
 static const char *parse_object(cJSON *item, const char *value)
 {
-	/* child在函数前半段为新增节点，函数后半段为链表哨兵位指针 */
-	cJSON *child;
+    /* child在函数前半段为新增节点，函数后半段为链表哨兵位指针 */
+    cJSON *child;
     child = cJSON_New_Item();
-	item->child = child;
+    item->child = child;
     item->type = cJSON_Object;
 
     /* 取出前半部分存入string,可能是对象或数组的名称，或是键值对的前半部分 */
-	value = skip(parse_string(child, skip(value + 1)));
-	child->string = child->valuestring;
+    value = skip(parse_string(child, skip(value + 1)));
+    child->string = child->valuestring;
     child->valuestring = NULL;
-	if (*value != ':') {
-		return NULL;
-	}
+    if (*value != ':') {
+        return NULL;
+    }
 
     /*
      * 此处可能造成递归调用
      * 递归的出口: value开头到第一个“,”的部分是普通键值对,不包含object或array深层嵌套
-	 */
-	value = skip(parse_value(child, skip(value + 1)));
+     */
+    value = skip(parse_value(child, skip(value + 1)));
 
-	while (*value == ',') {
-		cJSON *new_item;
-		new_item = cJSON_New_Item();
+    while (*value == ',') {
+        cJSON *new_item;
+        new_item = cJSON_New_Item();
 
         /*
          * 创建双向不循环链表，保存之前的解析结果。链表中仅保存同级元素
          * 此处child视为链表的哨兵位指针而不是新增节点指针
          */
-		child->next = new_item;
-		new_item->prev = child;
+        child->next = new_item;
+        new_item->prev = child;
         child = new_item;
 
-		value = skip(parse_string(child, skip(value + 1)));
-		child->string = child->valuestring;
-		child->valuestring = NULL;
-		if (*value != ':') {
-			return NULL;
-		}
+        value = skip(parse_string(child, skip(value + 1)));
+        child->string = child->valuestring;
+        child->valuestring = NULL;
+        if (*value != ':') {
+            return NULL;
+        }
 
-		value = skip(parse_value(child, skip(value + 1)));
-	}
+        value = skip(parse_value(child, skip(value + 1)));
+    }
 
-	if (*value == '}') {
-		return value + 1;
-	}
+    if (*value == '}') {
+        return value + 1;
+    }
 
-	return NULL;
+    return NULL;
 }
 ```
 
@@ -266,32 +264,32 @@ static const char *parse_array(cJSON *item, const char *value)
     cJSON *child;
 
     child = cJSON_New_Item();
-	item->child = child;
+    item->child = child;
     item->type = cJSON_Array;
 
     /*
      * 此处可能造成递归调用
      * 递归的出口: value开头到第一个“,”的部分是普通键值对,不包含object或array深层嵌套
-	 */
-	value = skip(parse_value(child, skip(value + 1)));
+     */
+    value = skip(parse_value(child, skip(value + 1)));
 
-	while (*value == ',') {
-		cJSON *new_item;
-		new_item = cJSON_New_Item()
+    while (*value == ',') {
+        cJSON *new_item;
+        new_item = cJSON_New_Item()
 
         /* 此处child视为链表的哨兵位指针而不是新增节点指针 */
-		child->next = new_item;
-		new_item->prev = child;
-		child = new_item;
+        child->next = new_item;
+        new_item->prev = child;
+        child = new_item;
 
-		value = skip(parse_value(child, skip(value + 1)));
-	}
+        value = skip(parse_value(child, skip(value + 1)));
+    }
 
-	if (*value == ']') {
-		return value + 1;	
-	}
+    if (*value == ']') {
+        return value + 1;    
+    }
 
-	return NULL;
+    return NULL;
 }
 ```
 
@@ -320,11 +318,11 @@ static const char *parse_array(cJSON *item, const char *value)
 ```c
 static const char *skip(const char *in) 
 {
-	while (in && *in && (unsigned char)*in <= 32) {
-		in++;
-	}
+    while (in && *in && (unsigned char)*in <= 32) {
+        in++;
+    }
 
-	return in;
+    return in;
 }
 ```
 
@@ -346,23 +344,23 @@ static const char *skip(const char *in)
 /* Parse the input text to generate a number, and populate the result into item. */
 static const char *parse_number(cJSON *item,const char *num)
 {
-	double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
+    double n=0,sign=1,scale=0;int subscale=0,signsubscale=1;
 
-	if (*num=='-') sign=-1,num++;	/* Has sign? */
-	if (*num=='0') num++;			/* is zero */
-	if (*num>='1' && *num<='9')	do	n=(n*10.0)+(*num++ -'0');	while (*num>='0' && *num<='9');	/* Number? */
-	if (*num=='.' && num[1]>='0' && num[1]<='9') {num++;		do	n=(n*10.0)+(*num++ -'0'),scale--; while (*num>='0' && *num<='9');}	/* Fractional part? */
-	if (*num=='e' || *num=='E')		/* Exponent? */
-	{	num++;if (*num=='+') num++;	else if (*num=='-') signsubscale=-1,num++;		/* With sign? */
-		while (*num>='0' && *num<='9') subscale=(subscale*10)+(*num++ - '0');	/* Number? */
-	}
+    if (*num=='-') sign=-1,num++;    /* Has sign? */
+    if (*num=='0') num++;            /* is zero */
+    if (*num>='1' && *num<='9')    do    n=(n*10.0)+(*num++ -'0');    while (*num>='0' && *num<='9');    /* Number? */
+    if (*num=='.' && num[1]>='0' && num[1]<='9') {num++;        do    n=(n*10.0)+(*num++ -'0'),scale--; while (*num>='0' && *num<='9');}    /* Fractional part? */
+    if (*num=='e' || *num=='E')        /* Exponent? */
+    {    num++;if (*num=='+') num++;    else if (*num=='-') signsubscale=-1,num++;        /* With sign? */
+        while (*num>='0' && *num<='9') subscale=(subscale*10)+(*num++ - '0');    /* Number? */
+    }
 
-	n=sign*n*pow(10.0,(scale+subscale*signsubscale));	/* number = +/- number.fraction * 10^+/- exponent */
+    n=sign*n*pow(10.0,(scale+subscale*signsubscale));    /* number = +/- number.fraction * 10^+/- exponent */
 
-	item->valuedouble=n;
-	item->valueint=(int)n;
-	item->type=cJSON_Number;
-	return num;
+    item->valuedouble=n;
+    item->valueint=(int)n;
+    item->type=cJSON_Number;
+    return num;
 }
 ```
 
@@ -382,15 +380,15 @@ static const char *parse_number(cJSON *item, const char *num)
      * subscale：存储科学计数法部分的值
      * signsubscale：存储科学计数法的正负号
      */
-	double n, sign, scale;
+    double n, sign, scale;
     n = 0;
     sign = 1;
     scale = 0;
-	
+    
     int subscale, signsubscale;
     subscale = 0;
     signsubscale = 1;
-	...
+    ...
 }
 ```
 
@@ -401,54 +399,54 @@ static const char *parse_number(cJSON *item, const char *num)
 {
     ...
     /* 取出符号位，使用sign记录 */
-	if (*num == '-') {
-		sign =- 1, num++;
-	}
+    if (*num == '-') {
+        sign =- 1, num++;
+    }
 
     /* 跳过多余的0 */
-	if (*num == '0') {
-		num++;
-	}
+    if (*num == '0') {
+        num++;
+    }
 
     /* 将字符串中的连续数字转换为整形 */
-	if (*num >= '1' && *num <= '9')	{
-		do {
+    if (*num >= '1' && *num <= '9')    {
+        do {
             /* *num++ -'0';等价于*num-'0';num++; */
-			n = (n * 10.0) + (*num++ -'0');
-		} while (*num >= '0' && *num <= '9');
-	}
+            n = (n * 10.0) + (*num++ -'0');
+        } while (*num >= '0' && *num <= '9');
+    }
 
     /*
      * 将小数点后的连续数字转化为整形
      * 与上述流程区别在于使用scale变量记录小数点后数字位数
      */
-	if (*num == '.' && num[1] >= '0' && num[1] <= '9') {
-		num++;
-		do {
+    if (*num == '.' && num[1] >= '0' && num[1] <= '9') {
+        num++;
+        do {
             /* *num++ -'0';等价于*num-'0';num++;*/
-			n = (n * 10.0) + (*num++ -'0'), scale--;
-		} while (*num >= '0' && *num <= '9');
-	}
+            n = (n * 10.0) + (*num++ -'0'), scale--;
+        } while (*num >= '0' && *num <= '9');
+    }
 
      /* 首先记录科学计数法的符号 */
-	if (*num == 'e' || *num == 'E') {
-		num++;
-		if (*num == '+') {
-			num++;
-		} else if (*num == '-') {
-			signsubscale = -1, num++;
-		}
-		
+    if (*num == 'e' || *num == 'E') {
+        num++;
+        if (*num == '+') {
+            num++;
+        } else if (*num == '-') {
+            signsubscale = -1, num++;
+        }
+        
         /*
          * 将字符串中的连续数字转化为整形
          * 此处不使用do while 可能是考虑输入非法字符的情况
          */
-		while (*num >= '0' && *num <= '9') {
+        while (*num >= '0' && *num <= '9') {
             /* *num++ -'0';等价于*num-'0';num++;*/
-			subscale = (subscale * 10) + (*num++ - '0');
-		}
-	}
-	...
+            subscale = (subscale * 10) + (*num++ - '0');
+        }
+    }
+    ...
 }
 ```
 
@@ -457,19 +455,19 @@ static const char *parse_number(cJSON *item, const char *num)
 ```c
 static const char *parse_number(cJSON *item, const char *num)
 {
-	...
+    ...
     /*
      * 带符号的n：sign * n
      * 科学计数法的系数：pow(10.0, (scale + subscale * signsubscale));
      * 此处计算的是科学计数法所以底数是10
      */
-	n = sign * n * pow(10.0, (scale + subscale * signsubscale));
+    n = sign * n * pow(10.0, (scale + subscale * signsubscale));
 
-	item->valuedouble = n;
-	item->valueint = (int)n;
-	item->type = cJSON_Number;
+    item->valuedouble = n;
+    item->valueint = (int)n;
+    item->type = cJSON_Number;
 
-	return num;
+    return num;
 }
 ```
 
@@ -492,9 +490,9 @@ static const char *parse_number(cJSON *item, const char *num)
 
 该函数的主要功能包括：
 
-- 解析字符串中的转义字符，如`\n`、`\t`等。
-- 将`Unicode`转义序列`\uXXXX`转换为`UTF-8`字符。
-- 处理`UTF-16`代理对`surrogate pairs`
+* 解析字符串中的转义字符，如`\n`、`\t`等。
+* 将`Unicode`转义序列`\uXXXX`转换为`UTF-8`字符。
+* 处理`UTF-16`代理对`surrogate pairs`
 
 **源代码中函数实现如下**
 
@@ -502,76 +500,76 @@ static const char *parse_number(cJSON *item, const char *num)
 /* parse_hex4用于解析一个4位十六进制数，并将其转换为对应的无符号整数 */
 static unsigned parse_hex4(const char *str)
 {
-	unsigned h=0;
-	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
-	h=h<<4;str++;
-	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
-	h=h<<4;str++;
-	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
-	h=h<<4;str++;
-	if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
-	return h;
+    unsigned h=0;
+    if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+    h=h<<4;str++;
+    if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+    h=h<<4;str++;
+    if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+    h=h<<4;str++;
+    if (*str>='0' && *str<='9') h+=(*str)-'0'; else if (*str>='A' && *str<='F') h+=10+(*str)-'A'; else if (*str>='a' && *str<='f') h+=10+(*str)-'a'; else return 0;
+    return h;
 }
 
 /* Parse the input text into an unescaped cstring, and populate item. */
 static const unsigned char firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
 static const char *parse_string(cJSON *item,const char *str)
 {
-	const char *ptr=str+1;char *ptr2;char *out;int len=0;unsigned uc,uc2;
-	if (*str!='\"') {ep=str;return 0;}	/* not a string! */
-	
-	while (*ptr!='\"' && *ptr && ++len) if (*ptr++ == '\\') ptr++;	/* Skip escaped quotes. */
-	
-	out=(char*)cJSON_malloc(len+1);	/* This is how long we need for the string, roughly. */
-	if (!out) return 0;
+    const char *ptr=str+1;char *ptr2;char *out;int len=0;unsigned uc,uc2;
+    if (*str!='\"') {ep=str;return 0;}    /* not a string! */
+    
+    while (*ptr!='\"' && *ptr && ++len) if (*ptr++ == '\\') ptr++;    /* Skip escaped quotes. */
+    
+    out=(char*)cJSON_malloc(len+1);    /* This is how long we need for the string, roughly. */
+    if (!out) return 0;
 
-	ptr=str+1;ptr2=out;
-	while (*ptr!='\"' && *ptr)
-	{
-		if (*ptr!='\\') *ptr2++=*ptr++;
-		else
-		{
-			ptr++;
-			switch (*ptr)
-			{
-				case 'b': *ptr2++='\b';	break;
-				case 'f': *ptr2++='\f';	break;
-				case 'n': *ptr2++='\n';	break;
-				case 'r': *ptr2++='\r';	break;
-				case 't': *ptr2++='\t';	break;
-				case 'u':	 /* transcode utf16 to utf8. */
-					uc=parse_hex4(ptr+1);ptr+=4;	/* get the unicode char. */
+    ptr=str+1;ptr2=out;
+    while (*ptr!='\"' && *ptr)
+    {
+        if (*ptr!='\\') *ptr2++=*ptr++;
+        else
+        {
+            ptr++;
+            switch (*ptr)
+            {
+                case 'b': *ptr2++='\b';    break;
+                case 'f': *ptr2++='\f';    break;
+                case 'n': *ptr2++='\n';    break;
+                case 'r': *ptr2++='\r';    break;
+                case 't': *ptr2++='\t';    break;
+                case 'u':     /* transcode utf16 to utf8. */
+                    uc=parse_hex4(ptr+1);ptr+=4;    /* get the unicode char. */
 
-					if ((uc>=0xDC00 && uc<=0xDFFF) || uc==0)	break;	/* check for invalid.	*/
+                    if ((uc>=0xDC00 && uc<=0xDFFF) || uc==0)    break;    /* check for invalid.    */
 
-					if (uc>=0xD800 && uc<=0xDBFF)	/* UTF16 surrogate pairs.	*/
-					{
-						if (ptr[1]!='\\' || ptr[2]!='u')	break;	/* missing second-half of surrogate.	*/
-						uc2=parse_hex4(ptr+3);ptr+=6;
-						if (uc2<0xDC00 || uc2>0xDFFF)		break;	/* invalid second-half of surrogate.	*/
-						uc=0x10000 + (((uc&0x3FF)<<10) | (uc2&0x3FF));
-					}
+                    if (uc>=0xD800 && uc<=0xDBFF)    /* UTF16 surrogate pairs.    */
+                    {
+                        if (ptr[1]!='\\' || ptr[2]!='u')    break;    /* missing second-half of surrogate.    */
+                        uc2=parse_hex4(ptr+3);ptr+=6;
+                        if (uc2<0xDC00 || uc2>0xDFFF)        break;    /* invalid second-half of surrogate.    */
+                        uc=0x10000 + (((uc&0x3FF)<<10) | (uc2&0x3FF));
+                    }
 
-					len=4;if (uc<0x80) len=1;else if (uc<0x800) len=2;else if (uc<0x10000) len=3; ptr2+=len;
-					
-					switch (len) {
-						case 4: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
-						case 3: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
-						case 2: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
-						case 1: *--ptr2 =(uc | firstByteMark[len]);
-					}
-					ptr2+=len;
-					break;
-				default:  *ptr2++=*ptr; break;
-			}
-			ptr++;
-		}
-	}
-	*ptr2=0;
-	if (*ptr=='\"') ptr++;
-	item->valuestring=out;
-	item->type=cJSON_String;
-	return ptr;
+                    len=4;if (uc<0x80) len=1;else if (uc<0x800) len=2;else if (uc<0x10000) len=3; ptr2+=len;
+                    
+                    switch (len) {
+                        case 4: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
+                        case 3: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
+                        case 2: *--ptr2 =((uc | 0x80) & 0xBF); uc >>= 6;
+                        case 1: *--ptr2 =(uc | firstByteMark[len]);
+                    }
+                    ptr2+=len;
+                    break;
+                default:  *ptr2++=*ptr; break;
+            }
+            ptr++;
+        }
+    }
+    *ptr2=0;
+    if (*ptr=='\"') ptr++;
+    item->valuestring=out;
+    item->type=cJSON_String;
+    return ptr;
 }
 ```
 
@@ -584,78 +582,78 @@ static const char *parse_string(cJSON *item,const char *str)
 ```c
 static const char *parse_string(cJSON *item, const char *str)
 {
-	const char *ptr = str+1;
-	char *ptr2;
-	char *out;
-	int len = 0;
-	unsigned uc, uc2;
+    const char *ptr = str+1;
+    char *ptr2;
+    char *out;
+    int len = 0;
+    unsigned uc, uc2;
 
     /*
      * 此处对'\\'特殊处理是考虑到后续字符串处理流程中'\'可能会被误认为转义字符
      * 所以遇到'\\'时需要额外偏移一位
      */
-	while (*ptr != '\"' && *ptr && ++len) {
-		if (*ptr++ == '\\') {
-			ptr++;
-		}
-	}
+    while (*ptr != '\"' && *ptr && ++len) {
+        if (*ptr++ == '\\') {
+            ptr++;
+        }
+    }
 
-	out = (char*)malloc(len + 1);
+    out = (char*)malloc(len + 1);
 
-	ptr = str + 1;
-	ptr2 = out;
+    ptr = str + 1;
+    ptr2 = out;
     /*
      * 将ptr拷贝到ptr2中，对于转义字符和
      */
-	while (*ptr!='\"' && *ptr) {
-		if (*ptr!='\\') {
-			*ptr2++ = *ptr++;
-		} else {
-			ptr++;
-			switch (*ptr) {
-				case 'b':
-					*ptr2++ = '\b';
-					break;
-				case 'f':
-					*ptr2++ = '\f';
-					break;
-				case 'n':
-					*ptr2++ = '\n';
-					break;
-				case 'r':
-					*ptr2++ = '\r';
-					break;
-				case 't':
-					*ptr2++ = '\t';
-					break;
-				case 'u':	 /* transcode utf16 to utf8. */
-						...
+    while (*ptr!='\"' && *ptr) {
+        if (*ptr!='\\') {
+            *ptr2++ = *ptr++;
+        } else {
+            ptr++;
+            switch (*ptr) {
+                case 'b':
+                    *ptr2++ = '\b';
+                    break;
+                case 'f':
+                    *ptr2++ = '\f';
+                    break;
+                case 'n':
+                    *ptr2++ = '\n';
+                    break;
+                case 'r':
+                    *ptr2++ = '\r';
+                    break;
+                case 't':
+                    *ptr2++ = '\t';
+                    break;
+                case 'u':     /* transcode utf16 to utf8. */
+                        ...
                         /*
                          * \u 后面跟着四个十六进制数字（0-9、a-f 或 A-F），表示一个 Unicode 字符的代码点
                          * 此处篇幅限制，对 utf16转utf8的处理后文中讨论
                          */
                         ...
-				default:
-					*ptr2++ = *ptr;
-					break;
-			}
-			ptr++;
-		}
-	}
-	*ptr2 = 0;
+                default:
+                    *ptr2++ = *ptr;
+                    break;
+            }
+            ptr++;
+        }
+    }
+    *ptr2 = 0;
 
-	if (*ptr == '\"') {
-		ptr++;
-	}
+    if (*ptr == '\"') {
+        ptr++;
+    }
     /*
      * 此处不能free(out)
      * 结构体定义中valuestring是一个char*类型，该指针指向的内存的生命周期应当与valuestring指针保持一致
      * 此处out持有的内存应当在valuestring指针置NULL时再free，否则可能出现内存踩空或野指针的问题
      */
-	item->valuestring = out;
-	item->type = cJSON_String;
+    item->valuestring = out;
+    item->type = cJSON_String;
 
-	return ptr;
+    return ptr;
 }
 ```
 
@@ -684,16 +682,16 @@ static const char *parse_string(cJSON *item, const char *str)
 ```c
 static const unsigned char firstByteMark[7] = { 0x00, 0x00, 0xC0, 0xE0, 0xF0, 0xF8, 0xFC };
 
-case 'u':	 /* transcode utf16 to utf8. */
+case 'u':     /* transcode utf16 to utf8. */
     uc = parse_hex4(ptr + 1);
     ptr += 4;
 
-	/* Unicoded 低位专用区间 */
+    /* Unicoded 低位专用区间 */
     if ((uc >= 0xDC00 && uc <= 0xDFFF) || uc == 0) {
         break;
     }
 
-	/* Unicoded 高位替代区间、高位替代专用区间 */
+    /* Unicoded 高位替代区间、高位替代专用区间 */
     if (uc >= 0xD800 && uc <= 0xDBFF) {
         uc2 = parse_hex4(ptr + 3);
         ptr += 6;
@@ -701,7 +699,7 @@ case 'u':	 /* transcode utf16 to utf8. */
         uc = 0x10000 + (((uc&0x3FF)<<10) | (uc2&0x3FF));
     }
 
-	/* 根据 Unicode 码点的范围确定字符所占的字节数 */
+    /* 根据 Unicode 码点的范围确定字符所占的字节数 */
     len = 4;
     if (uc < 0x80) {
         len = 1;
@@ -712,7 +710,7 @@ case 'u':	 /* transcode utf16 to utf8. */
         ptr2 += len;
     }
 
-	/* 将 Unicode 码点按照 UTF-8 编码规则转换为对应的字节序列 */
+    /* 将 Unicode 码点按照 UTF-8 编码规则转换为对应的字节序列 */
     switch (len) {
         case 4:
             *--ptr2 =((uc | 0x80) & 0xBF);
@@ -745,24 +743,24 @@ case 'u':	 /* transcode utf16 to utf8. */
 ```c
 void doit(char *text)
 {
-	char *out;
+    char *out;
     cJSON *json;
 
-	json = cJSON_Parse(text);
-	out = cJSON_Print(json);
-	cJSON_Delete(json);
-	printf("%s\n", out);
-	free(out);
+    json = cJSON_Parse(text);
+    out = cJSON_Print(json);
+    cJSON_Delete(json);
+    printf("%s\n", out);
+    free(out);
 }
 
 /* Read a file, parse, render back, etc. */
 void dofile(char *filename)
 {
-	FILE *f;
+    FILE *f;
     long len;
     char *data;
 
-	f = fopen(filename, "rb");
+    f = fopen(filename, "rb");
     fseek(f, 0, SEEK_END);
 
     len = ftell(f);
@@ -774,7 +772,7 @@ void dofile(char *filename)
     fclose(f);
 
     doit(data);
-	free(data);
+    free(data);
 }
 ```
 
@@ -797,28 +795,28 @@ void dofile(char *filename)
 ```c
 void create_objects()
 {
-	cJSON *root, *img, *thm, *IDs;
-	char *name_str, *out;;
-	int ids[4] = {116, 943, 234, 38793};
+    cJSON *root, *img, *thm, *IDs;
+    char *name_str, *out;;
+    int ids[4] = {116, 943, 234, 38793};
 
-	root = cJSON_CreateObject();
-	img = cJSON_CreateObject();
-	cJSON_AddItemToObject(root, "Image", img);
-	cJSON_AddNumberToObject(img, "Width", 800);
-	cJSON_AddNumberToObject(img, "Height", 600);
-	cJSON_AddStringToObject(img, "Title", "View from 15th Floor");
-	thm = cJSON_CreateObject();
-	cJSON_AddItemToObject(img, "Thumbnail", thm);
-	cJSON_AddStringToObject(thm, "Url", "http:/*www.example.com/image/481989943");
-	cJSON_AddNumberToObject(thm, "Height", 125);
-	cJSON_AddStringToObject(thm, "Width", "100");
-	IDs = cJSON_CreateIntArray(ids, 4);
-	cJSON_AddItemToObject(img, "IDs", IDs);
+    root = cJSON_CreateObject();
+    img = cJSON_CreateObject();
+    cJSON_AddItemToObject(root, "Image", img);
+    cJSON_AddNumberToObject(img, "Width", 800);
+    cJSON_AddNumberToObject(img, "Height", 600);
+    cJSON_AddStringToObject(img, "Title", "View from 15th Floor");
+    thm = cJSON_CreateObject();
+    cJSON_AddItemToObject(img, "Thumbnail", thm);
+    cJSON_AddStringToObject(thm, "Url", "http:/*www.example.com/image/481989943");
+    cJSON_AddNumberToObject(thm, "Height", 125);
+    cJSON_AddStringToObject(thm, "Width", "100");
+    IDs = cJSON_CreateIntArray(ids, 4);
+    cJSON_AddItemToObject(img, "IDs", IDs);
 
-	out = cJSON_Print(root);
-	cJSON_Delete(root);
-	printf("%s\n", out);
-	free(out);
+    out = cJSON_Print(root);
+    cJSON_Delete(root);
+    printf("%s\n", out);
+    free(out);
 }
 
 输出结果为
@@ -848,13 +846,13 @@ void create_objects()
 ```c
 cJSON *cJSON_CreateObject(void)
 {
-	cJSON *item = cJSON_New_Item();
+    cJSON *item = cJSON_New_Item();
 
-	if(item) {
-		item->type = cJSON_Object;
-	}
+    if(item) {
+        item->type = cJSON_Object;
+    }
 
-	return item;
+    return item;
 }
 ```
 
@@ -870,13 +868,13 @@ cJSON *cJSON_CreateObject(void)
 void cJSON_AddItemToObject(cJSON *object, onst char *string, JSON *item)
 {
     size_t len;
-	char* copy;
+    char* copy;
 
-	len = strlen(string) + 1;
-	copy = (char*)malloc(len)
+    len = strlen(string) + 1;
+    copy = (char*)malloc(len)
 
-	memcpy(copy, string, len);
-	item->string = copy;
+    memcpy(copy, string, len);
+    item->string = copy;
 
     cJSON_AddItemToArray(object, item);
 }
@@ -898,17 +896,17 @@ void cJSON_AddItemToObject(cJSON *object, onst char *string, JSON *item)
 /* Add item to array/object. */
 void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 {
-	cJSON *c = array->child;
+    cJSON *c = array->child;
 
-	if (!c) {
-		array->child = item;
-	} else {
-		while (c && c->next) {
-			c = c->next;
-		}
+    if (!c) {
+        array->child = item;
+    } else {
+        while (c && c->next) {
+            c = c->next;
+        }
         c->next = item;
         item->prev = c;
-	}
+    }
 }
 ```
 
@@ -925,8 +923,8 @@ void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 **核心逻辑如下**
 
 ```c
-#define cJSON_AddNumberToObject(object,name,n)	cJSON_AddItemToObject(object, name, cJSON_CreateNumber(n))
-#define cJSON_AddStringToObject(object,name,s)	cJSON_AddItemToObject(object, name, cJSON_CreateString(s))
+#define cJSON_AddNumberToObject(object,name,n)    cJSON_AddItemToObject(object, name, cJSON_CreateNumber(n))
+#define cJSON_AddStringToObject(object,name,s)    cJSON_AddItemToObject(object, name, cJSON_CreateString(s))
 ```
 
 **函数核心思想**
@@ -945,48 +943,48 @@ void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 /* 创建新的array节点 */
 cJSON *cJSON_CreateArray(void)
 {
-	cJSON *item = cJSON_New_Item();
-	item->type = cJSON_Array;
+    cJSON *item = cJSON_New_Item();
+    item->type = cJSON_Array;
 
-	return item;
+    return item;
 }
 
 /* 创建新的number节点 */
 cJSON *cJSON_CreateNumber(double num)
 {
-	cJSON *item = cJSON_New_Item();
+    cJSON *item = cJSON_New_Item();
 
     item->type = cJSON_Number;
     item->valuedouble = num;
     item->valueint = (int)num;
 
-	return item;
+    return item;
 }
 
 /* Create Arrays: */
 cJSON *cJSON_CreateIntArray(const int *numbers, int count)
 {
-	int i;
+    int i;
     cJSON *n, *p, *a;
 
-	*n = 0;
+    *n = 0;
     *p = 0;
     *a = cJSON_CreateArray();
 
-	for(i = 0; a && i < count; i++) {
-		n = cJSON_CreateNumber(numbers[i]);
-		/* 第一个元素放在child节点中 */
+    for(i = 0; a && i < count; i++) {
+        n = cJSON_CreateNumber(numbers[i]);
+        /* 第一个元素放在child节点中 */
         if(!i) {
-			a->child = n;
-		} else {
+            a->child = n;
+        } else {
             p->next = n;
-			n->prev = p;
-		}
+            n->prev = p;
+        }
         /* p始终指向链表的尾部 */
-		p = n;
-	}
+        p = n;
+    }
 
-	return a;
+    return a;
 }
 ```
 
@@ -1010,10 +1008,10 @@ cJSON *cJSON_CreateIntArray(const int *numbers, int count)
 /* Render a value to text. */
 static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 {
-	char *out = NULL;
+    char *out = NULL;
     printbuffer *str = NULL;
 
-	if (p) {
+    if (p) {
         str = p;
     } else {
         str = NULL;
@@ -1034,7 +1032,7 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
             break;
     }
 
-	return out;
+    return out;
 }
 ```
 
@@ -1048,7 +1046,7 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 /* Render a cJSON item/entity/structure to text. */
 char *cJSON_Print(cJSON *item)
 {
-	return print_value(item, 0, 1, 0);
+    return print_value(item, 0, 1, 0);
 }
 ```
 
@@ -1062,94 +1060,94 @@ char *cJSON_Print(cJSON *item)
 /* Render an object to text. */
 static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 {
-	char *out=  NULL, *ptr, *ret, *str;
-	int len = 7, i = 0, j;
-	size_t tmplen = 0;
-	cJSON *child;
-	child = item->child;
+    char *out=  NULL, *ptr, *ret, *str;
+    int len = 7, i = 0, j;
+    size_t tmplen = 0;
+    cJSON *child;
+    child = item->child;
 
-	/* 计算本层元素的个数，使用numentries记录 */
-	int numentries = 0;
-	while (child) {
-		numentries++, child = child->next;
-	}
+    /* 计算本层元素的个数，使用numentries记录 */
+    int numentries = 0;
+    while (child) {
+        numentries++, child = child->next;
+    }
 
-	/*
-	 * 此处entries和names可视为char entries[][]和char names[][]
-	 * names存储":"前半段的值，即object、array或键值对的名称
-	 * entries存储“:”后半段的值，即object、array或键值对的内容
-	 */
-	char **entries = NULL, **names = NULL;
+    /*
+     * 此处entries和names可视为char entries[][]和char names[][]
+     * names存储":"前半段的值，即object、array或键值对的名称
+     * entries存储“:”后半段的值，即object、array或键值对的内容
+     */
+    char **entries = NULL, **names = NULL;
 
-	entries = (char**)malloc(numentries * sizeof(char*));
-	names = (char**)malloc(numentries * sizeof(char*));
-	memset(entries, 0, sizeof(char*) * numentries);
-	memset(names, 0, sizeof(char*) * numentries);
+    entries = (char**)malloc(numentries * sizeof(char*));
+    names = (char**)malloc(numentries * sizeof(char*));
+    memset(entries, 0, sizeof(char*) * numentries);
+    memset(names, 0, sizeof(char*) * numentries);
 
-	/* depth记录当前层数深度 */
-	child = item->child;
-	depth ++;
-	len += depth;
+    /* depth记录当前层数深度 */
+    child = item->child;
+    depth ++;
+    len += depth;
 
-	/* 循环中仅搜索本层节点，对于深层的child节点，在print_value()中递归处理 */
-	while (child) {
-		str = print_string_ptr(child->string, 0);
-		ret = print_value(child, depth, fmt, 0);
+    /* 循环中仅搜索本层节点，对于深层的child节点，在print_value()中递归处理 */
+    while (child) {
+        str = print_string_ptr(child->string, 0);
+        ret = print_value(child, depth, fmt, 0);
 
-		names[i] = str;
-		entries[i] = ret;
+        names[i] = str;
+        entries[i] = ret;
         i++;
 
-		len += strlen(ret) + strlen(str) + 2 + (fmt ? 2 + depth : 0);
-		child = child->next;
-	}
+        len += strlen(ret) + strlen(str) + 2 + (fmt ? 2 + depth : 0);
+        child = child->next;
+    }
 
-	out = (char*)malloc(len);
+    out = (char*)malloc(len);
 
-	/* 构造object的左大括号 */
-	*out = '{';
-	ptr = out + 1;
-	*ptr++ = '\n';
-	*ptr = 0;
+    /* 构造object的左大括号 */
+    *out = '{';
+    ptr = out + 1;
+    *ptr++ = '\n';
+    *ptr = 0;
 
     /* 遍历搜索整个json */
-	for (i = 0; i < numentries; i++) {
+    for (i = 0; i < numentries; i++) {
         /* 填充每一行左侧的tab */
-		for (j = 0; j < depth; j++) {
-			*ptr++ = '\t';
-		}
+        for (j = 0; j < depth; j++) {
+            *ptr++ = '\t';
+        }
 
-		tmplen = strlen(names[i]);
-		memcpy(ptr, names[i], tmplen);
-		ptr += tmplen;
-		*ptr++ = ':';
+        tmplen = strlen(names[i]);
+        memcpy(ptr, names[i], tmplen);
+        ptr += tmplen;
+        *ptr++ = ':';
 
-		strcpy(ptr, entries[i]);
-		ptr += strlen(entries[i]);
+        strcpy(ptr, entries[i]);
+        ptr += strlen(entries[i]);
 
-		if (i != numentries - 1) {
-			*ptr++ = ',';
-		}
+        if (i != numentries - 1) {
+            *ptr++ = ',';
+        }
 
-		*ptr++ = '\n';
-		*ptr = 0;
+        *ptr++ = '\n';
+        *ptr = 0;
 
-		free(names[i]);
-		free(entries[i]);
-	}
+        free(names[i]);
+        free(entries[i]);
+    }
 
-	free(names);
-	free(entries);
+    free(names);
+    free(entries);
 
     /* 填充每一行左侧的tab */
-	for (i = 0; i < depth - 1; i++) {
-		*ptr++ = '\t';
-	}
+    for (i = 0; i < depth - 1; i++) {
+        *ptr++ = '\t';
+    }
 
-	*ptr++ = '}';
-	*ptr++ = 0;
+    *ptr++ = '}';
+    *ptr++ = 0;
 
-	return out;	
+    return out;    
 }
 ```
 
@@ -1188,54 +1186,54 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 /* Render an array to text */
 static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 {
-	char **entries;
-	char *out = 0, *ptr, *ret;
-	int len = 5;
-	cJSON *child;
-	child = item->child;
-	int numentries=0, i=0;
-	size_t tmplen=0;
+    char **entries;
+    char *out = 0, *ptr, *ret;
+    int len = 5;
+    cJSON *child;
+    child = item->child;
+    int numentries=0, i=0;
+    size_t tmplen=0;
 
-	while (child) {
-		numentries++, child = child->next;
-	}
+    while (child) {
+        numentries++, child = child->next;
+    }
 
-	entries=(char**)malloc(numentries * sizeof(char*));
-	memset(entries, 0, numentries * sizeof(char*));
+    entries=(char**)malloc(numentries * sizeof(char*));
+    memset(entries, 0, numentries * sizeof(char*));
 
-	child = item->child;
-	while (child) {
-		ret = print_value(child, depth + 1, fmt, 0);
-		entries[i] = ret;
-		i++;
+    child = item->child;
+    while (child) {
+        ret = print_value(child, depth + 1, fmt, 0);
+        entries[i] = ret;
+        i++;
 
-		len += strlen(ret) + 2 + (fmt ? 1 : 0);
-		child = child->next;
-	}
-	
-	out=(char*)malloc(len);
+        len += strlen(ret) + 2 + (fmt ? 1 : 0);
+        child = child->next;
+    }
+    
+    out=(char*)malloc(len);
 
-	*out = '[';
-	ptr = out + 1;
-	*ptr = 0;
+    *out = '[';
+    ptr = out + 1;
+    *ptr = 0;
 
-	for (i = 0; i < numentries; i++) {
-		tmplen = strlen(entries[i]);
-		memcpy(ptr, entries[i], tmplen);
-		ptr += tmplen;
+    for (i = 0; i < numentries; i++) {
+        tmplen = strlen(entries[i]);
+        memcpy(ptr, entries[i], tmplen);
+        ptr += tmplen;
 
-		if (i != numentries - 1) {
-			*ptr++ = ',';
-			*ptr++ = ' ';
-			*ptr = 0;
-		}
-		free(entries[i]);
-	}
-	free(entries);
-	*ptr++ = ']';
-	*ptr++ = 0;
+        if (i != numentries - 1) {
+            *ptr++ = ',';
+            *ptr++ = ' ';
+            *ptr = 0;
+        }
+        free(entries[i]);
+    }
+    free(entries);
+    *ptr++ = ']';
+    *ptr++ = 0;
 
-	return out;	
+    return out;    
 }
 ```
 
@@ -1261,32 +1259,32 @@ static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 /* Render the number nicely from the given item into a string. */
 static char *print_number(cJSON *item, printbuffer *p)
 {
-	char *str = 0;
-	double d = item->valuedouble;
+    char *str = 0;
+    double d = item->valuedouble;
 
     /*
      * 根据valuedouble值的不同，分配不同长度的内存空间存储
      */
-	if (d == 0) {
-		str = (char*)malloc(2);
-		strcpy(str, "0");
+    if (d == 0) {
+        str = (char*)malloc(2);
+        strcpy(str, "0");
 
     } else if (fabs(((double)item->valueint) - d) <= DBL_EPSILON && (d <= INT_MAX && d >= INT_MIN)) {
-		str = (char*)malloc(21);	/* 2^64+1 can be represented in 21 chars. */
-		sprintf(str, "%d", item->valueint);
+        str = (char*)malloc(21);    /* 2^64+1 can be represented in 21 chars. */
+        sprintf(str, "%d", item->valueint);
 
     } else {
-		str = (char*)malloc(64);	/* This is a nice tradeoff. */
+        str = (char*)malloc(64);    /* This is a nice tradeoff. */
 
         if (fabs(floor(d) - d) <= DBL_EPSILON && fabs(d) < 1.0e60) {
             sprintf(str, "%.0f", d);
-        } else if (fabs(d) < 1.0e-6 || fabs(d) > 1.0e9)	{
+        } else if (fabs(d) < 1.0e-6 || fabs(d) > 1.0e9)    {
             sprintf(str, "%e", d);
         } else {
             sprintf(str, "%f", d);
         }
-	}
-	return str;
+    }
+    return str;
 }
 ```
 
@@ -1295,7 +1293,7 @@ static char *print_number(cJSON *item, printbuffer *p)
 根据不同的数据范围分配不同长度的内存
 
 * `valuedouble = 0`时，分配内存长度为2字节
-*  `INT_MIN <= valuedouble <= INT_MAX`时，分配21字节
+* `INT_MIN <= valuedouble <= INT_MAX`时，分配21字节
 * 更大的范围时，分配64字节
 
 根据不同的数据范围使用不同的类型存储数据
@@ -1316,81 +1314,81 @@ static char *print_number(cJSON *item, printbuffer *p)
 /* Invote print_string_ptr (which is useful) on an item. */
 static char *print_string(cJSON *item, printbuffer *p)
 {
-	return print_string_ptr(item->valuestring, p);
+    return print_string_ptr(item->valuestring, p);
 }
 
 /* Render the cstring provided to an escaped version that can be printed. */
 static char *print_string_ptr(const char *str)
 {
-	const char *ptr;
-	char *ptr2, *out;
-	int len = 0;
-	unsigned char token;
+    const char *ptr;
+    char *ptr2, *out;
+    int len = 0;
+    unsigned char token;
 
-	ptr = str;
+    ptr = str;
     /* 计算待输出字符串的长度 */
-	while ((token =* ptr) && ++len) {
-		if (strchr("\"\\\b\f\n\r\t", token)) {
-			len++;
-		} else if (token < 32) {
-         	/* 当前字符的ASCII值小于32，这些字符会被转义为类似\uXXXX 的形式，占据了5个字符的空间 */
-			len += 5;
-		}
-		ptr++;
-	}
-	
-	out = (char*)malloc(len + 3);
+    while ((token =* ptr) && ++len) {
+        if (strchr("\"\\\b\f\n\r\t", token)) {
+            len++;
+        } else if (token < 32) {
+             /* 当前字符的ASCII值小于32，这些字符会被转义为类似\uXXXX 的形式，占据了5个字符的空间 */
+            len += 5;
+        }
+        ptr++;
+    }
+    
+    out = (char*)malloc(len + 3);
 
     /*
      * *ptr2++ = '\\';等价于
      * *ptr2 = '\\';
      *  ptr2++;
      */
-	ptr2 = out;
+    ptr2 = out;
     ptr = str;
     /*
      * 向之前已申请的内存空间一个字符一个字符的填充字符串
      * 开头与结尾填充'\"'中间部分遍历旧字符串填充到新字符串中，对于转义字符特殊处理
      */
-	*ptr2++ = '\"';
-	while (*ptr) {
-		if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') {
-			*ptr2++ = *ptr++;
-		} else {
-			*ptr2++ = '\\';
-			switch (token = *ptr++) {
-				case '\\':
-					*ptr2++ = '\\';
-					break;
-				case '\"':
-					*ptr2++ ='\"';
-					break;
-				case '\b':
-					*ptr2++ = 'b';
-					break;
-				case '\f':
-					*ptr2++ = 'f';
-					break;
-				case '\n':
-					*ptr2++ ='n';
-					break;
-				case '\r':
-					*ptr2++ = 'r';
-					break;
-				case '\t':
-					*ptr2++ = 't';
-					break;
-				default:
-					sprintf(ptr2, "u%04x", token);
-					ptr2 += 5;
-					break;	/* escape and print */
-			}
-		}
-	}
-	*ptr2++ = '\"';
-	*ptr2++ = 0;
+    *ptr2++ = '\"';
+    while (*ptr) {
+        if ((unsigned char)*ptr > 31 && *ptr != '\"' && *ptr != '\\') {
+            *ptr2++ = *ptr++;
+        } else {
+            *ptr2++ = '\\';
+            switch (token = *ptr++) {
+                case '\\':
+                    *ptr2++ = '\\';
+                    break;
+                case '\"':
+                    *ptr2++ ='\"';
+                    break;
+                case '\b':
+                    *ptr2++ = 'b';
+                    break;
+                case '\f':
+                    *ptr2++ = 'f';
+                    break;
+                case '\n':
+                    *ptr2++ ='n';
+                    break;
+                case '\r':
+                    *ptr2++ = 'r';
+                    break;
+                case '\t':
+                    *ptr2++ = 't';
+                    break;
+                default:
+                    sprintf(ptr2, "u%04x", token);
+                    ptr2 += 5;
+                    break;    /* escape and print */
+            }
+        }
+    }
+    *ptr2++ = '\"';
+    *ptr2++ = 0;
 
-	return out;
+    return out;
 }
 ```
 
@@ -1414,24 +1412,24 @@ static char *print_string_ptr(const char *str)
 /* Delete a cJSON structure. */
 void cJSON_Delete(cJSON *c)
 {
-	cJSON *next;
+    cJSON *next;
 
-	while (c) {
-		next = c->next;
-		if (!(c->type & cJSON_IsReference) && c->child) {
-			cJSON_Delete(c->child);
-		}
+    while (c) {
+        next = c->next;
+        if (!(c->type & cJSON_IsReference) && c->child) {
+            cJSON_Delete(c->child);
+        }
 
-		if (!(c->type & cJSON_IsReference) && c->valuestring) {
-			cJSON_free(c->valuestring);
-		}
+        if (!(c->type & cJSON_IsReference) && c->valuestring) {
+            cJSON_free(c->valuestring);
+        }
 
-		if (!(c->type & cJSON_StringIsConst) && c->string) {
-			cJSON_free(c->string);
-		}
+        if (!(c->type & cJSON_StringIsConst) && c->string) {
+            cJSON_free(c->string);
+        }
 
-		cJSON_free(c);
-		c = next;
-	}
+        cJSON_free(c);
+        c = next;
+    }
 }
 ```

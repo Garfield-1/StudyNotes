@@ -25,7 +25,7 @@
 
 1. 临时设置，重启后失效
     可以通过修改文件`/proc/sys/kernel/core_pattern`内容指定产生coredump文件的路径和名称
-2. 永久设置 
+2. 永久设置
     增加如下配置到`/etc/sysctl.conf`文件中  
 
     ``` cpp
@@ -62,8 +62,8 @@
     }
     ```
 
-2. 使用coredump文件命令为`gdb 引发coredump文件 core文件` 
+2. 使用coredump文件命令为`gdb 引发coredump文件 core文件`
 <img src="image/04_生成coredump文件.png" alt="Alt text" />  
 
-3. 然后输入`bt`查看函数调用栈 
+3. 然后输入`bt`查看函数调用栈
 <img src="image/03_解析coredump文件.png" alt="Alt text" />

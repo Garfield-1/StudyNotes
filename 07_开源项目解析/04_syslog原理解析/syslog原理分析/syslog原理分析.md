@@ -35,13 +35,13 @@
 
     查询`Linux`源码可以在`devices.rst`文件中找到关于这个句柄的描述
 
-    ```
+    ``` bash
     Non-transient sockets and named pipes may exist in /dev.  Common entries are:
     
     =============== =============== ===============================================
-    /dev/printer	socket		lpd local socket
-    /dev/log	socket		syslog local socket
-    /dev/gpmdata	socket		gpm mouse multiplexer
+    /dev/printer    socket        lpd local socket
+    /dev/log    socket        syslog local socket
+    /dev/gpmdata    socket        gpm mouse multiplexer
     =============== =============== ===============================================
     ```
 
@@ -55,8 +55,8 @@
 
     查询`Linux`源码可以在`dev-kmsg`文件中找到关于这个句柄的描述，这里只摘抄一小段，详细描述需要查看源码
 
-    ```
-    Description:	The /dev/kmsg character device node provides userspace access to the kernel's printk buffer.
+    ``` bash
+    Description:    The /dev/kmsg character device node provides userspace access to the kernel's printk buffer.
     ```
 
 * `/proc/kmsg`句柄
@@ -71,12 +71,12 @@
 
 ```c
 syslogd_main
-	->do_syslogd
-    	->signal_no_SA_RESTART_empty_mask(SIGTERM, record_signo);
-		->signal_no_SA_RESTART_empty_mask(SIGINT, record_signo);
-		->create_socket()//创建一个socket绑定到/dev/log上，并通过xmove_fd函数将这个sockrt绑定到STDIN_FILENO上，用于后续读取
-			->strcpy(sunx.sun_path, _PATH_LOG);//define _PATH_LOG /dev/log
-		->xmove_fd(create_socket(), STDIN_FILENO)
+    ->do_syslogd
+        ->signal_no_SA_RESTART_empty_mask(SIGTERM, record_signo);
+        ->signal_no_SA_RESTART_empty_mask(SIGINT, record_signo);
+        ->create_socket()//创建一个socket绑定到/dev/log上，并通过xmove_fd函数将这个sockrt绑定到STDIN_FILENO上，用于后续读取
+            ->strcpy(sunx.sun_path, _PATH_LOG);//define _PATH_LOG /dev/log
+        ->xmove_fd(create_socket(), STDIN_FILENO)
         /*从STDIN_FILENO中读出内容，并将内容记录为syslog
           bb_got_signal信号被绑定到SIGTERM和SIGINT */
         ->while(!bb_got_signal) {
@@ -94,16 +94,16 @@ syslogd_main
 ```c
 void FAST_FUNC xdup2(int from, int to)
 {
-	if (dup2(from, to) != to)
-		bb_simple_perror_msg_and_die("can't duplicate file descriptor");
+    if (dup2(from, to) != to)
+        bb_simple_perror_msg_and_die("can't duplicate file descriptor");
 }
 
 void FAST_FUNC xmove_fd(int from, int to)
 {
-	if (from == to)
-		return;
-	xdup2(from, to);
-	close(from);
+    if (from == to)
+        return;
+    xdup2(from, to);
+    close(from);
 }
 ```
 
@@ -118,34 +118,34 @@ static void do_syslogd(void)
 {
 #define recvbuf (G.recvbuf)
 
-	signal_no_SA_RESTART_empty_mask(SIGTERM, record_signo);
-	signal_no_SA_RESTART_empty_mask(SIGINT, record_signo);
-	signal(SIGHUP, SIG_IGN);
-	xmove_fd(create_socket(), STDIN_FILENO);
+    signal_no_SA_RESTART_empty_mask(SIGTERM, record_signo);
+    signal_no_SA_RESTART_empty_mask(SIGINT, record_signo);
+    signal(SIGHUP, SIG_IGN);
+    xmove_fd(create_socket(), STDIN_FILENO);
 
-	while (!bb_got_signal) {
-		ssize_t sz;
+    while (!bb_got_signal) {
+        ssize_t sz;
 
  read_again:
-		sz = read(STDIN_FILENO, recvbuf, MAX_READ - 1);
+        sz = read(STDIN_FILENO, recvbuf, MAX_READ - 1);
 
-		while (1) {
-			if (sz == 0)
-				goto read_again;
-			if (recvbuf[sz-1] != '\0' && recvbuf[sz-1] != '\n')
-				break;
-			sz--;
-		}
-		if (!ENABLE_FEATURE_REMOTE_LOG || (option_mask32 & OPT_locallog)) {
-			recvbuf[sz] = '\0'; 
+        while (1) {
+            if (sz == 0)
+                goto read_again;
+            if (recvbuf[sz-1] != '\0' && recvbuf[sz-1] != '\n')
+                break;
+            sz--;
+        }
+        if (!ENABLE_FEATURE_REMOTE_LOG || (option_mask32 & OPT_locallog)) {
+            recvbuf[sz] = '\0'; 
             // 将读取到的内容作为syslog记录
-			split_escape_and_log(recvbuf, sz);
-		}
-	} /* while (!bb_got_signal) */
+            split_escape_and_log(recvbuf, sz);
+        }
+    } /* while (!bb_got_signal) */
 
-	timestamp_and_log_internal("syslogd exiting");
-	remove_pidfile_std_path_and_ext("syslogd");
-	kill_myself_with_sig(bb_got_signal);
+    timestamp_and_log_internal("syslogd exiting");
+    remove_pidfile_std_path_and_ext("syslogd");
+    kill_myself_with_sig(bb_got_signal);
 }
 ```
 

@@ -8,11 +8,11 @@ Shell 编程跟 JavaScript、php 编程一样，只要有一个能编写代码�
 
 Linux 的 Shell 种类众多，常见的有：
 
-- Bourne Shell（/usr/bin/sh或/bin/sh）
-- Bourne Again Shell（/bin/bash）
-- C Shell（/usr/bin/csh）
-- K Shell（/usr/bin/ksh）
-- Shell for Root（/sbin/sh）
+* Bourne Shell（/usr/bin/sh或/bin/sh）
+* Bourne Again Shell（/bin/bash）
+* C Shell（/usr/bin/csh）
+* K Shell（/usr/bin/ksh）
+* Shell for Root（/sbin/sh）
 
 ## 1. 变量
 
@@ -77,9 +77,7 @@ Linux 的 Shell 种类众多，常见的有：
 
 * `$*` 和 `$@` 的区别
 
-    * `$*` 和 `$@` 都表示传递给函数或脚本的所有参数，不被双引号(" ")包含时，都以`"$1" "$2" … "$n"` 的形式输出所有参数。
-
-        但是当它们被双引号(" ")包含时，"`$*`" 会将所有的参数作为一个整体，以"`$1 $2 … $n`"的形式输出所有参数；"`$@`" 会将各个参数分开，以`"$1" "$2" … "$n"` 的形式输出所有参数。
+  * `$*` 和 `$@` 都表示传递给函数或脚本的所有参数，不被双引号(" ")包含时，都以`"$1" "$2" … "$n"` 的形式输出所有参数。但是当它们被双引号(" ")包含时，"`$*`" 会将所有的参数作为一个整体，以"`$1 $2 … $n`"的形式输出所有参数；"`$@`" 会将各个参数分开，以`"$1" "$2" … "$n"` 的形式输出所有参数。
 
     * 示例：
 
@@ -112,18 +110,17 @@ Linux 的 Shell 种类众多，常见的有：
         ```
 
 * 退出状态
+  * `$?` 可以获取上一个命令的退出状态。所谓退出状态，就是上一个命令执行后的返回结果
+  * 退出状态是一个数字，一般情况下，大部分命令执行成功会返回 0，失败返回 1；不过，也有一些命令返回其他值，表示不同类型的错误。
 
-    * `$?` 可以获取上一个命令的退出状态。所谓退出状态，就是上一个命令执行后的返回结果
-    * 退出状态是一个数字，一般情况下，大部分命令执行成功会返回 0，失败返回 1；不过，也有一些命令返回其他值，表示不同类型的错误。
+  * 示例：
 
-    * 示例：
-
-        ```shell
-        if [[ $? != 0 ]];then
-          echo "error"
-          exit 1;
-        fi
-        ```
+    ```shell
+    if [[ $? != 0 ]];then
+        echo "error"
+        exit 1;
+    fi
+    ```
 
 ### 1.6 变量检测语句
 
@@ -136,13 +133,10 @@ Linux 的 Shell 种类众多，常见的有：
 | `${var:+word}`    | 如果变量 `var` 被定义，那么返回 word，但不改变 var 的值。    |
 
 * `${var}`语句
-
-    * 变量本来的值
+  * 变量本来的值
 
 * `${var:-word}`语句
-
-    * 如果变量 `var` 为空或已被删除，那么返回 `word`，但不改变 `var` 的值;否则返回`var`的值
-
+  * 如果变量 `var` 为空或已被删除，那么返回 `word`，但不改变 `var` 的值;否则返回`var`的值
     * 示例：
 
         ```shell
@@ -158,60 +152,57 @@ Linux 的 Shell 种类众多，常见的有：
 
 * `${var:=word}`语句
 
-    * 如果变量 `var` 为空或已被删除，那么返回 `word`，并将 `var` 的值设置为 `word`；否则返回`var`的值
+  * 如果变量 `var` 为空或已被删除，那么返回 `word`，并将 `var` 的值设置为 `word`；否则返回`var`的值
 
-    * 示例：
+  * 示例：
 
-        ```shell
-        #!/bin/bash
-        
-        var="var"
-        word="word"
-        
-        echo ${var:=word}              #word
-        echo $var                      #var
-        unset var
-        echo ${var:=word}              #var
-        echo $var                      #word
-        ```
+    ```shell
+    #!/bin/bash
+    
+    var="var"
+    word="word"
+    
+    echo ${var:=word}              #word
+    echo $var                      #var
+    unset var
+    echo ${var:=word}              #var
+    echo $var                      #word
+    ```
 
 * `${var:?message}`语句
 
-    * 如果变量 `var` 为空或已被删除，那么将`message`发送至标准错误输出 ，否则返回`var`；
+  * 如果变量 `var` 为空或已被删除，那么将`message`发送至标准错误输出 ，否则返回`var`；
+  * 可以用来检测变量 `var` 是否可以被正常赋值。**若此替换出现在Shell脚本中，那么脚本将停止运行**
+  * 示例：
 
-    * 可以用来检测变量 `var` 是否可以被正常赋值。**若此替换出现在Shell脚本中，那么脚本将停止运行**
-
-    * 示例：
-
-        ```shell
-        #!/bin/bash
-        
-        name="Alice"
-        echo "Hello, ${name:?Variable 'name' is not defined or empty!}"  #Hello, Alice
-        
-        unset name  # 删除变量name
-        echo "Hello, ${name:?Variable 'name' is not defined or empty!}"  #Variable 'name' is not defined or empty!
-        
-        echo "Hello World"              #不执行
-        ```
+    ```shell
+    #!/bin/bash
+  
+    name="Alice"
+    echo "Hello, ${name:?Variable 'name' is not defined or empty!}"  #Hello, Alice
+  
+    unset name  # 删除变量name
+    echo "Hello, ${name:?Variable 'name' is not defined or empty!}"  #Variable 'name' is not defined or empty!
+  
+    echo "Hello World"              #不执行
+    ```
 
 * `${var:+word}`语句
 
-    * 如果变量 `var` 被定义，那么返回 `word`，但不改变 `var` 的值；否则返回空
+  * 如果变量 `var` 被定义，那么返回 `word`，但不改变 `var` 的值；否则返回空
+  * 示例：
 
-    * 示例：
-
-        ```shell
+    ```shell
         #!/bin/bash
-        
-        var="var"
-        word="word"
-        
-        echo ${var:+word}                #word
-        
-        unset var
-        echo ${var:+word}                #空值
-        ```
+    
+    var="var"
+    word="word"
+    
+    echo ${var:+word}                #word
+    
+    unset var
+    echo ${var:+word}                #空值
+    ```
 
 ## 2. 字符串
 
@@ -219,13 +210,12 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
 
 ### 2.1 单双引号的区别
 
-- 双引号里可以有变量或转义字符，**单引号里的任何字符都会原样输出**，单引号字符串中的变量是无效的；
-- 单引号字串中不能出现单独一个的单引号（对单引号使用转义符后也不行），但可成对出现，作为字符串拼接使用
+* 双引号里可以有变量或转义字符，**单引号里的任何字符都会原样输出**，单引号字符串中的变量是无效的；
+* 单引号字串中不能出现单独一个的单引号（对单引号使用转义符后也不行），但可成对出现，作为字符串拼接使用
 
 ### 2.2 字符串截取
 
 1. **`#`号截取，删除左边字符，保留右边字符**
-
     * 其中 `var` 是变量名，`#` 号是运算符，`*//` 表示从左边开始删除第一个 `//` 号及左边的所有字符
 
         ```shell
@@ -235,7 +225,6 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         ```
 
 2. **## 号截取，删除左边字符，保留右边字符**
-
     * `\##*/` 表示从左边开始删除最后（最右边）一个 `/` 号及左边的所有字符
 
         ```shell
@@ -245,7 +234,6 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         ```
 
 3. **`%`号截取，删除右边字符，保留左边字符**
-
     * `%/*` 表示从右边开始，删除第一个 `/` 号及右边的字符
 
         ```shell
@@ -255,7 +243,6 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         ```
 
 4. **`%%` 号截取，删除右边字符，保留左边字符**
-
     * `%%/*` 表示从右边开始，删除最后（最左边）一个 `/` 号及右边的字符
 
         ```shell
@@ -264,8 +251,7 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         echo ${var%%/*}                          #http:
         ```
 
-6. **从左边第几个字符开始，及字符的个数**
-
+5. **从左边第几个字符开始，及字符的个数**
     * 其中的 `0` 表示左边第一个字符开始，`5` 表示左边第五个字符结束
 
         ```shell
@@ -275,7 +261,6 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         ```
 
 6. **从左边第几个字符开始，一直到结束**
-
     * 其中的 **7 表示左边第8个字符开始**，一直到结束
 
         ```shell
@@ -285,7 +270,6 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         ```
 
 7. **从右边第几个字符开始，及字符的个数**
-
     * 其中的 0-7 表示右边算起第七个字符开始，3 表示字符的个数
 
         ```shell
@@ -295,7 +279,6 @@ shell的字符串由单引号或双引号包裹；两者不完全相同
         ```
 
 8. **从右边第几个字符开始，一直到结束**
-
     * 表示从右边第七个字符开始，一直到结束
 
         ```shell
@@ -346,7 +329,6 @@ bash支持一维数组（不支持多维数组），并且没有限定数组的�
     echo ${array_name[*]} #读取所有元素
     echo ${array_name[@]} #读取所有元素
     
-    
     echo ${#array_name[*]} #获取数组长度
     echo ${#array_name[@]} #获取数组长度
     echo ${#array_name[1]} #获取数组中单个元素的长度
@@ -379,8 +361,8 @@ Bash 支持很多运算符，包括算数运算符、关系运算符、布尔运
     echo "两数之和为 : $val"
     ```
 
-    * 表达式和运算符之间要有空格，例如 2+2 是不对的，必须写成 2 + 2，这与我们熟悉的大多数编程语言不一样。
-    * 完整的表达式要被 **` `** 包含，注意这个字符不是常用的单引号，在 Esc 键下边
+  * 表达式和运算符之间要有空格，例如 2+2 是不对的，必须写成 2 + 2，这与我们熟悉的大多数编程语言不一样。
+  * 完整的表达式要被 **` `** 包含，注意这个字符不是常用的单引号，在 Esc 键下边
 
 * 可以使用其他的的运算符进行计算
 
@@ -398,9 +380,7 @@ Bash 支持很多运算符，包括算数运算符、关系运算符、布尔运
 ### 4.2 关系运算符
 
 * 关系运算符只支持数字，不支持字符串，除非字符串的值是数字
-
 * 关系运算语句需要在`[]`符号中
-
 * 常见关系运算符
 
     | 运算符 | 说明                                                | 举例                         |
@@ -515,33 +495,33 @@ Bash 支持很多运算符，包括算数运算符、关系运算符、布尔运
 
   1. 条件测试：`[ condition ]` 用于检查条件是否为真。条件可以是变量、比较操作符和逻辑操作符的组合。如果条件为真，返回退出码 0；如果条件为假，返回非零退出码。
 
-  * 示例
+      **示例：**
 
-    ```shell
-    if [ $count -gt 10 ]; 
-    	then echo "count is greater than 10"; 
-    fi
-    ```
+      ```shell
+      if [ $count -gt 10 ]; 
+          then echo "count is greater than 10"; 
+      fi
+      ```
 
   2. 字符串比较：`[ string1 = string2 ]` 用于比较两个字符串是否相等。其他字符串比较操作符还包括`!=`（不相等）、`-z`（空字符串）、`-n`（非空字符串）等。
 
-  * 示例
+      **示例：**
 
-    ```shell
-    if [ "$name" = "John" ]; 
-    	then echo "Hello, John!"; 
-    fi
-    ```
+      ```shell
+      if [ "$name" = "John" ]; 
+          then echo "Hello, John!"; 
+      fi
+      ```
 
   3. 数值比较：`[ num1 -eq num2 ]` 用于比较两个数值是否相等。其他数值比较操作符还包括`-ne`（不相等）、`-lt`（小于）、`-gt`（大于）、`-le`（小于等于）、`-ge`（大于等于）等。
 
-  * 示例：
+      **示例：**
 
-    ```shell
-    if [ $age -ge 18 ]; 
-    	then echo "You are an adult."; 
-    fi
-    ```
+      ```shell
+      if [ $age -ge 18 ]; 
+          then echo "You are an adult."; 
+      fi
+      ```
 
 ### 5.2 `[[]]`符号
 
@@ -574,9 +554,9 @@ Bash 支持很多运算符，包括算数运算符、关系运算符、布尔运
   ```shell
   if [ $a == $b ]
   then 
-  	echo "a is equal to b"
+      echo "a is equal to b"
   else
-  	echo "a is less to b"
+      echo "a is less to b"
   fi
   ```
 
@@ -584,22 +564,22 @@ Bash 支持很多运算符，包括算数运算符、关系运算符、布尔运
 
 * `case ... esac` 与其他语言中的 `switch ... case` 语句类似，是一种多分枝选择结构
 * **注意：**
-  *  取值后面必须为关键字 `in`，每一模式必须以右括号结束。取值可以为变量或常数。
+  * 取值后面必须为关键字 `in`，每一模式必须以右括号结束。取值可以为变量或常数。
   * 匹配发现取值符合某一模式后，其间所有命令开始执行直至 `;;`。`;;` 与其他语言中的 `break` 类似，意思是跳到整个 `case` 语句的最后。
 
 * 示例：
 
   ```shell
   case $grade in 
-  	"A")
-  	    echo "Very Good!";;
-  	"B")
-  	    echo "Good!";;
-  	"C")
-  	    echo "Come On!";;
-  	*)
-  		echo "You Must Try!"
-  		echo "Sorry!";;
+      "A")
+          echo "Very Good!";;
+      "B")
+          echo "Good!";;
+      "C")
+          echo "Come On!";;
+      *)
+          echo "You Must Try!"
+          echo "Sorry!";;
   esac
   ```
 
@@ -641,7 +621,7 @@ Bash 支持很多运算符，包括算数运算符、关系运算符、布尔运
   
   for value in 1 2 3 4 5
   do 
-  	echo "The value is $value"
+      echo "The value is $value"
   done
   
   # 输出

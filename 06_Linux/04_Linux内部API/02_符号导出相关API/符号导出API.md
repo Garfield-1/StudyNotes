@@ -24,8 +24,8 @@
 
 ```c
 //linux-5.4/include/linux/export.h
-#define EXPORT_SYMBOL(sym)		__EXPORT_SYMBOL(sym, "")
-#define EXPORT_SYMBOL_GPL(sym)		__EXPORT_SYMBOL(sym, "_gpl")
+#define EXPORT_SYMBOL(sym)        __EXPORT_SYMBOL(sym, "")
+#define EXPORT_SYMBOL_GPL(sym)        __EXPORT_SYMBOL(sym, "_gpl")
 ```
 
 ## __EXPORT_SYMBOL原理分析
@@ -36,23 +36,23 @@
 
 ```c
 //linux-5.4/include/linux/export.h
-#define __KSYMTAB_ENTRY(sym, sec)					\
-	static const struct kernel_symbol __ksymtab_##sym		\
-	__attribute__((section("___ksymtab" sec "+" #sym), used))	\
-	__aligned(sizeof(void *))					\
-	= { (unsigned long)&sym, __kstrtab_##sym, NULL }
+#define __KSYMTAB_ENTRY(sym, sec)                    \
+    static const struct kernel_symbol __ksymtab_##sym        \
+    __attribute__((section("___ksymtab" sec "+" #sym), used))    \
+    __aligned(sizeof(void *))                    \
+    = { (unsigned long)&sym, __kstrtab_##sym, NULL }
 
 struct kernel_symbol {
-	unsigned long value;
-	const char *name;
-	const char *namespace;
+    unsigned long value;
+    const char *name;
+    const char *namespace;
 };
 
-#define ___EXPORT_SYMBOL(sym, sec)					\
-	___export_symbol_common(sym, sec);				\
-	__KSYMTAB_ENTRY(sym, sec)
+#define ___EXPORT_SYMBOL(sym, sec)                    \
+    ___export_symbol_common(sym, sec);                \
+    __KSYMTAB_ENTRY(sym, sec)
 
-#define __EXPORT_SYMBOL(sym,sec)	___EXPORT_SYMBOL(sym,sec)
+#define __EXPORT_SYMBOL(sym,sec)    ___EXPORT_SYMBOL(sym,sec)
 ```
 
 **核心思想：**

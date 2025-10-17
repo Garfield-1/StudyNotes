@@ -32,11 +32,11 @@
 >
 > The timeout argument specifies the interval that select() should block waiting for a file descriptor to become ready.   The call will block until either:
 >
-> *  a file descriptor becomes ready;
+> \*  a file descriptor becomes ready;
 >
-> *  the call is interrupted by a signal handler;  or
+> \*  the call is interrupted by a signal handler;  or
 >
-> *  the timeout expires.
+> \*  the timeout expires.
 >
 >
 > 译文如下：
@@ -66,32 +66,32 @@
 
 int main(void)
 {
-	fd_set rfds;
-	struct timeval tv;
-	int retval;
+    fd_set rfds;
+    struct timeval tv;
+    int retval;
 
-	/* Watch stdin (fd 0) to see when it has input. */
+    /* Watch stdin (fd 0) to see when it has input. */
 
-	FD_ZERO(&rfds);
-	FD_SET(0, &rfds);
+    FD_ZERO(&rfds);
+    FD_SET(0, &rfds);
 
-	/* Wait up to five seconds. */
+    /* Wait up to five seconds. */
 
-	tv.tv_sec = 5;
-	tv.tv_usec = 0;
+    tv.tv_sec = 5;
+    tv.tv_usec = 0;
 
-	retval = select(1, &rfds, NULL, NULL, &tv);
-	/* Don't rely on the value of tv now! */
+    retval = select(1, &rfds, NULL, NULL, &tv);
+    /* Don't rely on the value of tv now! */
 
-	if (retval == -1)
-		perror("select()");
-	else if (retval)
-		printf("Data is available now.\n");
-		/* FD_ISSET(0, &rfds) will be true. */
-	else
-		printf("No data within five seconds.\n");
+    if (retval == -1)
+        perror("select()");
+    else if (retval)
+        printf("Data is available now.\n");
+        /* FD_ISSET(0, &rfds) will be true. */
+    else
+        printf("No data within five seconds.\n");
 
-	exit(EXIT_SUCCESS);
+    exit(EXIT_SUCCESS);
 }
 ```
 
@@ -146,9 +146,9 @@ typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
 
 `select`方法的主要工作可分为3部分：
 
-- 将需要监控的用户空间的`inp`(可读)、`outp`(可写)、`exp`(异常)事件拷贝到内核空间`fds`的`in`、`out`、`ex`；
-- 执行`do_select`()方法，将`in`、`out`、`ex`监控到的事件结果写入到`res_in`、`res_out`、`res_ex`；
-- 将内核空间`fds`的`res_in`、`res_out`、`res_ex`事件结果信息拷贝回用户空间`inp`、`outp`、`exp`。
+* 将需要监控的用户空间的`inp`(可读)、`outp`(可写)、`exp`(异常)事件拷贝到内核空间`fds`的`in`、`out`、`ex`；
+* 执行`do_select`()方法，将`in`、`out`、`ex`监控到的事件结果写入到`res_in`、`res_out`、`res_ex`；
+* 将内核空间`fds`的`res_in`、`res_out`、`res_ex`事件结果信息拷贝回用户空间`inp`、`outp`、`exp`。
 
 `select`系统调用，最终的核心逻辑是在`do_select`函数中处理的，源码如下
 
@@ -162,31 +162,31 @@ typedef struct { uint32_t fd32[FD_SETSIZE/32]; } fd_set;
 
 ```c
 SYSCALL_DEFINE5(select, int, n, fd_set __user *, inp, fd_set __user *, outp,
-		fd_set __user *, exp, struct timeval __user *, tvp)
+        fd_set __user *, exp, struct timeval __user *, tvp)
 {
-	return kern_select(n, inp, outp, exp, tvp);
+    return kern_select(n, inp, outp, exp, tvp);
 }
 
 static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
-		       fd_set __user *exp, struct timeval __user *tvp)
+               fd_set __user *exp, struct timeval __user *tvp)
 {
-	struct timespec64 end_time, *to = NULL;
-	struct timeval tv;
-	int ret;
+    struct timespec64 end_time, *to = NULL;
+    struct timeval tv;
+    int ret;
 
-	if (tvp) {
+    if (tvp) {
         // 从用户空间读取设置的超时时间
-		if (copy_from_user(&tv, tvp, sizeof(tv)))
-			return -EFAULT;
+        if (copy_from_user(&tv, tvp, sizeof(tv)))
+            return -EFAULT;
 
-		to = &end_time;
+        to = &end_time;
         // 设置函数的的超时时间
-		if (poll_select_set_timeout(to, tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
-			return -EINVAL;
-	}
+        if (poll_select_set_timeout(to, tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
+            return -EINVAL;
+    }
 
-	ret = core_sys_select(n, inp, outp, exp, to);
-	return poll_select_finish(&end_time, tvp, PT_TIMEVAL, ret);
+    ret = core_sys_select(n, inp, outp, exp, to);
+    return poll_select_finish(&end_time, tvp, PT_TIMEVAL, ret);
 }
 ```
 
@@ -200,62 +200,62 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
 
 ```c
 int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
-			   fd_set __user *exp, struct timespec64 *end_time)
+               fd_set __user *exp, struct timespec64 *end_time)
 {
-	fd_set_bits fds;
-	void *bits;
-	int max_fds;
-	size_t size, alloc_size;
-	struct fdtable *fdt;
-	long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
+    fd_set_bits fds;
+    void *bits;
+    int max_fds;
+    size_t size, alloc_size;
+    struct fdtable *fdt;
+    long stack_fds[SELECT_STACK_ALLOC/sizeof(long)];
 
-	fdt = files_fdtable(current->files);
-	// select可监控不能大于进程可打开的文件描述上限
-	max_fds = fdt->max_fds;
-	if (n > max_fds)
-		n = max_fds;
+    fdt = files_fdtable(current->files);
+    // select可监控不能大于进程可打开的文件描述上限
+    max_fds = fdt->max_fds;
+    if (n > max_fds)
+        n = max_fds;
 
-	size = FDS_BYTES(n);
-	bits = stack_fds;
-	// 6个bitmaps对应(int/out/ex)
-	alloc_size = 6 * size;
-	bits = kvmalloc(alloc_size, GFP_KERNEL);
+    size = FDS_BYTES(n);
+    bits = stack_fds;
+    // 6个bitmaps对应(int/out/ex)
+    alloc_size = 6 * size;
+    bits = kvmalloc(alloc_size, GFP_KERNEL);
 
-	fds.in      = bits;
-	fds.out     = bits +   size;
-	fds.ex      = bits + 2*size;
-	fds.res_in  = bits + 3*size;
-	fds.res_out = bits + 4*size;
-	fds.res_ex  = bits + 5*size;
+    fds.in      = bits;
+    fds.out     = bits +   size;
+    fds.ex      = bits + 2*size;
+    fds.res_in  = bits + 3*size;
+    fds.res_out = bits + 4*size;
+    fds.res_ex  = bits + 5*size;
 
-	/*
-	 * 拷贝传入的inp、outp、exp的值存入fds的in、out、ex
-	 * 此处是将从用户空间传入的保存，后续传入内核空间
-	 */
-	get_fd_set(n, inp, fds.in);
-	get_fd_set(n, outp, fds.out);
-	get_fd_set(n, exp, fds.ex);
+    /*
+     * 拷贝传入的inp、outp、exp的值存入fds的in、out、ex
+     * 此处是将从用户空间传入的保存，后续传入内核空间
+     */
+    get_fd_set(n, inp, fds.in);
+    get_fd_set(n, outp, fds.out);
+    get_fd_set(n, exp, fds.ex);
 
-	// 将fds的res_in、res_out、res_ex内容清零
-	zero_fd_set(n, fds.res_in);
-	zero_fd_set(n, fds.res_out);
-	zero_fd_set(n, fds.res_ex);
+    // 将fds的res_in、res_out、res_ex内容清零
+    zero_fd_set(n, fds.res_in);
+    zero_fd_set(n, fds.res_out);
+    zero_fd_set(n, fds.res_ex);
 
-	do_select(n, &fds, end_time);
+    do_select(n, &fds, end_time);
 
-	/*
-	 * 使用入参的指针变量将执行后的fds结果传出
-	 * 将fds的res_in、res_out、res_ex结果拷贝到用户空间inp、outp、exp
-	 * 此处是将从内核空间的结果拷贝至用户空间
-	 */
-	set_fd_set(n, inp, fds.res_in);
-	set_fd_set(n, outp, fds.res_out);
-	set_fd_set(n, exp, fds.res_ex);
+    /*
+     * 使用入参的指针变量将执行后的fds结果传出
+     * 将fds的res_in、res_out、res_ex结果拷贝到用户空间inp、outp、exp
+     * 此处是将从内核空间的结果拷贝至用户空间
+     */
+    set_fd_set(n, inp, fds.res_in);
+    set_fd_set(n, outp, fds.res_out);
+    set_fd_set(n, exp, fds.res_ex);
 
-	if (bits != stack_fds)
-		kvfree(bits);
+    if (bits != stack_fds)
+        kvfree(bits);
 
-	return -EFAULT;
+    return -EFAULT;
 }
 ```
 
@@ -297,33 +297,33 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
     int retval;
 
     poll_initwait(&table); // 初始化一个等待队列
-	wait = &table.pt;
+    wait = &table.pt;
 
     slack = select_estimate_accuracy(end_time); // 获取高精度定时的误差范围，用于后续高精度定时器使用
 
-	for (;;) {
-		/* 此处省略一层循环中的部分代码逻辑 */
+    for (;;) {
+        /* 此处省略一层循环中的部分代码逻辑 */
         ...
-		for (...) { 		// 第二层循环，此处省略循环体...
-			for (...) {  	// 第三次循环，此处省略循环体...
-			}
-		}
+        for (...) {         // 第二层循环，此处省略循环体...
+            for (...) {      // 第三次循环，此处省略循环体...
+            }
+        }
 
-		if (retval || timed_out || signal_pending(current))
-			break;
+        if (retval || timed_out || signal_pending(current))
+            break;
 
         /*
          * 低精度检测函数
          * 进行忙等待检测,检查是否超时,若未超时则进行新一轮检测
          */
-		if (can_busy_loop) {
-			if (!busy_start) {
-				busy_start = busy_loop_current_time();
-				continue;
-			}
-			if (!busy_loop_timeout(busy_start))
-				continue;
-		}
+        if (can_busy_loop) {
+            if (!busy_start) {
+                busy_start = busy_loop_current_time();
+                continue;
+            }
+            if (!busy_loop_timeout(busy_start))
+                continue;
+        }
 
         /*
          * 高精度定时器
@@ -333,7 +333,7 @@ static int do_select(int n, fd_set_bits *fds, struct timespec64 *end_time)
         if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time, slack))
             timed_out = 1;
     }
-	poll_freewait(&table); 	// 释放初始化申请的队列
+    poll_freewait(&table);     // 释放初始化申请的队列
 
     return retval;
 }
@@ -566,78 +566,78 @@ int main() {
 
 ```c
 SYSCALL_DEFINE3(poll, struct pollfd __user *, ufds, unsigned int, nfds,
-		int, timeout_msecs)
+        int, timeout_msecs)
 {
-	struct timespec64 end_time, *to = NULL;
-	int ret;
+    struct timespec64 end_time, *to = NULL;
+    int ret;
 
-	if (timeout_msecs >= 0) {
-		to = &end_time;
-		poll_select_set_timeout(to, timeout_msecs / MSEC_PER_SEC,
-			NSEC_PER_MSEC * (timeout_msecs % MSEC_PER_SEC));
-	}
+    if (timeout_msecs >= 0) {
+        to = &end_time;
+        poll_select_set_timeout(to, timeout_msecs / MSEC_PER_SEC,
+            NSEC_PER_MSEC * (timeout_msecs % MSEC_PER_SEC));
+    }
 
-	ret = do_sys_poll(ufds, nfds, to);
+    ret = do_sys_poll(ufds, nfds, to);
     return ret;
 }
 
 static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct timespec64 *end_time)
 {
-	struct poll_wqueues table;
-	int len;
-	long stack_pps[POLL_STACK_ALLOC/sizeof(long)];
-	struct poll_list *const head = (struct poll_list *)stack_pps;
- 	struct poll_list *walk = head;
- 	unsigned long todo = nfds;
+    struct poll_wqueues table;
+    int len;
+    long stack_pps[POLL_STACK_ALLOC/sizeof(long)];
+    struct poll_list *const head = (struct poll_list *)stack_pps;
+     struct poll_list *walk = head;
+     unsigned long todo = nfds;
 
-	/*
-	 * 创建struct poll_list类型的链表，链表中存放待检测的文件描述符
-	 * 将传入的待检测的文件描述符从用户空间拷贝至内核空间，然后存入链表中
-	 */
-	len = min_t(unsigned int, nfds, N_STACK_PPS);
-	for (;;) {
-		walk->next = NULL;
-		walk->len = len;
-		if (!len)
-			break;
+    /*
+     * 创建struct poll_list类型的链表，链表中存放待检测的文件描述符
+     * 将传入的待检测的文件描述符从用户空间拷贝至内核空间，然后存入链表中
+     */
+    len = min_t(unsigned int, nfds, N_STACK_PPS);
+    for (;;) {
+        walk->next = NULL;
+        walk->len = len;
+        if (!len)
+            break;
 
-		copy_from_user(walk->entries, ufds + nfds-todo, sizeof(struct pollfd) * walk->len);
+        copy_from_user(walk->entries, ufds + nfds-todo, sizeof(struct pollfd) * walk->len);
 
-		todo -= walk->len;
-		if (!todo)
-			break;
+        todo -= walk->len;
+        if (!todo)
+            break;
 
-		len = min(todo, POLLFD_PER_PAGE);
-		walk = walk->next = kmalloc(struct_size(walk, entries, len), GFP_KERNEL);
-	}
-	/*
-	 * 初始化poll等待队列
-	 * 执行do_poll检测待检测的文件描述符
-	 * 释放poll等待队列
-	 */
-	poll_initwait(&table);
-	do_poll(head, &table, end_time);
-	poll_freewait(&table);
+        len = min(todo, POLLFD_PER_PAGE);
+        walk = walk->next = kmalloc(struct_size(walk, entries, len), GFP_KERNEL);
+    }
+    /*
+     * 初始化poll等待队列
+     * 执行do_poll检测待检测的文件描述符
+     * 释放poll等待队列
+     */
+    poll_initwait(&table);
+    do_poll(head, &table, end_time);
+    poll_freewait(&table);
 
-	/*
-	 * 检测结果存放在单链表中，头节点为head
-	 * 将检测结果从内核空间拷贝至用户空间
-	 */
-	for (walk = head; walk; walk = walk->next) {
-		struct pollfd *fds = walk->entries;
-		for (int j = 0; j < walk->len; j++, ufds++)
-			// __put_user函数，将数据从内核空间拷贝到用户空间
-			if (__put_user(fds[j].revents, &ufds->revents))
-				goto out_fds;
-  	}
-	// 销毁链表
-	walk = head->next;
-	while (walk) {
-		struct poll_list *pos = walk;
-		walk = walk->next;
-		kfree(pos);
-	}
-	return -EFAULT;
+    /*
+     * 检测结果存放在单链表中，头节点为head
+     * 将检测结果从内核空间拷贝至用户空间
+     */
+    for (walk = head; walk; walk = walk->next) {
+        struct pollfd *fds = walk->entries;
+        for (int j = 0; j < walk->len; j++, ufds++)
+            // __put_user函数，将数据从内核空间拷贝到用户空间
+            if (__put_user(fds[j].revents, &ufds->revents))
+                goto out_fds;
+      }
+    // 销毁链表
+    walk = head->next;
+    while (walk) {
+        struct poll_list *pos = walk;
+        walk = walk->next;
+        kfree(pos);
+    }
+    return -EFAULT;
 }
 ```
 
@@ -669,40 +669,40 @@ static int do_sys_poll(struct pollfd __user *ufds, unsigned int nfds, struct tim
 ```c
 static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct timespec64 *end_time)
 {
-	int timed_out = 0, count = 0;
-	u64 slack = 0;
-	unsigned long busy_start = 0;
+    int timed_out = 0, count = 0;
+    u64 slack = 0;
+    unsigned long busy_start = 0;
 
     // 计算高精度定时器的误差值
-	slack = select_estimate_accuracy(end_time);
+    slack = select_estimate_accuracy(end_time);
 
-	for (;;) {
-		struct poll_list *walk;
-		bool can_busy_loop = false;
+    for (;;) {
+        struct poll_list *walk;
+        bool can_busy_loop = false;
 
-		for (...) {			// 第二层循环，此处省略循环体
-            for (...) {		// 第三层循环，此处省略循环体
-        	}
+        for (...) {            // 第二层循环，此处省略循环体
+            for (...) {        // 第三层循环，此处省略循环体
+            }
         }
 
-		if (count || timed_out)
-			break;
+        if (count || timed_out)
+            break;
 
         // 检查忙本轮等待是否超时
-		if (can_busy_loop) {
-			if (!busy_start) {
-				busy_start = busy_loop_current_time();
-				continue;
-			}
-			if (!busy_loop_timeout(busy_start))
-				continue;
-		}
+        if (can_busy_loop) {
+            if (!busy_start) {
+                busy_start = busy_loop_current_time();
+                continue;
+            }
+            if (!busy_loop_timeout(busy_start))
+                continue;
+        }
 
         // 将进程置为TASK_INTERRUPTIBLE阻塞，直到timeout后将进程状态重新置为TASK_RUNNING
-		if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time, slack))
-			timed_out = 1;
-	}
-	return count;
+        if (!poll_schedule_timeout(wait, TASK_INTERRUPTIBLE, end_time, slack))
+            timed_out = 1;
+    }
+    return count;
 }
 ```
 
@@ -724,26 +724,26 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct timespec64 *end_time)
 {
     ...
-	for (;;) {
+    for (;;) {
         struct poll_list *walk;
         bool can_busy_loop = false;
 
-		for (walk = list; walk != NULL; walk = walk->next) {
-			struct pollfd * pfd, * pfd_end;
+        for (walk = list; walk != NULL; walk = walk->next) {
+            struct pollfd * pfd, * pfd_end;
 
-			pfd = walk->entries;
-			pfd_end = pfd + walk->len;
-			for (; pfd != pfd_end; pfd++) {
-				if (do_pollfd(pfd, pt, &can_busy_loop, busy_flag)) {
-					count++;
-					pt->_qproc = NULL;
+            pfd = walk->entries;
+            pfd_end = pfd + walk->len;
+            for (; pfd != pfd_end; pfd++) {
+                if (do_pollfd(pfd, pt, &can_busy_loop, busy_flag)) {
+                    count++;
+                    pt->_qproc = NULL;
                     //设置循环结束的标志位
-					busy_flag = 0;
-					can_busy_loop = false;
-				}
-			}
-		}
-	}
+                    busy_flag = 0;
+                    can_busy_loop = false;
+                }
+            }
+        }
+    }
     ...
 }
 ```
@@ -762,25 +762,25 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 
 ```c
 static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
-							bool *can_busy_poll)
+                            bool *can_busy_poll)
 {
-	int fd = pollfd->fd;
-	__poll_t mask = 0, filter;
-	struct fd f;
+    int fd = pollfd->fd;
+    __poll_t mask = 0, filter;
+    struct fd f;
 
-	mask = EPOLLNVAL;
-	f = fdget(fd);
+    mask = EPOLLNVAL;
+    f = fdget(fd);
 
-	filter = demangle_poll(pollfd->events) | EPOLLERR | EPOLLHUP);
-	pwait->_key = filter;
-	mask = vfs_poll(f.file, pwait);//检查文件对象的状态变化，并获取文件对象的事件掩码
-	if (mask)
-		*can_busy_poll = true;
-	mask &= filter;					// 只保留返回结果中与filter对应的部分
-	fdput(f);
+    filter = demangle_poll(pollfd->events) | EPOLLERR | EPOLLHUP);
+    pwait->_key = filter;
+    mask = vfs_poll(f.file, pwait);//检查文件对象的状态变化，并获取文件对象的事件掩码
+    if (mask)
+        *can_busy_poll = true;
+    mask &= filter;                    // 只保留返回结果中与filter对应的部分
+    fdput(f);
 
-	pollfd->revents = mangle_poll(mask);
-	return mask;
+    pollfd->revents = mangle_poll(mask);
+    return mask;
 }
 ```
 
@@ -809,12 +809,12 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 typedef unsigned __bitwise __poll_t;
 
 struct file_operations {
-	...
+    ...
     /* read意为读、write意为写、poll意为检测，探询 */
     ssize_t (*read) (struct file *, char __user *, size_t, loff_t *);
-	ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
-	__poll_t (*poll) (struct file *, struct poll_table_struct *);
-	...
+    ssize_t (*write) (struct file *, const char __user *, size_t, loff_t *);
+    __poll_t (*poll) (struct file *, struct poll_table_struct *);
+    ...
 } __randomize_layout;
 ```
 
@@ -828,20 +828,20 @@ struct file_operations {
 
 ```c
 static const struct file_operations opal_prd_fops = {
-	...
-	.poll		= opal_prd_poll,
-	...
+    ...
+    .poll        = opal_prd_poll,
+    ...
 };
 
 static __poll_t opal_prd_poll(struct file *file,
-		struct poll_table_struct *wait)
+        struct poll_table_struct *wait)
 {
-	poll_wait(file, &opal_prd_msg_wait, wait);
+    poll_wait(file, &opal_prd_msg_wait, wait);
 
-	if (!opal_msg_queue_empty())
-		return EPOLLIN | EPOLLRDNORM;
+    if (!opal_msg_queue_empty())
+        return EPOLLIN | EPOLLRDNORM;
 
-	return 0;
+    return 0;
 }
 ```
 
@@ -849,17 +849,17 @@ static __poll_t opal_prd_poll(struct file *file,
 
 ```c
 static const struct file_operations proc_rtas_log_operations = {
-	...
-	.poll =		rtas_log_poll,
-	...
+    ...
+    .poll =        rtas_log_poll,
+    ...
 };
 
 static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 {
-	poll_wait(file, &rtas_log_wait, wait);
-	if (rtas_log_size)
-		return EPOLLIN | EPOLLRDNORM;
-	return 0;
+    poll_wait(file, &rtas_log_wait, wait);
+    if (rtas_log_size)
+        return EPOLLIN | EPOLLRDNORM;
+    return 0;
 }
 ```
 
@@ -876,12 +876,12 @@ static __poll_t rtas_log_poll(struct file *file, poll_table * wait)
 ```c
 void poll_initwait(struct poll_wqueues *pwq)
 {
-	init_poll_funcptr(&pwq->pt, __pollwait);
-	pwq->polling_task = current;
-	pwq->triggered = 0;
-	pwq->error = 0;
-	pwq->table = NULL;
-	pwq->inline_index = 0;
+    init_poll_funcptr(&pwq->pt, __pollwait);
+    pwq->polling_task = current;
+    pwq->triggered = 0;
+    pwq->error = 0;
+    pwq->table = NULL;
+    pwq->inline_index = 0;
 }
 ```
 

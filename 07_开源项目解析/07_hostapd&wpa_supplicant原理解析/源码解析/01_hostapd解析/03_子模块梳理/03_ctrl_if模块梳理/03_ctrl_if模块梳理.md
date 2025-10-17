@@ -2,8 +2,6 @@
 
 `hostapd`的`ctrl i/f`（`control interface`，控制接口）模块主要作用是**为外部程序（如命令行工具hostapd_cli、GUI等）提供与hostapd守护进程进行交互的机制**，实现运行时控制和状态查询
 
-
-
 ## 对应源代码
 
 `ctrl if`模块对应源代码是`./hostapd/ctrl_iface.c`和`./hostapd/ctrl_iface.h`
@@ -22,8 +20,6 @@
 ctrl_interface=/var/run/hostapd
 ```
 
-
-
 ## hostapd主进程
 
 ### 配置句柄
@@ -35,22 +31,22 @@ ctrl_interface=/var/run/hostapd
 ```c
 static char * hostapd_ctrl_iface_path(struct hostapd_data *hapd)
 {
-	char *buf;
-	size_t len;
+    char *buf;
+    size_t len;
 
-	if (hapd->conf->ctrl_interface == NULL)
-		return NULL;
+    if (hapd->conf->ctrl_interface == NULL)
+        return NULL;
 
-	len = os_strlen(hapd->conf->ctrl_interface) +
-		os_strlen(hapd->conf->iface) + 2;
-	buf = os_malloc(len);
-	if (buf == NULL)
-		return NULL;
+    len = os_strlen(hapd->conf->ctrl_interface) +
+        os_strlen(hapd->conf->iface) + 2;
+    buf = os_malloc(len);
+    if (buf == NULL)
+        return NULL;
 
-	os_snprintf(buf, len, "%s/%s",
-		    hapd->conf->ctrl_interface, hapd->conf->iface);
-	buf[len - 1] = '\0';
-	return buf;
+    os_snprintf(buf, len, "%s/%s",
+            hapd->conf->ctrl_interface, hapd->conf->iface);
+    buf[len - 1] = '\0';
+    return buf;
 }
 ```
 
@@ -68,8 +64,6 @@ sudo ./hostapd_cli -i wlan0 help
 
 `-i`指定端口，`help`查看使用帮助
 
-
-
 ## hostapd_cli侧
 
 在`hostapd_cli`的中会使用一个全局变量`static struct wpa_ctrl *ctrl_conn`来存储待使用的`socket`
@@ -81,19 +75,15 @@ sudo ./hostapd_cli -i wlan0 help
 * 使用`bind`函数将`socket`绑定本地的一个随机文件
 
 * 使用`connet`将`socket`的目标句柄，这个目标是全局变量`CONFIG_CTRL_IFACE_DIR`中存储与主进程通信使用的句柄的路径，传入端口比如`wlan0`，然后将两者进行拼接
-    * 目标句柄在主进程中也会使用，区别是主进程是读取配置文件获取文件路径
+  * 目标句柄在主进程中也会使用，区别是主进程是读取配置文件获取文件路径
 
 <img src="./img/hostapd_cli_reconnect流程.jpg" alt="hostapd_cli_reconnect流程" style="zoom: 25%;" />
-
-
 
 ### 处理用户命令
 
 `hostapd_cli`内部维护了一个全局的结构体数组，存储支持的命令和对应的回调函数。在接收到命令后会首先在数组中找到对应的回调然后调用，最后使用`wpa_ctrl_command`接口来发送和接收数据
 
 <img src="./img/hostapd_cli命令处理.jpg" alt="hostapd_cli命令处理" />
-
-
 
 ### 发送和接收数据
 
@@ -103,5 +93,4 @@ sudo ./hostapd_cli -i wlan0 help
 
 ### 整体流程
 
- [client端整体流程.pdf](.\img\client端整体流程.pdf) 
-
+ [client端整体流程.pdf](.\img\client端整体流程.pdf)

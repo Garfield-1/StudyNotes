@@ -12,15 +12,15 @@
 main
     ->uloop_init
     ->ubus_connect
-    	//这里创建了一个struct ubus_context变量，注册了各个回调
-    	//将各种请求添加到对应的各个实践链表和一个avl树中
+        //这里创建了一个struct ubus_context变量，注册了各个回调
+        //将各种请求添加到对应的各个实践链表和一个avl树中
         ->ubus_connect_ctx
     //使用uloop监听刚才创建的ctx->sock.cb，在其对应的回调函数中去处理守护进程发来的消息
     ->ubus_add_uloop
     ->client_main
-    	//分别演示了ubus的同步消息和异步消息
-    	->ubus_invoke("watch");
-		->ubus_invoke_async("hello");
+        //分别演示了ubus的同步消息和异步消息
+        ->ubus_invoke("watch");
+        ->ubus_invoke_async("hello");
 ```
 
 这里需要特别的对`ubus_connect_ctx`函数展开解读，这个函数中执行了关键的初始化动作
@@ -33,36 +33,36 @@ main
 // ubus/libubus.c
 int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 {
-	uloop_init();
-	memset(ctx, 0, sizeof(*ctx));
+    uloop_init();
+    memset(ctx, 0, sizeof(*ctx));
 
-	ctx->sock.fd = -1;
+    ctx->sock.fd = -1;
     //设置监听socket的回调，在监听到socket活跃后立刻执行
-	ctx->sock.cb = ubus_handle_data;
+    ctx->sock.cb = ubus_handle_data;
     //设置ubus连接断开时的回调
-	ctx->connection_lost = ubus_default_connection_lost;
+    ctx->connection_lost = ubus_default_connection_lost;
     //设置处理消息队列的回调，一些消息可能没有被及时处理，就会被放的消息处理队列中
-	ctx->pending_timer.cb = ubus_process_pending_msg;
-	
+    ctx->pending_timer.cb = ubus_process_pending_msg;
+    
     //UBUS_MSG_CHUNK_SIZE是65536
-	ctx->msgbuf.data = calloc(1, UBUS_MSG_CHUNK_SIZE);
-	ctx->msgbuf_data_len = UBUS_MSG_CHUNK_SIZE;
+    ctx->msgbuf.data = calloc(1, UBUS_MSG_CHUNK_SIZE);
+    ctx->msgbuf_data_len = UBUS_MSG_CHUNK_SIZE;
 
     //存储客户端发起的、正在等待响应的 ubus 请求
-	INIT_LIST_HEAD(&ctx->requests);
+    INIT_LIST_HEAD(&ctx->requests);
     //暂存那些因为当前调用栈深度或其他原因不能立即处理的传入 ubus 消息
-	INIT_LIST_HEAD(&ctx->pending);
+    INIT_LIST_HEAD(&ctx->pending);
     //管理那些需要自动重新订阅的事件订阅者
-	INIT_LIST_HEAD(&ctx->auto_subscribers);
+    INIT_LIST_HEAD(&ctx->auto_subscribers);
     //存储此 ubus 上下文注册的本地 ubus 对象
-	avl_init(&ctx->objects, ubus_cmp_id, false, NULL);
+    avl_init(&ctx->objects, ubus_cmp_id, false, NULL);
     /* path含义是守护进程与client端通信使用的socket可以在程序启动时输入参数来指定
      * 如果没有指定。那么ctx->sock.fd使用默认值UBUS_UNIX_SOCKET
      * UBUS_UNIX_SOCKET在编译时指定，通常是/var/run/ubus/ubus.sock
      */
-	ubus_reconnect(ctx, path);
+    ubus_reconnect(ctx, path);
 
-	return 0;
+    return 0;
 }
 
 //这里展开ubus_reconnect核心内容
@@ -70,7 +70,7 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
     //UBUS_UNIX_SOCKET通常是var/run/ubus/ubus.sock
     if (!path)
         path = UBUS_UNIX_SOCKET;
-	ctx->sock.fd = usock(USOCK_UNIX, path, NULL);
+    ctx->sock.fd = usock(USOCK_UNIX, path, NULL);
 ```
 
 **核心思想**
@@ -90,11 +90,11 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 ```c
 ->ubus_connect
     ->ubus_connect_ctx
-      //设置监听socket的回调
-      ctx->sock.cb = ubus_handle_data;
-    	->ubus_reconnect
-    	  //UBUS_UNIX_SOCKET会被默认配置成/var/run/ubus/ubus.sock
-    	  ctx->sock.fd = usock(USOCK_UNIX, UBUS_UNIX_SOCKET, NULL);
+        //设置监听socket的回调
+        ctx->sock.cb = ubus_handle_data;
+            ->ubus_reconnect
+            //UBUS_UNIX_SOCKET会被默认配置成/var/run/ubus/ubus.sock
+            ctx->sock.fd = usock(USOCK_UNIX, UBUS_UNIX_SOCKET, NULL);
 ```
 
 **通信过程函数调用栈**
@@ -105,8 +105,8 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
     ->ubus_start_request
         ->__ubus_start_request
             ->ubus_send_msg
-    			//这里使用sendmsg函数通过ctx->sock.fd去发送消息给守护进程
-    			->sendmsg(fd, &msghdr, 0)
+                //这里使用sendmsg函数通过ctx->sock.fd去发送消息给守护进程
+                ->sendmsg(fd, &msghdr, 0)
 ```
 
 ### client端/server端接收守护进程消息
@@ -121,25 +121,25 @@ int ubus_connect_ctx(struct ubus_context *ctx, const char *path)
 // ubus/libubus-io.c
 void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 {
-	struct ubus_context *ctx = container_of(u, struct ubus_context, sock);
-	int recv_fd = -1;
+    struct ubus_context *ctx = container_of(u, struct ubus_context, sock);
+    int recv_fd = -1;
 
-	while (1) {
-		if (!ctx->stack_depth)
-			ctx->pending_timer.cb(&ctx->pending_timer);
+    while (1) {
+        if (!ctx->stack_depth)
+            ctx->pending_timer.cb(&ctx->pending_timer);
 
-		if (!get_next_msg(ctx, &recv_fd))
-			break;
-		ubus_process_msg(ctx, &ctx->msgbuf, recv_fd);
-		if (uloop_cancelling() || ctx->cancel_poll)
-			break;
-	}
+        if (!get_next_msg(ctx, &recv_fd))
+            break;
+        ubus_process_msg(ctx, &ctx->msgbuf, recv_fd);
+        if (uloop_cancelling() || ctx->cancel_poll)
+            break;
+    }
 
-	if (!ctx->stack_depth)
-		ctx->pending_timer.cb(&ctx->pending_timer);
+    if (!ctx->stack_depth)
+        ctx->pending_timer.cb(&ctx->pending_timer);
 
-	if (u->eof)
-		ctx->connection_lost(ctx);
+    if (u->eof)
+        ctx->connection_lost(ctx);
 }
 ```
 
@@ -161,28 +161,28 @@ void __hidden ubus_handle_data(struct uloop_fd *u, unsigned int events)
 // ubus/examples/client.c
 static void client_main(void)
 {
-	static struct ubus_request req;
-	uint32_t id;
+    static struct ubus_request req;
+    uint32_t id;
 
     ubus_add_object(ctx, &test_client_object);
 
-	ubus_lookup_id(ctx, "test", &id);
+    ubus_lookup_id(ctx, "test", &id);
 
-	blob_buf_init(&b, 0);
-	blobmsg_add_u32(&b, "id", test_client_object.id);
-	ubus_invoke(ctx, id, "watch", b.head, NULL, 0, 3000);
-	test_client_notify_cb(&notify_timer);
+    blob_buf_init(&b, 0);
+    blobmsg_add_u32(&b, "id", test_client_object.id);
+    ubus_invoke(ctx, id, "watch", b.head, NULL, 0, 3000);
+    test_client_notify_cb(&notify_timer);
 
-	blob_buf_init(&b, 0);
-	blobmsg_add_string(&b, "msg", "blah");
-	ubus_invoke_async(ctx, id, "hello", b.head, &req);
-	req.fd_cb = test_client_fd_cb;
-	req.complete_cb = test_client_complete_cb;
-	ubus_complete_request_async(ctx, &req);
+    blob_buf_init(&b, 0);
+    blobmsg_add_string(&b, "msg", "blah");
+    ubus_invoke_async(ctx, id, "hello", b.head, &req);
+    req.fd_cb = test_client_fd_cb;
+    req.complete_cb = test_client_complete_cb;
+    ubus_complete_request_async(ctx, &req);
 
-	uloop_timeout_set(&count_timer, 2000);
+    uloop_timeout_set(&count_timer, 2000);
 
-	uloop_run();
+    uloop_run();
 }
 ```
 
@@ -227,24 +227,24 @@ static void client_main(void)
   ```c
   // ubus/examples/server.c
   static int test_watch(struct ubus_context *ctx, struct ubus_object *obj,
-  		      struct ubus_request_data *req, const char *method,
-  		      struct blob_attr *msg)
+                struct ubus_request_data *req, const char *method,
+                struct blob_attr *msg)
   {
-  	struct blob_attr *tb[__WATCH_MAX];
-  	int ret;
+      struct blob_attr *tb[__WATCH_MAX];
+      int ret;
   
-  	blobmsg_parse(watch_policy, __WATCH_MAX, tb, blob_data(msg), blob_len(msg));
-  	if (!tb[WATCH_ID])
-  		return UBUS_STATUS_INVALID_ARGUMENT;
+      blobmsg_parse(watch_policy, __WATCH_MAX, tb, blob_data(msg), blob_len(msg));
+      if (!tb[WATCH_ID])
+          return UBUS_STATUS_INVALID_ARGUMENT;
   
       //设置注册ubus对象的卸载回调
-  	test_event.remove_cb = test_handle_remove;
-  	//设置注册ubus对象的触发回调
+      test_event.remove_cb = test_handle_remove;
+      //设置注册ubus对象的触发回调
       test_event.cb = test_notify;
       //注册client端发来的ubus对象
-  	ret = ubus_subscribe(ctx, &test_event, blobmsg_get_u32(tb[WATCH_ID]));
-  	fprintf(stderr, "Watching object %08x: %s\n", blobmsg_get_u32(tb[WATCH_ID]), ubus_strerror(ret));
-  	return ret;
+      ret = ubus_subscribe(ctx, &test_event, blobmsg_get_u32(tb[WATCH_ID]));
+      fprintf(stderr, "Watching object %08x: %s\n", blobmsg_get_u32(tb[WATCH_ID]), ubus_strerror(ret));
+      return ret;
   }
   ```
   
@@ -287,25 +287,25 @@ static void client_main(void)
   ```c
   static void test_client_fd_data_cb(struct ustream *s, int bytes)
   {
-  	char *data, *sep;
-  	int len;
+      char *data, *sep;
+      int len;
   
-  	data = ustream_get_read_buf(s, &len);
-  	sep = strchr(data, '\n');
+      data = ustream_get_read_buf(s, &len);
+      sep = strchr(data, '\n');
   
-  	*sep = 0;
-  	fprintf(stderr, "Got line: %s\n", data);
-  	ustream_consume(s, sep + 1 - data);
+      *sep = 0;
+      fprintf(stderr, "Got line: %s\n", data);
+      ustream_consume(s, sep + 1 - data);
   }
   
   static void test_client_fd_cb(struct ubus_request *req, int fd)
   {
-  	static struct ustream_fd test_fd;
+      static struct ustream_fd test_fd;
   
-  	fprintf(stderr, "Got fd from the server, watching...\n");
+      fprintf(stderr, "Got fd from the server, watching...\n");
   
-  	test_fd.stream.notify_read = test_client_fd_data_cb;
-  	ustream_fd_init(&test_fd, fd);
+      test_fd.stream.notify_read = test_client_fd_data_cb;
+      ustream_fd_init(&test_fd, fd);
   }
   ```
 

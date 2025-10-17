@@ -6,7 +6,7 @@
 
 这里附上不同的解读
 
-[wikipedia：]: https://en.wikipedia.org/wiki/Hostapd
+[//]: wikipedia:https://en.wikipedia.org/wiki/Hostapd
 
 > **hostapd** (host access point daemon) is a user space daemon software enabling a network interface cardto act as an access point and authentication server. There are three implementations: Jouni Malinen's hostapd, OpenBSD's hostapd and Devicescape's hostapd.
 >

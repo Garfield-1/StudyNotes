@@ -145,14 +145,14 @@
       /* 创建数组长度基本方式 
        * 方式1.使用Array构造函数
        */
-      var colors_1 = new Array();       					//使用Array构造函数创建数组
-      var colors_2 = new Array(20);     					//创建数组时指定数组的长度
-      var colors_3 = new Array("red", "blue", "green");	//在构建函数时指定数组中包含的值   
-      var colors_4 = new Array("Greg");   				//创建一个包含1项，即字符串“Greg”的数组
+      var colors_1 = new Array();                           //使用Array构造函数创建数组
+      var colors_2 = new Array(20);                         //创建数组时指定数组的长度
+      var colors_3 = new Array("red", "blue", "green");    //在构建函数时指定数组中包含的值   
+      var colors_4 = new Array("Greg");                   //创建一个包含1项，即字符串“Greg”的数组
       
       /* 方式2.创建数组时指定数组的内容 */
-      var arr_1 = ["a", "b", "c"];    					//创建一个包含三个字符串的数组
-      var arr_2 = [];         							//创建一个空数组
+      var arr_1 = ["a", "b", "c"];                        //创建一个包含三个字符串的数组
+      var arr_2 = [];                                     //创建一个空数组
       ```
 
     * 数组元素可以通过数组下标的形式访问

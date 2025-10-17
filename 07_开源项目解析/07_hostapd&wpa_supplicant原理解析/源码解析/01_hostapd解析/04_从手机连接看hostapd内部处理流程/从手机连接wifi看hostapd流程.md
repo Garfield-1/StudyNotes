@@ -36,7 +36,7 @@ main
             //hostapd中的发送管理帧的状态机
             ->ieee802_11_mgmt_cb
                 ->handle_auth_cb
-    			->handle_assoc_cb
+                ->handle_assoc_cb
 ```
 
 从代码调用栈上来是`wifi`连接后触发了`hostapd`中对于管理帧处理的流程，这段逻辑开始来自`netlink`事件上报，然后触发`hostapd`中的状态机中，接着状态机处理管理帧报文时打印了这些日志
@@ -48,11 +48,11 @@ main
 wpa_driver_nl80211_init_nl_global
     //处理netlink全局事件
     ->process_global_event
-    	->do_process_drv_event
+        ->do_process_drv_event
             //处理NL80211_CMD_FRAME_TX_STATUS事件
             ->mlme_event
                 ->mlme_event_mgmt_tx_status
-    				//这里只是一个函数指针，最终是在main函数中注册
+                    //这里只是一个函数指针，最终是在main函数中注册
                     ->wpa_supplicant_event
 ```
 
@@ -65,15 +65,15 @@ wpa_driver_nl80211_init_nl_global
 ```c
 //hostapd/main.c
 main
-	->hostapd_driver_init
+    ->hostapd_driver_init
         ->wpa_drivers[i]->global_init
 
 //src/drivers/driver_nl80211.c
 cosnt struct wpa_driver_ops wpa_driver_nl80211_ops{
     .global_init = nl80211_global_init
 }
-	->nl80211_global_init
-		->wpa_driver_nl80211_init_nl_global
+    ->nl80211_global_init
+        ->wpa_driver_nl80211_init_nl_global
 ```
 
 ## 整体流程总结

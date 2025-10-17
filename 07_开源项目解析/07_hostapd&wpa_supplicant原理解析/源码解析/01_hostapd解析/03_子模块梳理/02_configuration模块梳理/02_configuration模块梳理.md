@@ -18,19 +18,15 @@ interfaces.config_read_cb = hostapd_config_read;
 这个函数在这里注册后，有如下几处调用点，不难看出都是流程的开始阶段
 
 1. `src/ap/hostapd.c:hostapd_init`
-
     分配并初始化每个接口的数据
 
 2. `src/ap/hostapd.c:hostapd_config_read`
-
     读取并解析配置文件
 
 3. `src/ap/hostapd.c:hostapd_interface_init_bss`
-
     读取配置文件并初始化 `BSS` 数据
 
 4. `src/ap/hostapd.c:hostapd_add_iface`
-
     根据输入的参数 `buf`，解析并初始化一个新的接口或 BSS
 
 这里具体的实现是，从配置文件中一行行的读取值

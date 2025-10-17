@@ -56,8 +56,6 @@ sudo apt install libelf-dev libssl-dev
 - `scripts/` 和 `config` 相关 `Makefile` 处理配置和辅助工具
 - `arch/$(ARCH)/Makefile` 负责架构相关细节
 
-
-
 ## 根目录makefile
 
 ### 清理编译产物

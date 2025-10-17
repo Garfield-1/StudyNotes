@@ -4,15 +4,11 @@
 
 > 笔者注：**本文只关注epoll实现**
 
-
-
 ## 核心数据结构
 
 定义了一个全局变量`static struct eloop_data eloop`，存放创建的`epoll`节点和待监听的句柄
 
 <img src="./img/struct eloop_data.jpg" alt="struct eloop_data"  />
-
-
 
 ## 核心流程
 

@@ -36,70 +36,63 @@
 
 ### 2. vector构造函数
 
-- `vector<T> arr;`
-
+* `vector<T> arr;`
     创建元素类型为`T`的一个空向量`arr`
 
     ```cpp
     vector<int> arr;  //一个空数组
     ```
 
-- `vector<T> arr(int nSize);`
-
+* `vector<T> arr(int nSize);`
     创建元素类型为`T`的一个向量`arr`,元素个数为`nSize`
 
     ```cpp
     vector<int> arr(4);    //开辟4个空间，值默认为0
     ```
 
-- `vector<T> arr(int nSize,const t& t);`
-
+* `vector<T> arr(int nSize,const t& t);`
     创建元素类型为`T`的一个向量`arr`，元素个数为`nSize`,且值均为`t`
 
     ```cpp
-    vector<int> arr(5, 3);	//5个值为3的数组
+    vector<int> arr(5, 3);    //5个值为3的数组
     ```
 
-- `vector<T> arr{int size1, int size2, int size3, int size4};`
-
+* `vector<T> arr{int size1, int size2, int size3, int size4};`
     创建元素类型为`T`的一个包含四个元素的向量`arr`
 
     ```cpp
     vector<int> arr {1, 2, 3, 4, 5}; //包含1、2、3、4、5五个变量
     ```
 
-- `vector<T> arr(const vector&);`
-
+* `vector<T> arr(const vector&);`
     复制构造函数，创建元素类型为`T`的一个向量`arr`
 
     ```cpp
     vector<int> arr(arr4);  //将arr4的所有值复制进去，和arr4一样
     ```
 
-- `vector<T> arr(begin,end);`
-
+* `vector<T> arr(begin,end);`
     创建元素类型为`T`的一个向量`arr`，复制`[begin,end)`区间内另一个数组的元素到`vector`中
 
     ```cpp
-    vector<int> arr(arr4.begin(), arr4.end());		//将arr4的值从头开始到尾复制
-    vector<int> arr(arr4.rbegin(), arr4.rend());	//将arr4的值从尾到头复制
+    vector<int> arr(arr4.begin(), arr4.end());        //将arr4的值从头开始到尾复制
+    vector<int> arr(arr4.rbegin(), arr4.rend());    //将arr4的值从尾到头复制
     ```
 
-- `vector<vector<T>> arr(x, <vector<T>(y));`
-
+* `vector<vector<T>> arr(x, <vector<T>(y));`
     创建元素类型为`T`的一个向量`arr`，定义二维动态数组`arr`规格为`x`行`y`列
 
     ```cpp
-    vector<vector<int>> arr(5, vector<int>(6)); 	//定义二维动态数组5行6列
+    vector<vector<int>> arr(5, vector<int>(6));     //定义二维动态数组5行6列
     ```
 
 ### 3. 遍历vector
 
 * 迭代器访问
 
-  - 通过迭代器访问从`begin()`到`end()`，需要定义`iterator`，当然可以用`auto`替代
+  * 通过迭代器访问从`begin()`到`end()`，需要定义`iterator`，当然可以用`auto`替代
 
-  - `begin()`表示第一个元素，而`end()`不是最后一个元素，`end()`是最后一个元素的前一个位置
+  * `begin()`表示第一个元素，而`end()`不是最后一个元素，`end()`是最后一个元素的前一个位置
 
     ```cpp
     //迭代器：vector<int>::iterator
@@ -140,7 +133,6 @@
 ### 2. string的构造函数
 
 * `string s1;` 
-
     默认构造，创建一个空字符串`s1`
 
     ```cpp
@@ -148,7 +140,6 @@
     ```
 
 * `string s1(const char* s);`
-
     使用字符串初始化字符串`s1`
 
     ```cpp
@@ -156,7 +147,6 @@
     ```
 
 * `string s1(const string& str);`
-
     拷贝构造，使用一个`string`对象初始化另一个`string`对象`s2`
 
     ```cpp
@@ -165,7 +155,6 @@
     ```
 
 * `string s1(int n,char c);`
-
     使用`n`个字符`c`初始化字符串`s1`
 
     ```cpp
@@ -173,7 +162,6 @@
     ```
 
 * `string s2(const string& str, x, y);`
-
     使用字符串的第`x`到第`y`位构造字符串`s2`
 
     ```cpp
@@ -190,7 +178,6 @@
 ### 2. deque的构造函数
 
 * `deque<T> deq;`
-
     默认构造函数 - 创建元素类型为`T`的空`deque deq`
 
     ```cpp
@@ -198,7 +185,6 @@
     ```
 
 * `deque<T> deq(n, ele);`
-
     创建元素类型为`T`的`deque deq`将`n`个`ele`拷贝给本身，
 
     ```cpp
@@ -207,7 +193,6 @@
     ```
 
 * `deque<T> deq(begin, end);`
-
     创建元素类型为`T`的`deque deq`将`[begin, end]`区间中的元素拷贝给本身
 
     ```cpp
@@ -216,7 +201,6 @@
     ```
 
 * `deque<T> deq(const deque &deq);`
-
     拷贝构造函数，创建元素类型为`T`的`deque deq`，将`source`的值拷贝过去作为初始值
 
     ```cpp
@@ -225,7 +209,6 @@
     ```
 
 * `deque<T> deq{};`
-
     创建元素类型为`T`的`deque deq`，初始化列表构造函数
 
     ```cpp
@@ -240,14 +223,13 @@
 
 **特点**
 
-- **双向迭代**：`<list>` 提供了双向迭代器，可以向前和向后遍历元素
-- **动态大小**：与数组不同，`<list>` 的大小可以动态变化，不需要预先分配固定大小的内存
-- **快速插入和删除**：可以在列表的任何位置快速插入或删除元素，而不需要像向量那样移动大量元素
+* **双向迭代**：`<list>` 提供了双向迭代器，可以向前和向后遍历元素
+* **动态大小**：与数组不同，`<list>` 的大小可以动态变化，不需要预先分配固定大小的内存
+* **快速插入和删除**：可以在列表的任何位置快速插入或删除元素，而不需要像向量那样移动大量元素
 
 ### 2. list的构造函数
 
 * `list<T> list1;`
-
     创建元素类型为`T`的空链表`list1`
 
     ```cpp
@@ -255,7 +237,6 @@
     ```
 
 * `list<T> list1(N);`
-
     创建元素类型为`T`，包含`N`个默认值(`0`)的链表`list1`
 
     ```cpp
@@ -263,7 +244,6 @@
     ```
 
 * `list<T> list1(N, X);` 
-
      创建元素类型为`T`，包含`N`个值为`X`的链表`list1`
 
     ```cpp
@@ -271,7 +251,6 @@
     ```
 
 * `list<T> list(begin, end);`
-
      创建元素类型为`T`的链表`list1`，将数组`arr`的首元素到`arr+3`之间的元素赋值给`list1`
 
     ```cpp

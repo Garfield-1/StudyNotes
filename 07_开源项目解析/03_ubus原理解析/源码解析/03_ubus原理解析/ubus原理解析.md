@@ -16,13 +16,13 @@
 `ubus`使用 `uloop` 事件循环来处理请求和其他事件。当事件循环运行时，它会处理所有挂起的事件，包括请求的响应。以下是主要的处理流程：
 
 1. **添加请求到队列**：
-    - 当一个请求被发起时，例如通过 `ubus_complete_request_async` 函数，请求会被添加到上下文的请求队列中。
+    当一个请求被发起时，例如通过 `ubus_complete_request_async` 函数，请求会被添加到上下文的请求队列中。
 2. **事件循环处理**：
-    - 事件循环 (`uloop_run`) 会处理所有挂起的事件，包括请求的响应。
-    - 当有数据可读时，`ubus_handle_data` 函数会被调用，进而调用 `ubus_process_msg` 函数处理消息。
+    事件循环 (`uloop_run`) 会处理所有挂起的事件，包括请求的响应。
+    当有数据可读时，`ubus_handle_data` 函数会被调用，进而调用 `ubus_process_msg` 函数处理消息。
 3. **处理挂起的消息**：
-    - 如果在处理消息时，发现当前调用栈深度不为零（即 `ctx->stack_depth` 不为零），消息会被加入到挂起的消息队列中。
-    - 当调用栈深度恢复到零时，会通过 `ubus_process_pending_msg` 函数处理挂起的消息。
+    如果在处理消息时，发现当前调用栈深度不为零（即 `ctx->stack_depth` 不为零），消息会被加入到挂起的消息队列中。
+    当调用栈深度恢复到零时，会通过 `ubus_process_pending_msg` 函数处理挂起的消息。
 
 ### 关键代码
 
@@ -102,27 +102,27 @@ static void ubus_process_pending_msg(struct uloop_timeout *timeout)
 ```c
 struct ubus_context
 {
-	struct list_head requests;
-	struct avl_tree objects;
-	struct list_head pending;
+    struct list_head requests;
+    struct avl_tree objects;
+    struct list_head pending;
 
-	struct uloop_fd sock;
-	struct uloop_timeout pending_timer;
+    struct uloop_fd sock;
+    struct uloop_timeout pending_timer;
 
-	uint32_t local_id;
-	uint16_t request_seq;
-	bool cancel_poll;
-	int stack_depth;
+    uint32_t local_id;
+    uint16_t request_seq;
+    bool cancel_poll;
+    int stack_depth;
 
-	void (*connection_lost)(struct ubus_context *ctx);
-	void (*monitor_cb)(struct ubus_context *ctx, uint32_t seq, struct blob_attr *data);
+    void (*connection_lost)(struct ubus_context *ctx);
+    void (*monitor_cb)(struct ubus_context *ctx, uint32_t seq, struct blob_attr *data);
 
-	struct ubus_msghdr_buf msgbuf;
-	uint32_t msgbuf_data_len;
-	int msgbuf_reduction_counter;
+    struct ubus_msghdr_buf msgbuf;
+    uint32_t msgbuf_data_len;
+    int msgbuf_reduction_counter;
 
-	struct list_head auto_subscribers;
-	struct ubus_event_handler auto_subscribe_event_handler;
+    struct list_head auto_subscribers;
+    struct ubus_event_handler auto_subscribe_event_handler;
 };
 ```
 

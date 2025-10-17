@@ -16,15 +16,15 @@
 ```c
 //linux-5.4/include/linux/wait.h
 struct wait_queue_entry {
-	unsigned int		flags;
-	void			*private;
-	wait_queue_func_t	func;
-	struct list_head	entry;
+    unsigned int         flags;
+    void                 *private;
+    wait_queue_func_t    func;
+    struct list_head     entry;
 };
 
 struct wait_queue_head {
-	spinlock_t		lock;
-	struct list_head	head;
+    spinlock_t          lock;
+    struct list_head    head;
 };
 typedef struct wait_queue_head wait_queue_head_t;
 ```

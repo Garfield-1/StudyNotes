@@ -13,7 +13,7 @@
 
 ## 源码下载路径
 
-```
+``` shell
 git clone https://github.com/json-c/json-c.git
 git clone https://github.com/openwrt/libubox
 git clone https://github.com/openwrt/ubus
@@ -25,7 +25,7 @@ git clone https://github.com/openwrt/ubus
 
 复制粘贴运行本文档中的编译脚本，脚本运行参数`all`
 
-```
+``` shell
 .
 ├── build.sh
 ├── json-c
@@ -214,7 +214,7 @@ esac
   ```shell
   su root
   
-  ubusd	#ubusd进程
+  ubusd    #ubusd进程
   ```
 
 * **终端2：**
@@ -222,7 +222,7 @@ esac
   ```shell
   su root
   
-  ubus listen test	#监听ubus
+  ubus listen test    #监听ubus
   ```
 
 * **终端3：**
@@ -230,7 +230,7 @@ esac
   ```shell
   su root
   
-  ubus send test '{"hi!":"hello!"}'	#发送ubus
+  ubus send test '{"hi!":"hello!"}'    #发送ubus
   ```
 
 如上述操作失败，可尝试将`json-c`、`libubox`和`ubus`的动态库库路径添加至系统动态库搜索路径
@@ -243,10 +243,8 @@ esac
     ```
 
 * 长期设置动态库加载路径
-    1. 切换`root`执行 ：`su root` 
-
+    1. 切换`root`执行 ：`su root`
     2. 将动态库路径添加至系统动态库搜索路径：`echo [依赖库路径] >> /etc/ld.so.conf`
-
     3. 更新动态库搜索路径：`ldconfig`
 
 ### 运行官方demo
@@ -262,7 +260,7 @@ esac
     ```shell
     su root
     
-    ./ubusd			   #执行在编译产物（products_and_depends文件夹）中的ubusd
+    ./ubusd                     #执行在编译产物（products_and_depends文件夹）中的ubusd
     ```
 
 * **终端2：**
@@ -270,7 +268,7 @@ esac
     ```shell
     su root
     
-    ./server			#启动ubus/examples文件夹中的server端
+    ./server                   #启动ubus/examples文件夹中的server端
     ```
 
     在`clinet`端也成功执行后`server`侧的终端会出现如下打印
@@ -285,7 +283,7 @@ esac
     ```shell
     su root
     
-    ./client			#启动ubus/examples文件夹中的client端
+    ./client                  #启动ubus/examples文件夹中的client端
     ```
 
     在启动`clinet`端后终端会出现如下打印，并不断新增直到`client`端进程结束

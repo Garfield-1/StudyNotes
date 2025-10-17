@@ -45,16 +45,16 @@ handleBackup: function() {
 // 初始化cgi接口路径
 static void init_defaults_pre(void)
 {
-	conf.script_timeout = 60;
-	conf.network_timeout = 30;
-	conf.http_keepalive = 20;
-	conf.max_script_requests = 3;
-	conf.max_connections = 100;
-	conf.realm = "Protected Area";
-	conf.cgi_prefix = "/cgi-bin";
-	conf.cgi_path = "/sbin:/usr/sbin:/bin:/usr/bin";
-	INIT_LIST_HEAD(&conf.cgi_alias);
-	INIT_LIST_HEAD(&conf.lua_prefix);
+    conf.script_timeout = 60;
+    conf.network_timeout = 30;
+    conf.http_keepalive = 20;
+    conf.max_script_requests = 3;
+    conf.max_connections = 100;
+    conf.realm = "Protected Area";
+    conf.cgi_prefix = "/cgi-bin";
+    conf.cgi_path = "/sbin:/usr/sbin:/bin:/usr/bin";
+    INIT_LIST_HEAD(&conf.cgi_alias);
+    INIT_LIST_HEAD(&conf.lua_prefix);
 }
 ```
 
@@ -62,10 +62,10 @@ static void init_defaults_pre(void)
 
 代码路径：`build_dir/target-arm/uhttpd-2020-10-01-3abcc891/.pkgdir/uhttpd/etc/config/uhttpd`
 
-```
+``` bash
 # CGI url prefix, will be searched in docroot.
 # Default is /cgi-bin
-option cgi_prefix	/cgi-bin
+option cgi_prefix    /cgi-bin
 ```
 
 ## cgi-io模块
@@ -82,13 +82,13 @@ option cgi_prefix	/cgi-bin
 
 ```makefile
 define Package/cgi-io/install
-	$(INSTALL_DIR) $(1)/usr/libexec $(1)/www/cgi-bin/
-	$(INSTALL_BIN) $(PKG_BUILD_DIR)/cgi-io $(1)/usr/libexec
-	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-upload
-	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-download
-	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-backup
-	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-exportlogs
-	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-tarlogs
-	$(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-exec
+    $(INSTALL_DIR) $(1)/usr/libexec $(1)/www/cgi-bin/
+    $(INSTALL_BIN) $(PKG_BUILD_DIR)/cgi-io $(1)/usr/libexec
+    $(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-upload
+    $(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-download
+    $(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-backup
+    $(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-exportlogs
+    $(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-tarlogs
+    $(LN) ../../usr/libexec/cgi-io $(1)/www/cgi-bin/cgi-exec
 endef
 ```

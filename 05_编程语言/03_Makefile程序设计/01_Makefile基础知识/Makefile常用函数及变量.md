@@ -54,7 +54,7 @@
 
 ### 2.2 模式替换函数—patsubst
 
-* 函数原型：**$(patsubst PATTERN,REPLACEMENT,TEXT)** 
+* 函数原型：**$(patsubst PATTERN,REPLACEMENT,TEXT)**
 * 函数功能：搜索`TEXT`中以空格分开的单词，将否符合模式`PTATTERN`替换为`REPLACEMENT`。参数`PATTERN`中可以使用模式通配符`%`来代表一个单词中的若干字符。在参数中如果需要将第一个出现的`%`作为字符本身而不作为模式字符时，可使用反斜杠`\`进行转义处理
 
 * 返回值：替换后的新字符串
@@ -87,15 +87,15 @@
   STR =        a          b  c 
   LOSTR = $(strip $(STR))
   all:
-  	$(info $(STR))              #        a          b  c
-  	$(info $(LOSTR))            #a b c
+      $(info $(STR))              #        a          b  c
+      $(info $(LOSTR))            #a b c
   
   # strip”函数经常用在条件判断语句的表达式中，确保表达式比较的可靠和健壮
   ```
 
 ### 2.4 查找字符串函数—findstring
 
-* 函数原型： **$(findstring FIND,IN)** 
+* 函数原型： **$(findstring FIND,IN)**
 
 * 函数功能：在搜索字符串`IN`，查找`FIND`字符串
 
@@ -126,7 +126,7 @@
   sources := foo.c bar.c baz.s ugh.h 
   
   all :
-  	$(info $(filter %.c %.s,$(sources)))
+      $(info $(filter %.c %.s,$(sources)))
   # 返回值为：foo.c bar.c baz.s
   ```
 
@@ -146,7 +146,7 @@
   sources := foo.c bar.c baz.s ugh.h 
   
   all :
-  	$(info $(filter-out %.c %.s,$(sources)))
+      $(info $(filter-out %.c %.s,$(sources)))
   # 返回值为：ugh.h
   ```
 
@@ -219,7 +219,7 @@
   sources := foo.c bar.c baz.s ugh.h 
   
   all :
-  	$(info $(words $(sources)))
+      $(info $(words $(sources)))
   # 返回值为：4
   ```
 
@@ -394,7 +394,7 @@
   name = ../openwrt/COPYING
   
   all:
-  	$(info $(abspath $(name)))      #COPYING文件的绝对路径
+      $(info $(abspath $(name)))      #COPYING文件的绝对路径
   ```
 
 ## 4. 其他函数
@@ -473,12 +473,12 @@
 
      ```makefile
      define Print_test
-     	info = $(1)                #错误用法
-     	$(eval info = $(1))        #正确用法
+         info = $(1)                #错误用法
+         $(eval info = $(1))        #正确用法
      endef
      
      all:
-     	$(call Print_test, 111)
+         $(call Print_test, 111)
      ```
 
   5. 当`call`函数执行没有变量接收返回值时，`VARIBLE`的内容会在函数调用时执行。如果有变量接收`call`函数的返回值则`VARIBLE`在变量调用时执行（例如使用`eval`函数时）
@@ -493,7 +493,7 @@
   foo = $(call reverse, a, b)
   
   all :
-  	$(info $(foo))        #b a
+      $(info $(foo))        #b a
   ```
 
 ### 4.4 value函数
@@ -538,7 +538,7 @@ endef
 $(eval $(call foo, pointer))
 
 all:
-	@echo var: $(var), arg: $(arg)
+    @echo var: $(var), arg: $(arg)
 # 当eval函数被注释时结果为：var: , arg:
 # 当eval函数被执行时结果为：var: 123, arg: pointer
 ```
@@ -593,9 +593,9 @@ all:
 
   ```makefile
   ifeq ($(a), $(b))
-  	@echo "a = b"
+      @echo "a = b"
   else
-  	@echo "a != b"
+      @echo "a != b"
   endif
   ```
 
@@ -605,9 +605,9 @@ all:
 
   ```makefile
   ifneq ($(a), $(b))
-  	@echo "a = b"
+      @echo "a = b"
   else
-  	@echo "a != b"
+      @echo "a != b"
   endif
   ```
 
@@ -617,9 +617,9 @@ all:
 
   ```makefile
   ifdef v
-  	@echo "a = b"
+      @echo "a = b"
   else
-  	@echo "a != b"
+      @echo "a != b"
   endif
   ```
 
@@ -629,9 +629,9 @@ all:
 
   ```makefile
   ifndef v
-  	@echo "a = b"
+      @echo "a = b"
   else
-  	@echo "a != b"
+      @echo "a != b"
   endif
   ```
 
@@ -659,7 +659,7 @@ all:
   VPATH = ./src
   
   test : main.c
-  	gcc -o $@ $<
+      gcc -o $@ $<
   
   # 文件目录结构如下
   ├── src
@@ -726,7 +726,7 @@ all:
 
   ```makefile
   test : main.c
-  	gcc -o $@ $<        # $@是test
+      gcc -o $@ $<        # $@是test
   ```
 
 #### 6.2.2 $<变量
@@ -735,7 +735,7 @@ all:
 
   ```makefile
   test : main.c
-  	gcc -o $@ $<           # $<是main.c
+      gcc -o $@ $<           # $<是main.c
   ```
 
 #### 6.2.3 $?变量

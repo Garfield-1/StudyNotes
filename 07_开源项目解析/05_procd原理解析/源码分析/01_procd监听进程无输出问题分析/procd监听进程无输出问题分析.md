@@ -8,12 +8,12 @@
 
 ```c
 rc
-	->_rc
-		->add_initd
-			->q_initd_run
-    			->ustream_fd_init
-    				->ustream_fd_set_uloop
-    					->uloop_fd_add
+    ->_rc
+        ->add_initd
+            ->q_initd_run
+                ->ustream_fd_init
+                    ->ustream_fd_set_uloop
+                        ->uloop_fd_add
 ```
 
 ## 被监听进程的标准输出，标准错误的重定向
@@ -23,48 +23,48 @@ rc
 ```c
 static void q_initd_run(struct runqueue *q, struct runqueue_task *t)
 {
-	struct initd *s = container_of(t, struct initd, proc.task);
-	int pipefd[2];
-	pid_t pid;
+    struct initd *s = container_of(t, struct initd, proc.task);
+    int pipefd[2];
+    pid_t pid;
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &s->ts_start);
-	DEBUG(2, "start %s %s \n", s->file, s->param);
-	if (pipe(pipefd) == -1) {
-		ERROR("Failed to create pipe: %m\n");
-		return;
-	}
+    clock_gettime(CLOCK_MONOTONIC_RAW, &s->ts_start);
+    DEBUG(2, "start %s %s \n", s->file, s->param);
+    if (pipe(pipefd) == -1) {
+        ERROR("Failed to create pipe: %m\n");
+        return;
+    }
 
-	pid = fork();
-	if (pid < 0)
-		return;
+    pid = fork();
+    if (pid < 0)
+        return;
 
-	if (pid) {
-		close(pipefd[1]);
-		fcntl(pipefd[0], F_SETFD, FD_CLOEXEC);
-		s->fd.stream.string_data = true,
-		s->fd.stream.notify_read = pipe_cb,
-		runqueue_process_add(q, &s->proc, pid);
-		ustream_fd_init(&s->fd, pipefd[0]);
-		return;
-	}
-	close(pipefd[0]);
+    if (pid) {
+        close(pipefd[1]);
+        fcntl(pipefd[0], F_SETFD, FD_CLOEXEC);
+        s->fd.stream.string_data = true,
+        s->fd.stream.notify_read = pipe_cb,
+        runqueue_process_add(q, &s->proc, pid);
+        ustream_fd_init(&s->fd, pipefd[0]);
+        return;
+    }
+    close(pipefd[0]);
 
-	int devnull = open("/dev/null"c, O_RDONLY);
-	dup2(devnull, STDIN_FILENO);
-	dup2(pipefd[1], STDOUT_FILENO);
-	dup2(pipefd[1], STDERR_FILENO);
+    int devnull = open("/dev/null"c, O_RDONLY);
+    dup2(devnull, STDIN_FILENO);
+    dup2(pipefd[1], STDOUT_FILENO);
+    dup2(pipefd[1], STDERR_FILENO);
 
-	if (devnull > STDERR_FILENO)
-		close(devnull);
+    if (devnull > STDERR_FILENO)
+        close(devnull);
 
-	execlp(s->file, s->file, s->param, NULL);
-	exit(1);
+    execlp(s->file, s->file, s->param, NULL);
+    exit(1);
 }
 
 void ustream_fd_init(struct ustream_fd *sf, int fd)
 {
     ...
-	sf->fd.fd = fd;
+    sf->fd.fd = fd;
     ...
 }
 ```
@@ -92,18 +92,18 @@ void ustream_fd_init(struct ustream_fd *sf, int fd)
 ```c
 static void ustream_fd_set_uloop(struct ustream *s, bool write)
 {
-	struct ustream_fd *sf = container_of(s, struct ustream_fd, stream);
-	...
-	uloop_fd_add(&sf->fd, flags);
+    struct ustream_fd *sf = container_of(s, struct ustream_fd, stream);
+    ...
+    uloop_fd_add(&sf->fd, flags);
 }
 
 void ustream_fd_init(struct ustream_fd *sf, int fd)
 {
-	struct ustream *s = &sf->stream;
-	...
-	sf->fd.fd = fd;
-	...
-	ustream_fd_set_uloop(s, false);
+    struct ustream *s = &sf->stream;
+    ...
+    sf->fd.fd = fd;
+    ...
+    ustream_fd_set_uloop(s, false);
 }
 ```
 
