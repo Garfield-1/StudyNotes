@@ -581,7 +581,7 @@ all:
 
 * 例如：
 
-  ```shell
+  ```makefile
   $(shell pwd)           #当前路径
   ```
 
