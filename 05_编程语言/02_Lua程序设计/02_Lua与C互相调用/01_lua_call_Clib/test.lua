@@ -1,5 +1,5 @@
 --设置.so搜寻路径,若动态库与lua文件在同一目录下则无需指定
---package.cpath = "./?.so" 
+package.cpath = "./?.so" 
 
 local myLib = require "mylib"
 local add
