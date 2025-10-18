@@ -48,6 +48,6 @@
 **对应与绑定**
 
 - 创建 `socket(AF_xxx, type, proto)` 时：
-  - `af_xxx` 初始化 `sock->ops =` 对应的 `proto_ops`（如 `inet_stream_ops`、`unix_dgram_ops`）。
+  - `af_xxx` 初始化 `sock->ops =` 对应的 `proto_ops`（如 `inet_stream_ops`、`unix_dgram_ops`）
   - `sock_alloc_file()` 令新 `fd` 的 `f_op = socket_file_ops`。
-- 因此：`f_op` 基本固定为 `socket_file_ops`；行为差异由 `sock->ops` 指向的 `proto_ops` 决定。
+- 因此：`f_op` 基本固定为 `socket_file_ops`；行为差异由 `sock->ops` 指向的 `proto_ops` 决定
