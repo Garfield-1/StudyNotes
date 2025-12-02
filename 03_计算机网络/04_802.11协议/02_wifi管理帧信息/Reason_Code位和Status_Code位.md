@@ -1,5 +1,9 @@
 # 802.11帧的Reason Code位和Status Code位
 
+[TOC]
+
+## 概述
+
 `802.11`帧主要有三种类型数据帧、控制帧、管理帧
 
 本文讲到的`Reason Code`和`Status Code`就是其中的管理帧的两个位

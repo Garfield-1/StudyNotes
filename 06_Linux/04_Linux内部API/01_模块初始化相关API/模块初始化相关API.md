@@ -1,11 +1,6 @@
 # Linux模块相关API
 
-> 参考文档：
->
-> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
->
-> [Arch Linux](https://www.archlinuxcn.org/)
->
+[TOC]
 
 ## 模块入口和出口注册API
 
@@ -127,3 +122,9 @@
     **核心思想：**
 
     综上所述，`__exitcall` 宏的目的是提供一种机制，用于注册在程序或模块退出时需要调用的函数。它通过创建一个静态的、具有唯一名称的函数指针，并将其初始化为指定的函数地址。通过 `.exitcall.exit` 段属性，所有这样定义的函数指针会被链接器收集到内存中的一个特定区域。之后，在退出流程中，系统可以遍历这个区域，并调用所有注册的退出函数。
+
+## 参考文档
+
+> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
+>
+> [Arch Linux](https://www.archlinuxcn.org/)

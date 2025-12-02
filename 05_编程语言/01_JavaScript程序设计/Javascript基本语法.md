@@ -1,9 +1,6 @@
 # Javascript基本语法
 
-参考文档：
-
-1. JavaScript高级程序设计(中文)-第3版  人民邮电出版社    【美】Nicholas C.Zakas 著        李松峰  曹力 译
-2. MDN Web Docs [MDN Web Docs (mozilla.org)](https://developer.mozilla.org/zh-CN/)
+[TOC]
 
 ## 1. 在HTML中使用JavaScript
 
@@ -353,3 +350,9 @@
 ### 5.3.2 引用计数
 
 * 另一种垃圾回收策略叫做引用计数(`reference counting`)。引用计数是指跟踪记录每个值被引用的次数。当声明了一个变量并将一个引用类型值赋给该变量时，则这个值的引用次数就是`1`。如果同一个值又被赋给另一个变量，则该值的引用次数加`1`。相反，如果包含对这个值引用的变量又取得了另外一个值，则这个值的引用次数减`1`。当这个值的引用次数变成0时，则说明没有办法再访问这个值了，因而就可以将其占用的内存空间回收回来。
+
+## 参考文档
+
+> JavaScript高级程序设计(中文)-第3版  人民邮电出版社    【美】Nicholas C.Zakas 著        李松峰  曹力 译
+>
+> MDN Web Docs [MDN Web Docs (mozilla.org)](https://developer.mozilla.org/zh-CN/)

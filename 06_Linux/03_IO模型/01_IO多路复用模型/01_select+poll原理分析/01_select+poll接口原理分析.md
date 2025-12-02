@@ -1,12 +1,6 @@
 # select+poll原理
 
-> 参考文档：
->
-> [【原创】Linux select/poll机制原理分析 - LoyenWang - 博客园 (cnblogs.com)](https://www.cnblogs.com/LoyenWang/p/12622904.html)
->
-> [源码解读poll/select内核机制 - Gityuan博客 | 袁辉辉的技术博客](https://gityuan.com/2019/01/05/linux-poll-select/)
->
-> [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)
+[toc]
 
 ## 发展历史
 
@@ -890,3 +884,11 @@ void poll_initwait(struct poll_wqueues *pwq)
 * 内核等待队列是一个公共的基础模块
 * 上图仅针对于`select`和`poll`模块，其他模块对于等待队列的注册接口和回调函数可能有不同的封装和实现
 * `wak_up_interruptible`是一个对`_wake_up`封装的宏，内核中还存在其他的对`_wake_up`的封装宏，其他模块也会调用。例如`socket`就将`wake_up_interruptible_all`自行封装了一个`sock_def_wakeup`接口用于调用
+
+## 参考文档
+
+> [【原创】Linux select/poll机制原理分析 - LoyenWang - 博客园 (cnblogs.com)](https://www.cnblogs.com/LoyenWang/p/12622904.html)
+>
+> [源码解读poll/select内核机制 - Gityuan博客 | 袁辉辉的技术博客](https://gityuan.com/2019/01/05/linux-poll-select/)
+>
+> [Linux 5.4源码](https://github.com/torvalds/linux/releases/tag/v5.4)

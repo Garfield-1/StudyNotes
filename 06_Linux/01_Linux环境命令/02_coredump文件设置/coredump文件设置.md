@@ -1,5 +1,7 @@
 # coredump文件相关设置
 
+[toc]
+
 ## 1.coredump文件简介
 
 `core dump`，又称为核心转储，是操作系统在进程收到某些信号而终止运行时，将此时进程地址空间的内容以及有关进程状态的其他信息写出的一个磁盘文件
@@ -62,7 +64,7 @@
     }
     ```
 
-2. 使用coredump文件命令为`gdb 引发coredump文件 core文件`
+2. 使用`coredump`文件命令为`gdb 引发coredump文件 core文件`
 <img src="image/04_生成coredump文件.png" alt="Alt text" />  
 
 3. 然后输入`bt`查看函数调用栈

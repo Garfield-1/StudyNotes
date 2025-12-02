@@ -1,6 +1,6 @@
 # hostapd简述
 
-> 笔者注：当前主流的hostapd实现是采用的Jouni Malinen的版本，后文中也是也是围绕这个版本来展开的
+[TOC]
 
 ## hostapd是什么
 

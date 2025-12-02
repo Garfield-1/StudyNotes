@@ -1,5 +1,7 @@
 # tmux终端复用工具
 
+[TOC]
+
 ## 常用命令
 
 * **tmux attach -t 0** 

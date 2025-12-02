@@ -1,12 +1,6 @@
 # 符号导出
 
-> 参考文档：
->
-> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
->
-> [Arch Linux](https://www.archlinuxcn.org/)
->
-> [改进 EXPORT_SYMBOL（） [LWN.net\]](https://lwn.net/Articles/674303/)
+[TOC]
 
 ## 概述
 
@@ -64,3 +58,11 @@ struct kernel_symbol {
 3. 用 `my_function` 的实际地址和指向其名称字符串 `"my_function"` 的指针来初始化这个变量
 
 这样，当内核或内核模块被加载时，链接器和加载器可以扫描这些特殊的节，收集所有的符号条目，从而构建一个可供查找的内核符号表。这使得内核模块可以访问和调用核心内核或其他模块导出的函数和变量
+
+## 参考文档
+
+> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
+>
+> [Arch Linux](https://www.archlinuxcn.org/)
+>
+> [改进 EXPORT_SYMBOL（） [LWN.net\]](https://lwn.net/Articles/674303/)

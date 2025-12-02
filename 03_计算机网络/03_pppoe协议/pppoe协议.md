@@ -1,5 +1,7 @@
 # pppoe协议
 
+[TOC]
+
 ## pppoe协议是什么
 
 PPPoE（Point-to-Point Protocol over Ethernet，以太网点对点协议）是一种网络协议，用于通过以太网连接在用户计算机和互联网服务提供商（ISP）之间建立点对点连接。PPPoE结合了PPP协议的功能和以太网的便利性，常用于DSL宽带连接。

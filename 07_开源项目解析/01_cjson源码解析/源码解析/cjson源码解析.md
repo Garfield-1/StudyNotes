@@ -1,6 +1,6 @@
 # cJSON源码解析
 
-> 源码下载链接<https://sourceforge.net/projects/cjson/>
+[TOC]
 
 ## 1. 核心数据结构
 
@@ -75,7 +75,7 @@ int main (int argc, const char * argv[])
 
 ### 3.1 关键函数接口及实现逻辑
 
-#### `cJSON_New_Item()`函数
+#### cJSON_New_Item()函数
 
 内部构造函数，创建一个`cjson`节点，并返回节点地址
 
@@ -95,7 +95,7 @@ cJSON *cJSON_New_Item(void)
 
 申请内存返回内存指针，创建链表或其他数据结构节点的常规操作，无需多言
 
-#### `cJSON_Parse`()函数
+#### cJSON_Parse()函数
 
 创建新的`cJSON`节点，调用`parse_value()`填充节点
 
@@ -124,7 +124,7 @@ cJSON *cJSON_Parse(const char *value)
 
 本质是对`parse_value()`的一层封装
 
-#### `parse_value()`函数
+#### parse_value()函数
 
 文本解析处理函数，对文本进行初步分类。对不同的情况使用不同的处理流程
 
@@ -163,7 +163,7 @@ static const char *parse_value(cJSON *item, const char *value)
 
 根据待解析字符串的前几位字符来判断，此段数据对于`json`中的哪种类型。`cJSON`还对字符串为`null`、`true`、`false`这三种特殊情况有处理，本文中并未体现这一点
 
-#### `parse_object()`函数
+#### parse_object()函数
 
 `object`解析函数，将传入的`value`当作一个非常长的字符串，不断的分割字符串。将解析出来的数据用来填充`item`，同级别元素填充在双向链表中，低级别元素填充在`child`节点中。
 
@@ -248,7 +248,7 @@ static const char *parse_object(cJSON *item, const char *value)
 
 实际上，绝大部分`json`都是以`{`开头，因此每次解析时第一个进入的函数都是`parse_object()`因此对这个函数的理解，对整个`cJSON`解析流程的理解至关重要
 
-#### `parse_array()`函数
+#### parse_array()函数
 
 其核心逻辑与`parse_object()`函数非常相似，最大的区别在于在函数前半段不需要取出`:`符号的前半部分
 
@@ -307,7 +307,7 @@ static const char *parse_array(cJSON *item, const char *value)
 
 本文列出的几个函数基本上**可直接复制粘贴在其他项目中使用**，是**非常优质的轮子，故贴出函数源代码**
 
-#### `skip`函数
+#### skip函数
 
 跳过空格和无用字符
 
@@ -334,7 +334,7 @@ static const char *skip(const char *in)
 
 <img src=".\img\ACSII码表.jpg" alt="ACSII码表" />
 
-#### `parse_number`函数
+#### parse_number函数
 
 将字符串解析为一个数字，同时支持复数，浮点数，可解析科学记数法的特性。
 
@@ -484,7 +484,7 @@ static const char *parse_number(cJSON *item, const char *num)
 
 `parse_number()`的核心思想在于将字符串的每一部分取出，最后通过计算获得字符串代表的数字
 
-#### `parse_string`函数
+#### parse_string函数
 
 此函数用于处理形式为`"XXXXXX"`的字符串。函数会处理字符串中的转义字符，并将`Unicode`转义序列转换为对应的`UTF-8`字符
 
@@ -835,7 +835,7 @@ void create_objects()
 }
 ```
 
-### `cJSON_CreateObject()`函数
+### cJSON_CreateObject()函数
 
 创建新的`cJSON`节点，并将`type`设置为`cJSON_Object`
 
@@ -856,7 +856,7 @@ cJSON *cJSON_CreateObject(void)
 }
 ```
 
-### `cJSON_AddItemToObject()`函数
+### cJSON_AddItemToObject()函数
 
 填充新节点的`string`元素，然后调用`cJSON_AddItemToArray()`函数。
 
@@ -884,7 +884,7 @@ void cJSON_AddItemToObject(cJSON *object, onst char *string, JSON *item)
 
 本质是对`cJSON_AddItemToArray()`函数的一层封装
 
-### `cJSON_AddItemToArray()`函数
+### cJSON_AddItemToArray()函数
 
 向`array`中添加新节点
 
@@ -916,7 +916,7 @@ void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 
 若`array`有孩子节点，则将找到该节点的双向链表尾部插入，将新节点作为`array`的孩子节点
 
-### `cJSON_AddItemToArray()`函数和`cJSON_AddStringToObject()`函数
+### cJSON_AddItemToArray()函数和cJSON_AddStringToObject()函数
 
 本质是对`cJSON_AddItemToObject()`函数的一层封装
 
@@ -931,7 +931,7 @@ void cJSON_AddItemToArray(cJSON *array, cJSON *item)
 
 对于`cJSON`来说不管节点类型是`object`或是`array`其存储类型均为`struct cJSON`所以添加新的成员时，底层接口均可使用`cJSON_AddItemToObject()`
 
-### `cJSON_CreateIntArray()`函数
+### cJSON_CreateIntArray()函数
 
 新建`array`元素，并填充整形数组`numbers`的元素
 
@@ -996,7 +996,7 @@ cJSON *cJSON_CreateIntArray(const int *numbers, int count)
 
 **`cJSON`输出时相关函数返回值类型为`char*`然后由调用者接收。这便带来了一个问题，如何保证调用者接收到的指针指向的内存地址空或垃圾内存。在对于`Struct cJSON`的解析过程结果的持久化与内存管理，便是`cJSON`不可避免的问题。对于`cJSON`如何处理这个问题上，在下文中对`cJSON`源码的一步步剖析中可窥见一二。**
 
-### `print_value()`函数
+### print_value()函数
 
 根据节点类型针对不同类型针对处理，**其中函数入参`depth,fmt,p`会影响后续处理逻辑**
 
@@ -1036,7 +1036,7 @@ static char *print_value(cJSON *item, int depth, int fmt, printbuffer *p)
 }
 ```
 
-### `cJSON_Print()`函数
+### cJSON_Print()函数
 
 **核心逻辑如下**
 
@@ -1050,7 +1050,7 @@ char *cJSON_Print(cJSON *item)
 }
 ```
 
-### `print_object(item, 0, 1, 0)`函数
+### print_object(item, 0, 1, 0)函数
 
 **核心逻辑如下**
 
@@ -1176,7 +1176,7 @@ static char *print_object(cJSON *item, int depth, int fmt, printbuffer *p)
 
 **最后创建右侧大括号**
 
-### `print_array(item, 0, 1, 0)`函数
+### print_array(item, 0, 1, 0)函数
 
 **核心逻辑如下**
 
@@ -1247,7 +1247,7 @@ static char *print_array(cJSON *item, int depth, int fmt, printbuffer *p)
 
 * `print_array()`函数记录每个成员的名称，由于`array`中的元素并不以键值对的形式存在而是一个个独立的字符串或数字，所以并不需要区分元素的名称和内容；
 
-### `print_number(item, 0)`函数
+### print_number(item, 0)函数
 
 取出`item->valuedouble`后根据值的，根据不同的精度将结果写入之前申请的内存中
 
@@ -1302,7 +1302,7 @@ static char *print_number(cJSON *item, printbuffer *p)
 * 如果变量 `d` 的绝对值小于 `(1.0 \times 10^{-6})` 或者大于 `(1.0 \times 10^{9}`，将其转换为科学计数法字符串，并存储到字符串 `str` 中
 * 对于其他情况转化为十进制浮点数存储
 
-### `print_string(item, 0)`函数
+### print_string(item, 0)函数
 
 读取`item`中旧字符串，申请内存存放新字符串，然后将一个字符一个字符的旧字符串中的元素填充到新字符串中，对于转义字符则需要特殊处理
 
@@ -1400,7 +1400,7 @@ static char *print_string_ptr(const char *str)
 
 **在`cjson`流程中通常会创建`struct cJSON`的结构体用于存储解析或构造的`json`内容。在流程结束后则需要销毁对应的数据结构函数接口为`void cJSON_Delete(cJSON *c)`**
 
-### `cJSON_Delete()`函数
+### cJSON_Delete()函数
 
 遍历整个链表，对于链表上的孩子节点做递归处理
 
@@ -1433,3 +1433,7 @@ void cJSON_Delete(cJSON *c)
     }
 }
 ```
+
+## 参考文档
+
+> 源码下载链接<https://sourceforge.net/projects/cjson/>

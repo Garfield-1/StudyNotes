@@ -1,16 +1,6 @@
 # syslog原理分析
 
-> 参考文档
->
-> [RFC 3164: The BSD Syslog Protocol (rfc-editor.org)](https://www.rfc-editor.org/rfc/rfc3164)
->
-> [syslog协议介绍_syslog是什么协议-CSDN博客](https://blog.csdn.net/chdhust/article/details/50989785)
->
-> [Busybox的syslogd认识与使用 - ArnoldLu - 博客园](https://www.cnblogs.com/arnoldlu/p/10583233.html)
->
-> [sysklogd源码](https://github.com/troglobit/sysklogd)
->
-> [BusyBox源码](https://www.busybox.net/)
+[TOC]
 
 ## 概述
 
@@ -156,3 +146,15 @@ static void do_syslogd(void)
 1. 配置信号量
 2. 配置`socket`用于读取`/dev/log`，并将读取的结果作为`syslog`记录
 3. 循环读取`/dev/log`的内容直到，有外部信号量使`syslogd`进程退出
+
+## 参考文档
+
+> [RFC 3164: The BSD Syslog Protocol (rfc-editor.org)](https://www.rfc-editor.org/rfc/rfc3164)
+>
+> [syslog协议介绍_syslog是什么协议-CSDN博客](https://blog.csdn.net/chdhust/article/details/50989785)
+>
+> [Busybox的syslogd认识与使用 - ArnoldLu - 博客园](https://www.cnblogs.com/arnoldlu/p/10583233.html)
+>
+> [sysklogd源码](https://github.com/troglobit/sysklogd)
+>
+> [BusyBox源码](https://www.busybox.net/)

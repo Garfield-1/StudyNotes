@@ -1,8 +1,6 @@
 # STL容器的成员函数
 
-> 参考文档：
->
-> [STL/CLR 库参考 | Microsoft Learn](https://learn.microsoft.com/zh-cn/cpp/dotnet/stl-clr-library-reference?view=msvc-170)
+[TOC]
 
 ## 1. 容器常用方法
 
@@ -56,3 +54,7 @@
 | `assign`       | 用新元素替换原有内容                       |
 | `emplace`      | 插入元素，和`insert`实现原理不同，速度更快 |
 | `emplace_back` | 在容器的尾部插入元素，和`push_back`不同    |
+
+## 参考文档
+
+> [STL/CLR 库参考 | Microsoft Learn](https://learn.microsoft.com/zh-cn/cpp/dotnet/stl-clr-library-reference?view=msvc-170)

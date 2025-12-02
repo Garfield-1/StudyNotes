@@ -1,5 +1,7 @@
 # Git简述及常用命令
 
+[TOC]
+
 ## 1. 什么是Git
 
 > Git is a free and open source distributed version control system designed to handle everything from small to very large projects with speed and efficiency.
@@ -62,19 +64,19 @@
 
 ## 3. Git仓库
 
-### 3.1 工作区`Workspace`
+### 3.1 工作区Workspace
 
 就是我们当前工作空间，也就是我们当前能在本地文件夹下面看到的文件结构。初始化工作空间或者工作空间`clean`的时候，文件内容和暂存区是一致的，随着修改，工作区文件在没有`add`到暂存区时候，工作区将和暂存区是不一致的。
 
-### 3.2 暂存区`Index`
+### 3.2 暂存区Index
 
 老版本概念也叫 `Cache` 区，就是文件暂时存放的地方，所有暂时存放在暂存区中的文件将随着一个`commit`一起提交到本地仓库此时本地仓库里面文件将完全被暂存区所取代。暂存区是 git 架构设计中非常重要和难理解的一部分。
 
-### 3.3 本地仓库`Repository`
+### 3.3 本地仓库Repository
 
 `git` 是分布式版本控制系统，和其他版本控制系统不同的是他可以完全去中心化工作，你可以不用和中央服务器`remote server`进行通信，在本地即可进行全部离线操作，包括 `log，history，commit，diff` 等等。完成离线操作最核心是因为 git 有一个几乎和远程一样的本地仓库，所有本地离线操作都可以在本地完成，等需要的时候再和远程服务进行交互
 
-### 3.4 远程仓库`Remote`
+### 3.4 远程仓库Remote
 
 中心化仓库，所有人共享，本地仓库会需要和远程仓库进行交互，也就能将其他所有人内容更新到本地仓库把自己内容上传分享给其他人。结构大体和本地仓库一样
 

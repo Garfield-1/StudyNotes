@@ -1,12 +1,8 @@
-# Socket连接流程
+# socket连接流程
 
-> 参考文档
->
-> [Socket到底是什么？你想知道吗？-socket是什么意思 (51cto.com)](https://www.51cto.com/article/742745.html)
->
-> [wiki百科socket]https://zh.wikipedia.org/wiki/%E7%B6%B2%E8%B7%AF%E6%8F%92%E5%BA%A7
+[TOC]
 
-## 类型
+## socket类型
 
 1. **数据报套接字（`SOCK_DGRAM`）**
 
@@ -213,7 +209,7 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags);
 - **成功**：返回实际接收的字节数（可以小于请求的 `len`，特别是在流套接字（如 TCP）中）。如果返回 0，表示连接已关闭
 - **失败**：返回 `-1`，并设置 `errno` 来指示错误原因
 
-### close函数&shutdown函数
+### close函数 & shutdown函数
 
 #### close函数
 
@@ -246,3 +242,9 @@ int shutdown(int sockfd,int howto);  //返回成功为0，出错为-1
 1. `close`函数会关闭套接字`ID`，如果有其他的进程共享着这个套接字，那么它仍然是打开的，这个连接仍然可以用来读和写，并且有时候这是非常重要的 ，特别是对于多进程并发服务器来说
 
 2. `shutdown`会切断进程共享的套接字的所有连接，不管这个套接字的引用计数是否为零，那些试图读得进程将会接收到`EOF`标识，那些试图写的进程将会检测到`SIGPIPE`信号，同时可利用`shutdown`的第二个参数选择断连的方式
+
+## 参考文档
+
+> [Socket到底是什么？你想知道吗？-socket是什么意思 (51cto.com)](https://www.51cto.com/article/742745.html)
+>
+> [wiki百科socket]https://zh.wikipedia.org/wiki/%E7%B6%B2%E8%B7%AF%E6%8F%92%E5%BA%A7

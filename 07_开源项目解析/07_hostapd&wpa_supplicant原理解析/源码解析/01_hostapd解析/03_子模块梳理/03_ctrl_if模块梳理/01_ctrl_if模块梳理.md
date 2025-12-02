@@ -1,5 +1,9 @@
 # hostapd ctrl if模块梳理
 
+[TOC]
+
+## 概述
+
 `hostapd`的`ctrl i/f`（`control interface`，控制接口）模块主要作用是**为外部程序（如命令行工具hostapd_cli、GUI等）提供与hostapd守护进程进行交互的机制**，实现运行时控制和状态查询
 
 ## 对应源代码

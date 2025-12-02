@@ -1,10 +1,6 @@
 # Linux内核编译
 
-> 参考文档：
->
-> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
->
-> [编译内核模块 （Bosanski） - ArchWiki](https://wiki.archlinux.org/title/Compile_kernel_module_(Bosanski))
+[TOC]
 
 ## 软件环境
 
@@ -101,3 +97,9 @@ pi@XX-00070:~/code/linux-5.4$ make clean
    ```
 
 3. **设置CPU平台，引入对应的配置和编译脚本**
+
+## 参考文档
+
+> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
+>
+> [编译内核模块 （Bosanski） - ArchWiki](https://wiki.archlinux.org/title/Compile_kernel_module_(Bosanski))

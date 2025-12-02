@@ -1,5 +1,7 @@
 # 从手机连接wifi看hostapd流程
 
+[TOC]
+
 ## wifii连接过程
 
 在关闭`wifi`的密码，设置为开放连接，直接使用手机连接路由器`wifi`，读取`hostapd`的日志如下

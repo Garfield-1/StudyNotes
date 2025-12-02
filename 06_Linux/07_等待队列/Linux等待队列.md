@@ -1,8 +1,6 @@
 # Linux等待队列
 
-> 参考文档：
->
-> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)
+[TOC]
 
 ## 概述
 
@@ -85,3 +83,7 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 ### 删除节点
 
 调用`remove_wait_queue`函数将创建的节点从等待队列中删除
+
+## 参考文档
+
+> [Release v5.4 · torvalds/linux](https://github.com/torvalds/linux/releases/tag/v5.4)

@@ -1,12 +1,6 @@
 # Python基础语法
 
-`Python` 是一个高层次的结合了解释性、编译性、互动性和面向对象的脚本语言。不同于`C/C++`语言需要编译成可执行文件，`python`执行时需要一个解释器来执行`python`源码
-
-> 参考文献
->
-> 1.菜鸟教程python语法部分
->
-> [Python 教程 — Python 3.13.5 文档](https://docs.python.org/zh-cn/3.13/tutorial/)
+[TOC]
 
 ## 变量类型
 
@@ -577,3 +571,9 @@ if __name__ == "__main__":
 ```
 
 哪个模块被直接执行时，该模块`__name__`的值就是`__main__`，当被导入另一模块时，`__name__`的值就是模块的真实名称
+
+## 参考文献
+
+> 菜鸟教程python语法部分
+>
+> [Python 教程 — Python 3.13.5 文档](https://docs.python.org/zh-cn/3.13/tutorial/)

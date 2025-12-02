@@ -1,10 +1,6 @@
 # uloop源码解析
 
-**参考链接**
-
-[【openwrt】uloop_run过程分析_uloop 源代码分析-CSDN博客](https://blog.csdn.net/qq_24835087/article/details/122439506)
-
-[openWrt libubox组件之uloop原理分析-CSDN博客](https://blog.csdn.net/weixin_30388677/article/details/98090433)
+[TOC]
 
 ## 概述
 
@@ -359,7 +355,7 @@ int main(int argc, char **argv)
 
 ## 核心数据结构
 
-### 定时任务**`timeouts`链表**
+### 定时任务timeouts链表
 
 定时器链表，记录定时器的状态
 
@@ -494,7 +490,7 @@ static void uloop_process_timeouts(void)
 
 遍历整个定时器链表，将时间超过当前时间的节点清除，然后执行对应回调
 
-### 子进程管理`processes`链表
+### 子进程管理processes链表
 
 将待检测的子进程注册后会在子进程执行结束后执行提前注册的回调，需要注意的是**`uloop`不支持多线程，多线程下会出现死锁问题**
 
@@ -513,7 +509,7 @@ struct uloop_process
 
 #### 子进程管理链表管理接口
 
-**`uloop_process_add`函数**
+**uloop_process_add函数**
 
 添加新节点
 
@@ -623,7 +619,7 @@ static void uloop_handle_processes(void)
 }
 ```
 
-### 信号管理`signals`链表
+### 信号管理signals链表
 
 信号管理链表,主要的作用是管理外部的信号和子进程链表的信号
 
@@ -892,7 +888,7 @@ int uloop_run_timeout(int timeout)
 
 ## 监听句柄任务整体流程
 
-### `uloop_fd_add`函数
+### uloop_fd_add函数
 
 由于`uloop`底层实际上是`epoll`，所以如果需要监听某个句柄则可以直接调用`uloop_fd_add`函数。这会将待监听的句柄添加到`struct uloop_fd`中，其默认采用非阻塞和水平触发
 
@@ -953,3 +949,9 @@ static void uloop_run_events(int64_t timeout)
     }
 }
 ```
+
+## **参考链接**
+
+> [【openwrt】uloop_run过程分析_uloop 源代码分析-CSDN博客](https://blog.csdn.net/qq_24835087/article/details/122439506)
+>
+> [openWrt libubox组件之uloop原理分析-CSDN博客](https://blog.csdn.net/weixin_30388677/article/details/98090433)

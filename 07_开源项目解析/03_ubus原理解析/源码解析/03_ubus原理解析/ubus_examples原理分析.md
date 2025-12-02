@@ -1,6 +1,10 @@
 # ubus examples原理分析
 
-> 笔者注：本文分析的是ubus源码中的官方demo，见源码目录的./ubus/examples/client.c
+[TOC]
+
+## 笔者注
+
+本文分析的是`ubus`源码中的官方`demo`，见源码目录的`./ubus/examples/client.c`
 
 ## client整体流程
 
