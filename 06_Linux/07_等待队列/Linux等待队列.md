@@ -76,6 +76,8 @@ static int __wake_up_common(struct wait_queue_head *wq_head, unsigned int mode,
 
 调用`add_wait_queue`函数将创建的节点添加到等待队列中，在下一次时钟中断，进程切换时任务调度器会查看就绪队列中的进程
 
+需要注意的是进程调度器用来管理进程的数据结构是`runqueue`，不是等待队列
+
 ### 主动让出CPU
 
 在将节点添加到等待队列后需要手动调用`schedule()`函数来让出`CPU`，因为只是将任务添加到等待中不会阻塞任务。这里主动让出`CPU`才会在下一次进程调度中将自身挂起
