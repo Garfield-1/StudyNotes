@@ -65,4 +65,5 @@ struct kernel_symbol {
 >
 > [Arch Linux](https://www.archlinuxcn.org/)
 >
-> [改进 EXPORT_SYMBOL（） [LWN.net\]](https://lwn.net/Articles/674303/)
+> [[LWN.net]](https://lwn.net/Articles/674303/)
+

@@ -113,4 +113,3 @@ void ustream_fd_init(struct ustream_fd *sf, int fd)
 
 管道输出端的句柄最终是通过`uloop_fd_add`添加到`uloop`中；`uloop`中用`epoll`来监听这个句柄
 
-> 笔者注：uloop的回调和uloop初始化部分还需要分析
