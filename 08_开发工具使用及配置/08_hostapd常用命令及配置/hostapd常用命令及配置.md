@@ -95,9 +95,13 @@ commands:
 
 ## hostapd_cli relog
 
-`relog`命令会强制`hostapd`重新加载其日志配置，通常用于更新或更改日志设置后，确保新的日志配置立即生效
+`relog`命令会强制`hostapd`重新加载其日志配置，通常用于更新或更改日志设置后，确保新的日志配置立即生效，当修改了`hostapd`配置文件中的日志级别（`logger_stdout_leve`、`logger_syslog_level`等) 时，执行`hostapd_cli relog`命令可以应用这些更改
 
 ![hostapd_cli relog](./img/hostapd_cli relog.jpg)
+
+## hostapd_cli status
+
+通过 `status`命令，你可以获取`hostapd`的当前运行状态，查看无线网络接口的配置信息、接入点状态、活动客户端的连接状态等
 
 ## 参考文档
 
