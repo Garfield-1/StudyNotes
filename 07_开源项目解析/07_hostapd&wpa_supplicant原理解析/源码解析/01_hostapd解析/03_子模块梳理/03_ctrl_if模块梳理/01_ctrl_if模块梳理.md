@@ -10,6 +10,12 @@
 
 `ctrl if`模块对应源代码是`./hostapd/ctrl_iface.c`和`./hostapd/ctrl_iface.h`
 
+## hostapd主进程
+
+### 配置句柄
+
+`hostapd`通信时采用的方法是通过文件句柄来进行通信，句柄会存储在`hostapd.conf`中的`ctrl_interface`配置选项中，在读取配置文件时会将这个字段存入`struct hostapd_bss_config`中的`ctrl_interface`字段中用于后续的使用
+
 在`./hostapd/hostapd.conf`中可以找到相关的注释
 
 ```shell
@@ -23,12 +29,6 @@
 # hostapd_cli will use it when trying to connect with hostapd.
 ctrl_interface=/var/run/hostapd
 ```
-
-## hostapd主进程
-
-### 配置句柄
-
-`hostapd`通信时采用的方法是通过文件句柄来进行通信，句柄会存储在`hostapd.conf`中的`ctrl_interface`配置选项中，在读取配置文件时会将这个字段存入`struct hostapd_bss_config`中的`ctrl_interface`字段中用于后续的使用
 
 通信使用的句柄会在`hostapd_ctrl_iface_path`函数中拼接而成
 
