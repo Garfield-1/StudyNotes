@@ -85,61 +85,51 @@ commands:
 
 当你执行`hostapd_cli ping`命令时，它将向 hostapd 发送一个简单的请求，`hostapd`会返回一个响应。这个命令主要用于测试`hostapd`是否正常工作，并检查与`hostapd`的连接是否通畅
 
-![hostapd_cli ping](./img/hostapd_cli ping.jpg)
+<img src="./img/hostapd_cli ping.jpg" alt="hostapd_cli ping" />
 
 ## 2. hostapd_cli mib
 
 显示`MIB`(管理信息库)变量，如`dot1x/dot11/radius`状态信息
 
-![hostapd_cli mib](./img/hostapd_cli mib.jpg)
-
 ## 3. hostapd_cli relog
 
 `relog`命令会强制`hostapd`重新加载其日志配置，通常用于更新或更改日志设置后，确保新的日志配置立即生效，当修改了`hostapd`配置文件中的日志级别(`logger_stdout_leve`、`logger_syslog_level`等) 时，执行`hostapd_cli relog`命令可以应用这些更改
-
-![hostapd_cli relog](./img/hostapd_cli relog.jpg)
 
 ## 4. hostapd_cli status
 
 通过`status`命令，你可以获取`hostapd`的当前运行状态，查看无线网络接口的配置信息、接入点状态、活动客户端的连接状态等
 
-![hostapd_cli status](./img/hostapd_cli status.jpg)
+<img src="./img/hostapd_cli status.jpg" alt="hostapd_cli status" />
 
 ## 5. hostapd_cli all_sta
 
 读取`ap`所有的下挂`sta`具体信息
 
-![hostapd_cli all_sta](./img/hostapd_cli all_sta.jpg)
+<img src="./img/hostapd_cli all_sta.jpg" alt="hostapd_cli all_sta" />
 
 ## 6. hostapd_cli sta [sta_MAC]
 
 读取`ap`的指定`mac`的下挂`sta`具体信息
 
-![hostapd_cli sta [sta_MAC]](./img/hostapd_cli sta [sta_MAC].jpg)
+<img src="./img/hostapd_cli sta [sta_MAC].jpg" alt="hostapd_cli sta [sta_MAC]" />
 
 ## 7. hostapd_cli list_sta
 
 列出所有已连接到当前`AP`的设备`MAC`地址
 
-![hostapd_cli list_sta](./img/hostapd_cli list_sta.jpg)
+<img src="./img/hostapd_cli list_sta.jpg" alt="hostapd_cli list_sta" />
 
 ## 8. hostapd_cli new_sta [sta_MAC]
 
 向`hostapd`的内部状态表中手动添加一个新的`STA`，多用于调试
 
-![hostapd_cli new_sta [sta_MAC]](./img/hostapd_cli new_sta [sta_MAC].jpg)
-
 ## 9. hostapd_cli deauthenticate [sta_MAC]
 
 `hostapd_cli deauthenticate`命令通过去认证(`deauthentication`)操作断开某个客户端与接入点的连接，适用于无线网络管理中需要控制客户端连接的场景
 
-![hostapd_cli deauthenticate [sta_MAC]](./img/hostapd_cli deauthenticate [sta_MAC].jpg)
-
 ## 10. hostapd_cli disassociate [sta_MAC]
 
 发送一个断开关联(`disassociation`)消息到客户端，强制它断开与接入点的连接。与`deauthenticate`不同，`disassociate`主要用于因某些原因而使客户端离开无线网络，而不一定是由于身份验证或安全问题
-
-![hostapd_cli disassociate [sta_MAC]](./img/hostapd_cli disassociate [sta_MAC].jpg)
 
 ## 11. hostapd_cli signature [sta_MAC]
 
@@ -217,8 +207,6 @@ hostapd_cli disassoc_imminent <MAC地址> <断开倒计时(TU)>
 
 `hostapd_cli disassoc_imminent`命令用于向某个无线`STA`发送`Disassociation Imminent`报文。该命令的作用是通知客户端即将与`AP`断开连接，并告知它即将失去与接入点的关联。通常，这种命令用于警告客户端准备断开连接
 
-![hostapd_cli disassoc_imminent](./img/hostapd_cli disassoc_imminent.jpg)
-
 ## 14. hostapd_cli ess_disassoc
 
 **命令格式**
@@ -231,25 +219,21 @@ hostapd_cli ess_disassoc <MAC地址> <断开倒计时(秒)> <URL>
 
 `ess_disassoc`是`802.11u`协议中的一个高级命令。它用于通知客户端：“你将被断开连接，请访问以下`URL`以了解原因或处理账号问题(如欠费、服务条款更新等)”
 
-![hostapd_cli ess_disassoc](./img/hostapd_cli ess_disassoc.jpg)
-
 ## 15. hostapd_cli bss_tm_req
 
 `hostapd_cli bss_tm_req`命令用于向无线客户端发送`BSS`过渡管理请求，要求设备切换到其他接入点。它通常用于网络负载均衡、无缝漫游和优化无线覆盖等场景。通过合理配置和使用此命令，管理员可以优化无线网络的性能和客户端设备的连接质量
-
-![hostapd_cli bss_tm_req](./img/hostapd_cli bss_tm_req.jpg)
 
 ## 16. hostapd_cli get_config
 
 `hostapd_cli get_config`命令能查看当前`hostapd`的配置内容。通过该命令，可以轻松获取无线网络设置、加密方式、连接数等信息，帮助在调试、管理和优化无线网络时，获得关键的配置信息
 
-![hostapd_cli get_config](./img/hostapd_cli get_config.jpg)
+<img src="./img/hostapd_cli get_config.jpg" alt="hostapd_cli get_config" />
 
 ## 17. hostapd_cli interface
 
 `interface`命令的主要功能是显示当前hostapd*配置的所有接口
 
-![hostapd_cli interface](./img/hostapd_cli interface.jpg)
+<img src="./img/hostapd_cli interface.jpg" alt="hostapd_cli interface" />
 
 ## 18. hostapd_cli raw
 
@@ -269,7 +253,7 @@ hostapd_cli ess_disassoc <MAC地址> <断开倒计时(秒)> <URL>
 
 `hostapd_cli license`命令的意义在于向用户展示`hostapd`(`Host Access Point Daemon`)的许可信息。`hostapd`是一个开源项目，用于在`Linux`系统上创建和管理无线接入点。通过`hostapd_cli license`命令，用户可以查看`hostapd`的许可证信息，以确保他们遵循相应的开源许可协议
 
-![hostapd_cli license](./img/hostapd_cli license.jpg)
+<img src="./img/hostapd_cli license.jpg" alt="hostapd_cli license" />
 
 ## 21. hostapd_cli quit
 
@@ -382,7 +366,7 @@ hostapd_cli vendor <vendor_id> <subcmd_id> [十六进制数据参数]
 
 获取当前的日志等级
 
-![hostapd_cli log_level](./img/hostapd_cli log_level.jpg)
+<img src="./img/hostapd_cli log_level.jpg" alt="hostapd_cli log_level" />
 
 ## 36. hostapd_cli pmksa
 
@@ -439,7 +423,7 @@ hostapd_cli remove_neighbor <BSSID>
 
 查询驱动程序的当前标志：`driver_flags`命令可以用来查看当前无线驱动程序的标志。例如，它可能会显示是否支持某些特性(如`WPS`、`STA`、`AP`模式等)
 
-![hostapd_cli dirver_flags](./img/hostapd_cli dirver_flags.jpg)
+<img src="./img/hostapd_cli dirver_flags.jpg" alt="hostapd_cli dirver_flags" />
 
 ## 43. hostapd_cli accept_acl
 
