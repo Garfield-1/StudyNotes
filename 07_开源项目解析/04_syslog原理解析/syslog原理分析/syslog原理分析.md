@@ -6,8 +6,8 @@
 
 `syslog`是一个协议规范，需要有`server`端和`client`端，由`server`端收集日志并记录
 
-* `Syslog`服务端通常是`syslogd`或更现代的 `rsyslog`、`syslog-ng` 或 `systemd-journald`）负责接收来自客户端的日志消息，存储它们，并可能根据配置转发到其他日志服务器或应用程序。服务端是`syslog`的核心，它处理日志的存储、转发和管理
-* `Syslog` 客户端是指发送日志消息的应用程序、服务或内核。它将日志消息发送给`syslog`服务端（日志守护进程）。客户端通过 `syslog()`函数或者类似工具将日志消息发送到 `syslogd`或其他日志守护进程
+* `Syslog`服务端通常是`syslogd`或更现代的 `rsyslog`、`syslog-ng` 或 `systemd-journald`负责接收来自客户端的日志消息，存储它们，并可能根据配置转发到其他日志服务器或应用程序。服务端是`syslog`的核心，它处理日志的存储、转发和管理
+* `Syslog`客户端是指发送日志消息的应用程序、服务或内核。它将日志消息发送给`syslog`服务端（日志守护进程）。客户端通过 `syslog()`函数或者类似工具将日志消息发送到 `syslogd`或其他日志守护进程
 
 ## 日志信息的获取
 
@@ -53,11 +53,11 @@
 
     `/proc/kmsg`是一个只读的伪`FIFO`文件，且里面的消息只能被读取一次。当多个进程同时尝试读取该文件时，每个进程将只能读取到一部分日志内容
 
-## busybox实现
+## busybox读取/dev/log句柄
 
 分析`busybox`源码可以在`syslogd.c`文件中看到，关于`syslog`的实现，在此仅列出关键的核心流程
 
-### **函数调用栈**
+### 函数调用栈
 
 ```c
 syslogd_main
@@ -75,7 +75,7 @@ syslogd_main
           }
 ```
 
-### **关键函数**
+### 关键函数
 
 **`xmove_fd`函数**
 
@@ -146,6 +146,43 @@ static void do_syslogd(void)
 1. 配置信号量
 2. 配置`socket`用于读取`/dev/log`，并将读取的结果作为`syslog`记录
 3. 循环读取`/dev/log`的内容直到，有外部信号量使`syslogd`进程退出
+
+## busybox通过UDP 514端口发送syslog
+
+### 函数调用栈
+
+```c
+syslogd_main
+    ->do_syslogd
+		->try_to_resolve_remote
+    		->rh->remoteAddr = host2sockaddr(rh->remoteHostname, 514)
+    		->xsocket(rh->remoteAddr->u.sa.sa_family, SOCK_DGRAM, 0)
+    //通过绑定到UDP 514端口的句柄发送数据
+    ->sendto(rh->remoteFD, recvbuf, sz+1,
+			 MSG_DONTWAIT | MSG_NOSIGNAL,
+			 &(rh->remoteAddr->u.sa), rh->remoteAddr->len)
+```
+
+## 核心思想
+
+`busybox`对于`UDP 514`端口发送`syslog`，这部分数据会被网络上其他设备接收。这部分代码会被`ENABLE_FEATURE_REMOTE_LOG`宏限制，关于这个功能的说明可见`busybox`源码中的注释
+
+```c
+/* sysklogd\syslogd.c */
+//config:config FEATURE_REMOTE_LOG
+//config:	bool "Remote Log support"
+//config:	default y
+//config:	depends on SYSLOGD
+//config:	help
+//config:	When you enable this feature, the syslogd utility can
+//config:	be used to send system log messages to another system
+//config:	connected via a network. This allows the remote
+//config:	machine to log all the system messages, which can be
+//config:	terribly useful for reducing the number of serial
+//config:	cables you use. It can also be a very good security
+//config:	measure to prevent system logs from being tampered with
+//config:	by an intruder.
+```
 
 ## 参考文档
 
