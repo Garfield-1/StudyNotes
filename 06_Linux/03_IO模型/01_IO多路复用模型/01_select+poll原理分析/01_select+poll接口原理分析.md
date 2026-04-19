@@ -2,6 +2,13 @@
 
 [toc]
 
+## 待修改
+
+* 内核态和用户态交互的部分更清楚一些
+
+* 监听到句柄活跃后怎么返回用户态的没写
+* 把`VFS`层的`poll`接口，放在前面，内容修改一下做一个铺垫
+
 ## 发展历史
 
 ### **API 发布的时间线**
@@ -174,7 +181,7 @@ static int kern_select(int n, fd_set __user *inp, fd_set __user *outp,
             return -EFAULT;
 
         to = &end_time;
-        // 设置函数的的超时时间
+        // 转换时间戳计算等待时间，存在to中
         if (poll_select_set_timeout(to, tv.tv_sec + (tv.tv_usec / USEC_PER_SEC),(tv.tv_usec % USEC_PER_SEC) * NSEC_PER_USEC))
             return -EINVAL;
     }
@@ -742,11 +749,11 @@ static int do_poll(struct poll_list *list, struct poll_wqueues *wait, struct tim
 }
 ```
 
-**核心思想**
+**核心思想：**
 
-遍历链表，检测链表中的每一个元素的文件描述符
+​	遍历链表，检测链表中的每一个元素的文件描述符
 
-**循环出口：链表遍历结束**
+​	**循环出口：链表遍历结束**
 
 ### do_pollfd函数
 
@@ -792,7 +799,7 @@ static inline __poll_t do_pollfd(struct pollfd *pollfd, poll_table *pwait,
 
 ## 驱动层面对文件系统的监听
 
-### **`file_operations->poll`接口**
+### file_operations->poll接口
 
 **函数声明**
 
