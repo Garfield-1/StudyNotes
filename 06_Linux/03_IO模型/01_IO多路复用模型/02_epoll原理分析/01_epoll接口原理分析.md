@@ -244,7 +244,7 @@ struct eppoll_entry
 
 ### 4.1 epoll基本流程图
 
-![epoll主流程 新](./img/epoll主流程 新.jpg)
+<img src="./img/epoll主流程 新.jpg" alt="epoll主流程 新" />
 
 ### 4.2 创建epoll实例
 
@@ -400,7 +400,7 @@ static int do_epoll_create(int flags)
 
 此处将新建的`file`节点插入，对应当前的进程文件数组中，用于后续内核管理
 
-![do_epoll_create流程 新](./img/do_epoll_create流程 新.jpg)
+<img src="./img/do_epoll_create流程 新.jpg" alt="do_epoll_create流程 新" />
 
 ### 4.3 修改监听句柄
 
@@ -665,7 +665,7 @@ send_events:
 
 
 
-![ep_poll](./img/ep_poll.jpg)
+<img src="./img/ep_poll.jpg" alt="ep_poll" />
 
 ## 用户态与内核态交互
 
@@ -1314,7 +1314,7 @@ static const struct file_operations proc_rtas_log_operations = {
 
 在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
 
-![等待队列](./img/驱动文件监听回调.jpg)
+<img src="./img/驱动文件监听回调.jpg" alt="等待队列" />
 
 ### 5.2 epoll对监听文件句柄的实现
 
