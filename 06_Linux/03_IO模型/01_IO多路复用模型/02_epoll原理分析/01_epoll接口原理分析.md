@@ -150,7 +150,7 @@ struct eventpoll {
      */
     struct epitem *ovflist;
     
-    /* 唤醒源,电源相关 */
+    /* 唤醒源 */
     struct wakeup_source *ws;
 
     /* 创建eventpoll描述符的用户 */
@@ -338,14 +338,14 @@ static int do_epoll_create(int flags)
 
     ep_alloc(&ep);
 
-    // 获取一个可读可写的未被使用的文件描述符
+    /* 获取一个可读可写的未被使用的文件描述符 */
     fd = get_unused_fd_flags(O_RDWR | (flags & O_CLOEXEC));
-    // 创建一个匿名的inode节点
+    /* 创建一个匿名的inode节点 */
     file = anon_inode_getfile("[eventpoll]", &eventpoll_fops, ep, O_RDWR | (flags & O_CLOEXEC));
 
-    // 将这个新的file注册到对应的eventpoll中
+    /* 将这个新的file注册到对应的eventpoll中 */
     ep->file = file;
-    // 把file指针写进当前进程fd对应槽位
+    /* 把file指针写进当前进程fd对应槽位 */
     fd_install(fd, file);
 
     return fd;
@@ -387,7 +387,8 @@ static int do_epoll_create(int flags)
        __fd_install(current->files, fd, file);
    }
    
-   /* fd:文件描述符
+   /**
+    * fd:文件描述符
     * file:新建的inode节点
     * struct fdtable：内核中用来管理文件描述符的数据结构
     * fdt->fd：存储file结构体的数组：
@@ -437,7 +438,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	struct eventpoll *tep = NULL;
 
 	error = -EFAULT;
-	// 从用户空间获取epoll_event结构体数据
+	/* 从用户空间获取epoll_event结构体数据 */
 	copy_from_user(&epds, event, sizeof(struct epoll_event));
 
 	/* 获取epoll_create1创建的epoll_event实例对应struct file *结构体 */
@@ -446,9 +447,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 	/* 获取要监听的句柄对应的struct file *结构体 */
 	tf = fdget(fd);
 
-	/**
-	 * 不允许自己监听自己，同时检查tf.file和f.file是否支持poll操作
-	 */
+	/* 不允许自己监听自己，同时检查tf.file和f.file是否支持poll操作 */
 	if (f.file == tf.file || !is_file_epoll(f.file) || !file_can_poll(tf.file))
 		goto error_tgt_fput;
 
@@ -463,9 +462,7 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 		goto error_tgt_fput;
 	}
 
-	/**
-	 * 在红黑树中查找要监听的文件描述符对应的epitem结构体，如果存在则返回指向该结构体的指针，否则返回NULL
-	 */
+	/* 在红黑树中查找要监听的文件描述符对应的epitem结构体，如果存在则返回指向该结构体的指针，否则返回NULL */
 	epi = ep_find(ep, tf.file, fd);
 
 	error = -EINVAL;
@@ -579,76 +576,78 @@ static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
 
 	lockdep_assert_irqs_enabled();
 
-	// 时间大于0则计算等待时间
+	/* 时间大于0则计算等待时间 */
 	if (timeout > 0) {
 		slack = select_estimate_accuracy(&end_time);
 		*to = timespec64_to_ktime(end_time);
-	// 时间小于0则这一次直接跳过等待过程
+	/* 时间小于0则这一次直接跳过等待过程 */
 	} else if (timeout == 0) {
 		timed_out = 1;
-		// 检查当前就绪事件
+		/* 检查当前就绪事件 */
 		eavail = ep_events_available(ep);
 
 		goto send_events;
 	}
 
 fetch_events:
-    // 先执行忙等待
+    /* 先执行忙等待 */
     if (!ep_events_available(ep))
 		ep_busy_loop(ep, timed_out);
 
-    // 检查当前就绪事件，如果有则直接返回就绪事件
+    /* 检查当前就绪事件，如果有则直接返回就绪事件 */
 	if (ep_events_available(ep))
 		goto send_events;
 
 	if (!waiter) {
 		waiter = true;
-		 // 初始化本线程等待队列，把本线程登记到epoll的waitqueue 
+		 /* 初始化本线程等待队列，把本线程登记到epoll的waitqueue  */
 		init_waitqueue_entry(&wait, current);
 		__add_wait_queue_exclusive(&ep->wq, &wait);
 	}
 
 	for (;;) {
-		// 将进程设置为可中断睡眠态
+		/* 将进程设置为可中断睡眠态 */
 		set_current_state(TASK_INTERRUPTIBLE);
-		// 先检查致命信号，如果有则直接返回错误
+		/* 先检查致命信号，如果有则直接返回错误 */
 		if (fatal_signal_pending(current)) {
 			res = -EINTR;
 			break;
 		}
 
-		// 再检查就绪事件，如果有则直接返回就绪事件
+		/* 再检查就绪事件，如果有则直接返回就绪事件 */
 		eavail = ep_events_available(ep);
 		if (eavail)
 			break;
 
-		// 最后检查普通信号，如果有则直接返回错误
+		/* 最后检查普通信号，如果有则直接返回错误 */
 		if (signal_pending(current)) {
 			res = -EINTR;
 			break;
 		}
 
-		// 如果有等待时间则继续等待，否则直接返回超时
+		/* 如果有等待时间则继续等待，否则直接返回超时 */
 		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
 			timed_out = 1;
 			break;
 		}
 	}
 
-	// 将进程状态设置为运行态
+	/* 将进程状态设置为运行态 */
 	__set_current_state(TASK_RUNNING);
 
 send_events:
-	/*
+	/**
 	 * Try to transfer events to user space. In case we get 0 events and
 	 * there's still timeout left over, we go trying again in search of
 	 * more luck.
+	 *
+	 * 尽力将事件转移到用户空间。倘若我们获取到的事件数为 0，而剩余的超时时间仍有剩余的话，我们就继续尝试，希望能获得更多的机会。
 	 */
 	if (!res && eavail &&
 	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
 		goto fetch_events;
 
-	// 如果之前登记了等待队列，则将本线程从epoll的waitqueue中移除
+	/* 如果之前登记了等待队列，则将本线程从epoll的waitqueue中移除 */
 	if (waiter) {
 		__remove_wait_queue(&ep->wq, &wait);
 	}
@@ -663,27 +662,269 @@ send_events:
 
 首先会针对用户态传入的超时时间处理，觉得是立刻检测时间还是，后续设置定时器等待。多次去检查是否有可用事件，防止遗漏。并且在等待外部事件时，会将自身挂入到`event_poll`的等待队列中，挂起自身进程，不断地循环检测，直到外部信号打断
 
-最终检测就绪事件，并发送就绪事件到用户态，这部分的具体实现见下文
+最终检测就绪事件，**发送就绪事件到用户态，这部分的具体实现见下文**
 
 
 
 <img src="./img/ep_poll.jpg" alt="ep_poll" />
 
-### 事件的检测和向用户态返回检测结果
+### 扫描就绪链表
 
-待补充
+**ep_send_events函数**
+
+> 笔者注：除注释外，所有代码均未删改
+
+```c
+// linux-5.4/fs/eventpoll.c
+static int ep_send_events(struct eventpoll *ep,
+			  struct epoll_event __user *events, int maxevents)
+{
+	struct ep_send_events_data esed;
+
+	esed.maxevents = maxevents;
+	esed.events = events;
+
+    /* 扫描就绪队列 */
+	ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
+	return esed.res;
+}
+```
+
+**ep_scan_ready_list函数**
+
+```c
+// linux-5.4/fs/eventpoll.c
+/**
+* ep_scan_ready_list - 以一种能够使扫描代码调用 f_op->poll() 的方式扫描就绪列表。同时还能实现 O(NumReady) 的性能
+* @ep：指向 epoll 私有数据结构的指针
+* @sproc：指向扫描回调函数的指针
+* @priv：传递给 @sproc 回调函数的私有不透明数据
+* @depth：递归调用 f_op->poll 的当前深度
+* @ep_locked：调用者是否已经持有ep->mtx锁
+* 返回值：与 @sproc 回调所返回的相同整数错误代码
+*/
+static __poll_t ep_scan_ready_list(struct eventpoll *ep,
+			      __poll_t (*sproc)(struct eventpoll *,
+					   struct list_head *, void *),
+			      void *priv, int depth, bool ep_locked)
+{
+	__poll_t res;
+	int pwake = 0;
+	struct epitem *epi, *nepi;
+	LIST_HEAD(txlist);
+
+	lockdep_assert_irqs_enabled();
+
+	/**
+	 * We need to lock this because we could be hit by
+	 * eventpoll_release_file() and epoll_ctl().
+	 * 
+	 * 这里需要锁定这个，因为可能会受到
+	 * eventpoll_release_file()和epoll_ctl()的影响
+	 */
+	if (!ep_locked)
+		mutex_lock_nested(&ep->mtx, depth);
+
+	/**
+	 * Steal the ready list, and re-init the original one to the
+	 * empty list. Also, set ep->ovflist to NULL so that events
+	 * happening while looping w/out locks, are not lost. We cannot
+	 * have the poll callback to queue directly on ep->rdllist,
+	 * because we want the "sproc" callback to be able to do it
+	 * in a lockless way.
+	 * 
+	 * 窃取就绪列表，并将原始列表重新初始化为空列表
+	 * 同时，将ep->ovflist设置为NULL，这样在无锁循环期间发生的事件就不会丢失
+	 * 不能让轮询(poll)回调直接排队到ep->rdllist上，因为我们希望特殊处理(sproc)回调能够以无锁的方式执行此操作
+	 */
+	write_lock_irq(&ep->lock);
+	/* 将就绪列表复制到临时列表 */
+	list_splice_init(&ep->rdllist, &txlist);
+	/* 将缓冲链表ep->ovflist设置为NULL */
+	WRITE_ONCE(ep->ovflist, NULL);
+	write_unlock_irq(&ep->lock);
+
+	/**
+	 * Now call the callback function.
+	 *
+	 * 在没有锁的情况下调用回调函数
+	 */
+	res = (*sproc)(ep, &txlist, priv);
+
+	write_lock_irq(&ep->lock);
+	/*
+	 * During the time we spent inside the "sproc" callback, some
+	 * other events might have been queued by the poll callback.
+	 * We re-insert them inside the main ready-list here.
+	 * 
+	 * 在我们处于"sproc"回调函数内部的这段时间里
+	 * 还有一些其他事件可能已被轮询回调函数加入到了队列中
+	 * 我们在此处将它们重新插入到主就绪列表中
+	 */
+	for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
+	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
+		/*
+		 * We need to check if the item is already in the list.
+		 * During the "sproc" callback execution time, items are
+		 * queued into ->ovflist but the "txlist" might already
+		 * contain them, and the list_splice() below takes care of them.
+		 * 
+		 * 我们需要检查一下这个条目是否已经在列表里了
+		 * 在"特殊处理(sproc)"回调执行期间条目会被排入->ovflist
+		 * 但txlist里可能已经包含它们了,而下面的list_splice()操作会负责处理这些(已存在的)条目
+		 */
+		if (!ep_is_linked(epi)) {
+			/*
+			 * ->ovflist is LIFO, so we have to reverse it in order
+			 * to keep in FIFO.
+			 * 
+			 * -> 由于队列遵循后进先出原则，所以我们需要对其进行反转，以便保持先进先出的顺序。
+			 */
+			list_add(&epi->rdllink, &ep->rdllist);
+			ep_pm_stay_awake(epi);
+		}
+	}
+	/*
+	 * We need to set back ep->ovflist to EP_UNACTIVE_PTR, so that after
+	 * releasing the lock, events will be queued in the normal way inside
+	 * ep->rdllist.
+	 * 
+	 * 我们需要将 ep->ovflist 设为 EP_UNACTIVE_PTR，这样在释放锁之后，事件就会按照正常方式依次存放在 ep->rdllist 中。
+	 */
+	WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
+
+	/*
+	 * Quickly re-inject items left on "txlist".
+	 */
+	list_splice(&txlist, &ep->rdllist);
+	__pm_relax(ep->ws);
+
+	if (!list_empty(&ep->rdllist)) {
+		/*
+		 * Wake up (if active) both the eventpoll wait list and
+		 * the ->poll() wait list (delayed after we release the lock).
+		 * 
+		 * (如果处于激活状态)同时唤醒事件轮询等待列表和
+		 * ->poll()等待列表(在我们释放锁之后延迟进行)
+		 */
+		if (waitqueue_active(&ep->wq))
+			wake_up(&ep->wq);
+		if (waitqueue_active(&ep->poll_wait))
+			pwake++;
+	}
+	write_unlock_irq(&ep->lock);
+
+	if (!ep_locked)
+		mutex_unlock(&ep->mtx);
+
+	/**
+	 * We have to call this outside the lock
+	 * 我们得把这个东西从锁里取出来。
+	 */
+	if (pwake)
+		ep_poll_safewake(&ep->poll_wait);
+
+	return res;
+}
+```
+
+![ep_scan_ready_list](./img/ep_scan_ready_list.jpg)
+
+### 向用户态返回结果
+
+**ep_send_events_proc函数**
+
+```c
+static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
+			       void *priv)
+{
+	struct ep_send_events_data *esed = priv;
+	__poll_t revents;
+	struct epitem *epi, *tmp;
+	struct epoll_event __user *uevent = esed->events;
+	struct wakeup_source *ws;
+	poll_table pt;
+
+	init_poll_funcptr(&pt, NULL);
+	esed->res = 0;
+
+	/*
+	 * We can loop without lock because we are passed a task private list.
+	 * Items cannot vanish during the loop because ep_scan_ready_list() is
+	 * holding "mtx" during this call.
+	 */
+	lockdep_assert_held(&ep->mtx);
+
+	list_for_each_entry_safe(epi, tmp, head, rdllink) {
+		if (esed->res >= esed->maxevents)
+			break;
+
+		/*
+		 * Activate ep->ws before deactivating epi->ws to prevent
+		 * triggering auto-suspend here (in case we reactive epi->ws
+		 * below).
+		 *
+		 * This could be rearranged to delay the deactivation of epi->ws
+		 * instead, but then epi->ws would temporarily be out of sync
+		 * with ep_is_linked().
+		 */
+		ws = ep_wakeup_source(epi);
+		if (ws) {
+			if (ws->active)
+				__pm_stay_awake(ep->ws);
+			__pm_relax(ws);
+		}
+
+		list_del_init(&epi->rdllink);
+
+		/*
+		 * If the event mask intersect the caller-requested one,
+		 * deliver the event to userspace. Again, ep_scan_ready_list()
+		 * is holding ep->mtx, so no operations coming from userspace
+		 * can change the item.
+		 */
+		revents = ep_item_poll(epi, &pt, 1);
+		if (!revents)
+			continue;
+
+		if (__put_user(revents, &uevent->events) ||
+		    __put_user(epi->event.data, &uevent->data)) {
+			list_add(&epi->rdllink, head);
+			ep_pm_stay_awake(epi);
+			if (!esed->res)
+				esed->res = -EFAULT;
+			return 0;
+		}
+		esed->res++;
+		uevent++;
+		if (epi->event.events & EPOLLONESHOT)
+			epi->event.events &= EP_PRIVATE_BITS;
+		else if (!(epi->event.events & EPOLLET)) {
+			/*
+			 * If this file has been added with Level
+			 * Trigger mode, we need to insert back inside
+			 * the ready list, so that the next call to
+			 * epoll_wait() will check again the events
+			 * availability. At this point, no one can insert
+			 * into ep->rdllist besides us. The epoll_ctl()
+			 * callers are locked out by
+			 * ep_scan_ready_list() holding "mtx" and the
+			 * poll callback will queue them in ep->ovflist.
+			 */
+			list_add_tail(&epi->rdllink, &ep->rdllist);
+			ep_pm_stay_awake(epi);
+		}
+	}
+
+	return 0;
+}
+```
+
+
 
 ## epoll模块红黑树
 
-### 核心数据结构
-
-```c
-待补充
-```
-
-`epoll`模块在内部维护了一个红黑树的数据结构用来管理`epoll`节点，红黑树的节点类型为`struct epitem`
-
-### 2) 查找节点
+### 查找节点
 
 **ep_find函数**
 
@@ -729,7 +970,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 采用深度优先的策略，遍历红黑树找到目标节点
 
-### 3) 插入节点
+### 插入节点
 
 **`ep_insert`函数 **
 
@@ -898,7 +1139,7 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 
 采用深度优先的策略，遍历红黑树找到目标节点，然后将节点插入
 
-### 4) 删除节点
+### 删除节点
 
 **ep_remove函数**
 
@@ -929,7 +1170,7 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 }
 ```
 
-### 5) 修改节点
+### 修改节点
 
 **ep_modify函数**
 
