@@ -4,11 +4,13 @@
 
 ## 待补充部分
 
-* 示例代码中添加监听`socket`的`demo`
-
 * 内核与用户态交互接口和具体的方式
 
+    用户态传入内核态的部分省略，内核态传回用户态的部分和扫描就绪链表放一起
+
 * 水平触发和边沿触发，是什么怎么实现的
+
+    和扫描就绪链表放一起
 
 * `VFS`子系统和`socket`的结合
 
@@ -45,54 +47,75 @@
 
 ## 三、epoll接口示例代码
 
+### **监听键盘输入**
+
 创建一个`epoll`连接，监听标准输入。打印用户输入的值，若输入`exit`则直接退出结束进程
 
 ```c
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <sys/epoll.h>
 
 #define MAX_EVENTS 10
 
-int main() {
-    int epoll_fd, nfds, n;
-    struct epoll_event event;
-    struct epoll_event events[MAX_EVENTS];
-    char buf[256];
+static int create_epoll_event()
+{
+    int epoll_fd;
+    struct epoll_event event = {0};
 
-    // 创建一个epoll实例
     epoll_fd = epoll_create1(0);
-    if (epoll_fd == -1) {
-        perror("epoll_create1");
-        exit(EXIT_FAILURE);
-    }
+    if (epoll_fd < 0)
+        return -1;
 
-    // 添加标准输入文件描述符到epoll实例中
     event.events = EPOLLIN;
     event.data.fd = STDIN_FILENO;
-    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, STDIN_FILENO, &event) == -1) {
-        perror("epoll_ctl");
-        exit(EXIT_FAILURE);
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, STDIN_FILENO, &event) != 0) {
+        close(epoll_fd);
+        return -1;
+    }
+
+    return epoll_fd;
+}
+
+int main()
+{
+    int n = -1;
+    int nfds = -1;
+    int epoll_fd = -1;
+    ssize_t nr = 0;
+    char buf[256] = {0};
+    struct epoll_event events[MAX_EVENTS] = {0};
+
+    epoll_fd = create_epoll_event();
+    if (epoll_fd < 0) {
+        perror("create_epoll_event");
+        return 1;
     }
 
     while (1) {
         // 等待事件发生
         nfds = epoll_wait(epoll_fd, events, MAX_EVENTS, -1);
-        if (nfds == -1) {
+        if (nfds < 0) {
+            if (errno == EINTR)
+                continue;
             perror("epoll_wait");
-            exit(EXIT_FAILURE);
+            goto cleanup;
         }
 
         // 处理就绪的事件
         for (n = 0; n < nfds; ++n) {
             if (events[n].data.fd == STDIN_FILENO) {
                 // 从标准输入中读取数据
-                if (fgets(buf, sizeof(buf), stdin) == NULL) {
-                    perror("fgets");
-                    exit(EXIT_FAILURE);
+                nr = read(events[n].data.fd, buf, sizeof(buf) - 1);
+                if (nr < 0) {
+                    perror("read");
+                    goto cleanup;
                 }
+                if (nr == 0)
+                    goto cleanup;
+                buf[nr] = '\0';
                 printf("Received input: %s", buf);
                 // 如果收到exit，则退出循环
                 if (strcmp(buf, "exit\n") == 0) {
@@ -103,10 +126,290 @@ int main() {
     }
 
 cleanup:
-    close(epoll_fd);
+    if (epoll_fd >= 0)
+        close(epoll_fd);
     return 0;
 }
 ```
+
+### **监听本地socket文件**
+
+**server端**
+
+创建本地`socket`文件`/tmp/epoll_demo.sock`并用epoll监听，打印收到的消息，如果消息是`exit`则会直接结束进程
+
+> 笔者注：由于篇幅限制，部分异常未处理
+
+```c
+/*
+ * epoll_server.c
+ * 作为服务端，监听本地套接字，接受客户端连接，并处理客户端发来的消息。
+ */
+
+#include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/epoll.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+/* 监听套接字（listening socket）句柄，供 epoll 与 accept 使用 */
+static const char SOCK_PATH[] = "/tmp/epoll_demo.sock";
+
+static void stop_server()
+{
+	printf("服务器退出\n");
+	exit(0);
+}
+
+static void clean_local_socket(const int lfd)
+{
+	if (lfd >= 0)
+		close(lfd);
+
+	unlink(SOCK_PATH);
+}
+
+static int create_local_socket(int *lfd)
+{
+	int ret = 0;
+
+	*lfd = socket(AF_UNIX, SOCK_STREAM, 0);
+	if (*lfd < 0) {
+		ret = -1;
+		perror("socket");
+		goto end;
+	}
+
+end:
+	return ret;
+}
+
+static int listen_local_socket(int lfd)
+{
+	int ret = 0;
+	struct sockaddr_un addr = {0};
+
+	unlink(SOCK_PATH);
+	addr.sun_family = AF_UNIX;
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", SOCK_PATH);
+
+	ret = bind(lfd, (struct sockaddr *)&addr, sizeof(addr));
+	if (ret < 0) {
+		perror("bind");
+		goto end;
+	}
+
+	ret = listen(lfd, 5);
+	if (ret < 0) {
+		perror("listen");
+		goto end;
+	}
+
+	printf("监听 %s 中...\n", SOCK_PATH);
+end:
+	return ret;
+}
+
+/* 处理客户端发来的消息 */
+static void handle_client_data(int epfd, int cfd)
+{
+	char buf[1024] = {0};
+	ssize_t nr = 0;
+
+	nr = read(cfd, buf, sizeof(buf) - 1);
+	/* read 返回 0：对端关闭；LT 下若不 epoll_del+close，会一直可读 */
+	if (nr <= 0) {
+		epoll_ctl(epfd, EPOLL_CTL_DEL, cfd, NULL);
+		close(cfd);
+		goto end;
+	}
+
+	buf[nr] = '\0';
+	if (strcmp(buf, "exit") == 0)
+		stop_server();
+	else
+		printf("收到: %s\n", buf);
+
+end:
+	fflush(stdout);
+}
+
+/* 新客户端在 Unix 域流套接字上连接成功，将 accept 得到的句柄加入 epoll 监听 */
+static int handle_client_connect(int epfd, int fd)
+{
+	int ret = 0;
+	int cfd = -1;
+	struct epoll_event ev = {0};
+
+	cfd = accept(fd, NULL, NULL);
+	if (cfd < 0) {
+		ret = cfd;
+		perror("accept");
+		goto end;
+	}
+
+	ev.events = EPOLLIN;
+	ev.data.fd = cfd;
+	ret = epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &ev);
+	if (ret < 0) {
+		perror("epoll_ctl");
+		close(cfd);
+		goto end;
+	}
+
+end:
+	return ret;
+}
+
+/* 使用 epoll（事件轮询，默认水平触发 LT）监听 lfd 与新接受的连接 */
+static int run_epoll_demo(int lfd)
+{
+	int n = -1;
+	int i = -1;
+	int ret = 0;
+	int epfd = -1;
+	struct epoll_event ev = {0};
+	struct epoll_event events[8] = {0};
+
+	ev.events = EPOLLIN;
+	ev.data.fd = lfd;
+
+	epfd = epoll_create1(0);
+	if (epfd < 0) {
+		ret = epfd;
+		perror("epoll_create1");
+		goto end;
+	}
+
+	ret = epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &ev);
+	if (ret < 0) {
+		perror("epoll_ctl");
+		goto end;
+	}
+
+	while(1) {
+		n = epoll_wait(epfd, events, sizeof(events) / sizeof(events[0]), -1);
+		if (n < 0) {
+			ret = n;
+			perror("epoll_wait");
+			goto end;
+		}
+
+		for (i = 0; i < n; i++) {
+			if (events[i].data.fd == lfd) {
+				/* 新客户端连接成功 */
+				ret = handle_client_connect(epfd, events[i].data.fd);
+				if (ret < 0) {
+					perror("handle_client_connect");
+					goto end;
+				}
+			} else {
+				/* 已有客户端发来消息，处理数据 */
+				handle_client_data(epfd, events[i].data.fd);
+			}
+		}
+	}
+
+end:
+	if (epfd >= 0)
+		close(epfd);
+
+	return ret;
+}
+
+int main(void)
+{
+	int ret = -1;
+	int lfd = -1;
+
+	ret = create_local_socket(&lfd);
+	if (ret < 0) {
+		perror("create_local_socket");
+		return 1;
+	}
+
+	ret = listen_local_socket(lfd);
+	if (ret < 0) {
+		perror("listen_local_socket");
+		clean_local_socket(lfd);
+		return 1;
+	}
+
+	ret = run_epoll_demo(lfd);
+	if (ret < 0) {
+		perror("run_epoll_demo");
+		clean_local_socket(lfd);
+		return 1;
+	}
+
+	clean_local_socket(lfd);
+
+	return 0;
+}
+```
+
+**client端**
+
+创建`socket`绑定到`/tmp/epoll_demo.sock`，通过`socket`发送消息
+
+```c
+/**
+ * epoll_client.c
+ * 作为客户端，连接本地套接字，并发送消息给服务端
+ */
+
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <unistd.h>
+
+static const char SOCK_PATH[] = "/tmp/epoll_demo.sock";
+
+static void create_socket(int *fd)
+{
+	struct sockaddr_un addr = {0};
+
+	addr.sun_family = AF_UNIX;
+	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", SOCK_PATH);
+
+	*fd = socket(AF_UNIX, SOCK_STREAM, 0);
+	connect(*fd, (struct sockaddr *)&addr, sizeof(addr));
+}
+
+static void send_message(char *message, const int fd)
+{
+	char buf[1024] = {0};
+
+	snprintf(buf, sizeof(buf), "%s", message);
+	send(fd, buf, strlen(buf) + 1, 0);
+}
+
+/* 作为客户端（client）连接 epoll_test 监听的本地套接字并发送 hello */
+int main(int argc, char *argv[])
+{
+	int fd = -1;
+
+	if(argc < 2) {
+		printf("Usage: %s <message>\n", argv[0]);
+		return 1;
+	}
+
+	create_socket(&fd);
+	send_message(argv[1], fd);
+
+	if (fd > 0)
+		close(fd);
+
+	return 0;
+}
+
+```
+
+
 
 ## 四、核心数据结构
 
@@ -116,7 +419,10 @@ cleanup:
 
 这个数据结构是我们在调用`epoll_create`之后内核侧创建的一个句柄，表示了一个`epoll`实例。后续如果我们再调用`epoll_ctl`和`epoll_wait`等，都是对这个`eventpoll`数据进行操作，这部分数据会被保存在`do_epoll_create`创建的匿名文件`file`的`private_data`字段中
 
+> 笔者注：除注释外，所有代码均未删改
+
 ```c
+// linux-5.4/fs/eventpoll.c
 struct eventpoll {
     /* 互斥锁，保证在 epoll 仍在使用某个被监视文件 时，该文件不会被并发地拆掉或释放 */
     struct mutex mtx;
@@ -179,6 +485,8 @@ struct eventpoll {
 
 每当我们调用`epoll_ctl`增加一个`fd`时，内核就会为我们创建出一个`epitem`实例，并且把这个实例作为红黑树的一个子节点，增加到`eventpoll`结构体中的红黑树中，对应的字段是`rbr`。这之后，查找每一个`fd`上是否有事件发生都是通过红黑树上的`epitem`来操作
 
+> 笔者注：除注释外，所有代码均未删改
+
 ```c
 struct epitem {
     union {
@@ -221,6 +529,8 @@ struct epitem {
 
 每次当一个`fd`关联到一个`epoll`实例，就会有一个`eppoll_entry`产生，用于轮询钩子使用的等待结构
 
+> 笔者注：除注释外，所有代码均未删改
+
 ```c
 /* Wait structure used by the poll hooks */
 struct eppoll_entry
@@ -246,7 +556,7 @@ struct eppoll_entry
 
 ### 4.1 epoll基本流程图
 
-<img src="./img/epoll主流程 新.jpg" alt="epoll主流程 新" />
+<img src="./img/epoll主流程.jpg" alt="epoll主流程" />
 
 ### 4.2 创建epoll实例
 
@@ -254,7 +564,7 @@ struct eppoll_entry
 
 **epoll_create接口已废弃**，`epoll_create1`接口参数通常使用`0`，也可使用`EPOLL_CLOEXEC`为新的文件描述符设置“执行时关闭”标志（`FD_CLOEXEC`）
 
-> 笔者注：下文保留完整源代码
+> 笔者注：除注释外，所有代码均未删改
 
 ```c
 // linux/linux-5.4/fs/eventpoll.c
@@ -403,7 +713,7 @@ static int do_epoll_create(int flags)
 
 此处将新建的`file`节点插入，对应当前的进程文件数组中，用于后续内核管理
 
-<img src="./img/do_epoll_create流程 新.jpg" alt="do_epoll_create流程 新" />
+<img src="./img/do_epoll_create流程.jpg" alt="do_epoll_create流程" />
 
 ### 4.3 修改监听句柄
 
@@ -510,7 +820,7 @@ error_tgt_fput:
 
 <img src=".\img\红黑树操作接口.jpg" alt="红黑树操作接口" style="zoom:50%;" />
 
-### 4.4 等待epoll事件
+### 4.4 等待句柄活跃
 
 **epoll_wait函数**
 
@@ -692,6 +1002,8 @@ static int ep_send_events(struct eventpoll *ep,
 
 **ep_scan_ready_list函数**
 
+> 笔者注：除注释外，所有代码均未删改
+
 ```c
 // linux-5.4/fs/eventpoll.c
 /**
@@ -828,11 +1140,21 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 }
 ```
 
+**核心思想**
+
+`ep_scan_ready_list`函数的执行可以分为前后两个部分
+
+前半部分：执行传入的函数指针`sproc`这里会根据不同的场景传入`ep_read_events_proc`或`ep_send_events_proc`，分别用于检查`epoll`就绪链表或将`epoll`检测结果从内核态发送至用户态
+
+后半部分：遍历检查`ovflist`链表，根据检查结果更新`rdllist`链表，然后唤醒等待链表
+
 ![ep_scan_ready_list](./img/ep_scan_ready_list.jpg)
 
 ### 向用户态返回结果
 
 **ep_send_events_proc函数**
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
 static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
@@ -920,9 +1242,7 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 }
 ```
 
-
-
-## epoll模块红黑树
+## epoll模块红黑树操作
 
 ### 查找节点
 
@@ -972,7 +1292,7 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 ### 插入节点
 
-**`ep_insert`函数 **
+**ep_insert函数 **
 
 ```c
 /*
@@ -1088,7 +1408,7 @@ error_create_wakeup_source:
 
 <img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
-**`ep_rbtree_insert`函数**
+**ep_rbtree_insert函数**
 
 插入新的节点
 
@@ -1230,80 +1550,6 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 
 ## 4.3 关键链表及相关接口
 
-#### 1) epitem->ovflist链表和epitem->rdlink链表
-
-**扫描就绪链表**
-
-**ep_scan_ready_list**函数
-
-扫描就绪链表核心接口，用于维护更新`epoll`关键链表的状态
-
-**核心逻辑如下**
-
-> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
-
-```c
-static __poll_t ep_scan_ready_list(struct eventpoll *ep,
-                  __poll_t (*sproc)(struct eventpoll *,
-                       struct list_head *, void *),
-                  void *priv, int depth, bool ep_locked)
-{
-    __poll_t res;
-    int pwake = 0;
-    struct epitem *epi, *nepi;
-
-    /*
-     * 创建一个空的新链表txlist，将其和ep->rdllist拼接起来
-     * 此处传入的sproc是ep_read_events_proc或ep_send_events_proc用于检测句柄的状态或是将epoll检测结果从内核发给用户态
-     */
-    LIST_HEAD(txlist);
-    list_splice_init(&ep->rdllist, &txlist);
-    WRITE_ONCE(ep->ovflist, NULL);
-    res = (*sproc)(ep, &txlist, priv);
-
-    /*
-     * 函数后半段
-     * 此次开始对ep->ovflist进行扫描，当ep->ovflist->rdllink中只有一个元素
-     * 时将其添加到ep->rdllist中并唤醒这个epi节点
-     */
-    for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
-         nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
-        if (!ep_is_linked(epi)) {
-            list_add(&epi->rdllink, &ep->rdllist);
-            ep_pm_stay_awake(epi);
-        }
-    }
-
-    /* 清空ep->ovflist链表 */
-    WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
-
-    /* 将txlist添加到ep->rdllist */
-    list_splice(&txlist, &ep->rdllist);
-    __pm_relax(ep->ws);
-
-    /* 唤醒链表 */
-    if (!list_empty(&ep->rdllist)) {
-        if (waitqueue_active(&ep->wq))
-            wake_up(&ep->wq);
-        if (waitqueue_active(&ep->poll_wait))
-            pwake++;
-    }
-
-    if (pwake)
-        ep_poll_safewake(&ep->poll_wait);
-
-    return res;
-}
-```
-
-**核心思想**
-
-`ep_scan_ready_list`函数的执行可以分为前后两个部分
-
-前半部分：执行传入的函数指针`sproc`这里会根据不同的场景传入`ep_read_events_proc`或`ep_send_events_proc`，分别用于检查`epoll`就绪链表或将`epoll`检测结果从内核态发送至用户态
-
-后半部分：遍历检查`ovflist`链表，根据检查结果更新`rdllist`链表，然后唤醒等待链表
-
 #### 2) 等待链表和就绪链表
 
 **epitem->rdlink链表和eventpoll->rdllist链表**
@@ -1358,8 +1604,6 @@ ep_ptable_queue_proc
 ```
 
 ## 六、关键流程回调函数
-
-### ep_scan_ready_list函数
 
 ### 1) ep_poll_safewake函数
 
@@ -1465,20 +1709,9 @@ static inline void poll_wait(struct file * filp, wait_queue_head_t * wait_addres
 }
 ```
 
-### 7) ep_send_events_proc函数
+## 外部socket活跃时触发epoll流程
 
-将`events`事件从内核空间发送到用户空间
-
-**核心逻辑如下**
-
-> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
-
-```c
-static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
-                   void *priv)
-{
-}
-```
+![等待队列注册唤醒](./img/等待队列注册唤醒.jpg)
 
 ## 五、对文件句柄的监听
 
@@ -1649,43 +1882,43 @@ static __poll_t ep_item_poll(const struct epitem *epi, poll_table *pt,
 
 **1) 用户态将文件描述符传入内核的方式**
 
-- `select`：创建3个文件描述符集并拷贝到内核中，分别监听读、写、异常动作。这里受到单个进程可以打开的`fd`数量限制，默认是`1024`。
-- `poll`：将传入的`struct pollfd`结构体数组拷贝到内核中进行监听。
-- `epoll`：执行`epoll_create`会在内核的高速`cache`区中建立一颗红黑树以及就绪链表(该链表存储已经就绪的文件描述符)。接着用户执行的`epoll_ctl`函数添加文件描述符会在红黑树上增加相应的结点。
+- `select`：创建3个文件描述符集并拷贝到内核中，分别监听读、写、异常动作。这里受到单个进程可以打开的`fd`数量限制，默认是`1024`
+- `poll`：将传入的`struct pollfd`结构体数组拷贝到内核中进行监听
+- `epoll`：执行`epoll_create`会在内核的高速`cache`区中建立一颗红黑树以及就绪链表(该链表存储已经就绪的文件描述符)。接着用户执行的`epoll_ctl`函数添加文件描述符会在红黑树上增加相应的结点
 
 **2) 内核态检测文件描述符读写状态的方式**
 
-- `select`：采用轮询方式，遍历所有`fd`，最后返回一个描述符读写操作是否就绪的`mask`掩码，根据这个掩码给`fd_set`赋值。
-- `poll`：同样采用轮询方式，查询每个`fd`的状态，如果就绪则在等待队列中加入一项并继续遍历。
-- `epoll`：采用回调机制。在执行`epoll_ctl`的`add`操作时，不仅将文件描述符放到红黑树上，而且也注册了回调函数，内核在检测到某文件描述符可读/可写时会调用回调函数，该回调函数将文件描述符放在就绪链表中。
+- `select`：采用轮询方式，遍历所有`fd`，最后返回一个描述符读写操作是否就绪的`mask`掩码，根据这个掩码给`fd_set`赋值
+- `poll`：同样采用轮询方式，查询每个`fd`的状态，如果就绪则在等待队列中加入一项并继续遍历
+- `epoll`：采用回调机制。在执行`epoll_ctl`的`add`操作时，不仅将文件描述符放到红黑树上，而且也注册了回调函数，内核在检测到某文件描述符可读/可写时会调用回调函数，该回调函数将文件描述符放在就绪链表中
 
 **3) 找到就绪的文件描述符并传递给用户态的方式**
 
-- `select`：将之前传入的`fd_set`拷贝传出到用户态并返回就绪的文件描述符总数。用户态并不知道是哪些文件描述符处于就绪态，需要遍历来判断。
-- `poll`：将之前传入的`fd`数组拷贝传出用户态并返回就绪的文件描述符总数。用户态并不知道是哪些文件描述符处于就绪态，需要遍历来判断。
-- `epoll`：`epoll_wait`只用观察就绪链表中有无数据即可，最后将链表的数据返回给数组并返回就绪的数量。内核将就绪的文件描述符放在传入的数组中，所以只用遍历依次处理即可。这里返回的文件描述符是通过`mmap`让内核和用户空间共享同一块内存实现传递的，减少了不必要的拷贝。
+- `select`：将之前传入的`fd_set`拷贝传出到用户态并返回就绪的文件描述符总数。用户态并不知道是哪些文件描述符处于就绪态，需要遍历来判断
+- `poll`：将之前传入的`fd`数组拷贝传出用户态并返回就绪的文件描述符总数。用户态并不知道是哪些文件描述符处于就绪态，需要遍历来判断
+- `epoll`：`epoll_wait`只用观察就绪链表中有无数据即可，最后将链表的数据返回给数组并返回就绪的数量。内核将就绪的文件描述符放在传入的数组中，所以只用遍历依次处理即可。这里返回的文件描述符是通过`mmap`让内核和用户空间共享同一块内存实现传递的，减少了不必要的拷贝
 
 **4) 重复监听的处理方式**
 
-- `select`：将新的监听文件描述符集合拷贝传入内核中，继续以上步骤。
-- `poll`：将新的`struct pollfd`结构体数组拷贝传入内核中，继续以上步骤。
-- `epoll`：无需重新构建红黑树，直接沿用已存在的即可。
+- `select`：将新的监听文件描述符集合拷贝传入内核中，继续以上步骤
+- `poll`：将新的`struct pollfd`结构体数组拷贝传入内核中，继续以上步骤
+- `epoll`：无需重新构建红黑树，直接沿用已存在的即可
 
 ## 九、总结
 
 **epoll更高效的原因**
 
-1）`select`和`poll`的动作基本一致，只是`poll`采用链表来进行文件描述符的存储，而`select`采用fd标注位来存放，所以`select`会受到最大连接数的限制，而`poll`不会。
+1）`select`和`poll`的动作基本一致，只是`poll`采用链表来进行文件描述符的存储，而`select`采用fd标注位来存放，所以`select`会受到最大连接数的限制，而`poll`不会
 
-2）`select`、`poll`、`epoll`虽然都会返回就绪的文件描述符数量。但是`select`和`poll`并不会明确指出是哪些文件描述符就绪，而`epoll`会。造成的区别就是，系统调用返回后，调用`select`和`poll`的程序需要遍历监听的整个文件描述符找到是谁处于就绪，而epoll则直接处理即可。
+2）`select`、`poll`、`epoll`虽然都会返回就绪的文件描述符数量。但是`select`和`poll`并不会明确指出是哪些文件描述符就绪，而`epoll`会。造成的区别就是，系统调用返回后，调用`select`和`poll`的程序需要遍历监听的整个文件描述符找到是谁处于就绪，而epoll则直接处理即可
 
-3）`select`、`poll`都需要将有关文件描述符的数据结构拷贝进内核，最后再拷贝出来。而`epoll`创建的有关文件描述符的数据结构本身就存于内核态中，系统调用返回时利用`mmap()`文件映射内存加速与内核空间的消息传递：即`epoll`使用`mmap`减少复制开销。
+3）`select`、`poll`都需要将有关文件描述符的数据结构拷贝进内核，最后再拷贝出来。而`epoll`创建的有关文件描述符的数据结构本身就存于内核态中，系统调用返回时利用`mmap()`文件映射内存加速与内核空间的消息传递：即`epoll`使用`mmap`减少复制开销
 
-4）`select`、`poll`采用轮询的方式来检查文件描述符是否处于就绪态，而`epoll`采用回调机制。造成的结果就是，随着`fd`的增加，`select`和`poll`的效率会线性降低，而`epoll`不会受到太大影响，除非活跃的`socket`很多。
+4）`select`、`poll`采用轮询的方式来检查文件描述符是否处于就绪态，而`epoll`采用回调机制。造成的结果就是，随着`fd`的增加，`select`和`poll`的效率会线性降低，而`epoll`不会受到太大影响，除非活跃的`socket`很多
 
 5）`epoll`的边缘触发模式效率高，系统不会充斥大量不关心的就绪文件描述符
 
-> 虽然epoll的性能最好，但是在连接数少并且连接都十分活跃的情况下，select和poll的性能可能比epoll好，毕竟epoll的通知机制需要很多函数回调。
+> 虽然epoll的性能最好，但是在连接数少并且连接都十分活跃的情况下，select和poll的性能可能比epoll好，毕竟epoll的通知机制需要很多函数回调
 
 ## 参考文档
 
