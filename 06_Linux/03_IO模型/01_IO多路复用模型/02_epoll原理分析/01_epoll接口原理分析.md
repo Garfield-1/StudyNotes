@@ -136,7 +136,7 @@ cleanup:
 
 **server端**
 
-创建本地`socket`文件`/tmp/epoll_demo.sock`并用epoll监听，打印收到的消息，如果消息是`exit`则会直接结束进程
+创建本地`socket`文件`/tmp/epoll_demo.sock`并用`epoll`监听，打印收到的消息，如果消息是`exit`则会直接结束进程
 
 > 笔者注：由于篇幅限制，部分异常未处理
 
@@ -154,6 +154,8 @@ cleanup:
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <unistd.h>
+
+#define MAX_EVENTS 10
 
 /* 监听套接字（listening socket）句柄，供 epoll 与 accept 使用 */
 static const char SOCK_PATH[] = "/tmp/epoll_demo.sock";
@@ -202,7 +204,7 @@ static int listen_local_socket(int lfd)
 		goto end;
 	}
 
-	ret = listen(lfd, 5);
+	ret = listen(lfd, MAX_EVENTS);
 	if (ret < 0) {
 		perror("listen");
 		goto end;
@@ -272,7 +274,7 @@ static int run_epoll_demo(int lfd)
 	int ret = 0;
 	int epfd = -1;
 	struct epoll_event ev = {0};
-	struct epoll_event events[8] = {0};
+	struct epoll_event events[MAX_EVENTS] = {0};
 
 	ev.events = EPOLLIN;
 	ev.data.fd = lfd;
@@ -395,6 +397,7 @@ int main(int argc, char *argv[])
 
 	if(argc < 2) {
 		printf("Usage: %s <message>\n", argv[0]);
+        printf("if want to exit, send 'exit' message\n");
 		return 1;
 	}
 
@@ -406,7 +409,6 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
 ```
 
 
