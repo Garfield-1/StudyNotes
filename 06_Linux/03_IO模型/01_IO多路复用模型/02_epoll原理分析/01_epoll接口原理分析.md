@@ -390,7 +390,7 @@ static void send_message(char *message, const int fd)
 	send(fd, buf, strlen(buf) + 1, 0);
 }
 
-/* 作为客户端（client）连接 epoll_test 监听的本地套接字并发送 hello */
+/* 作为客户端(client)连接epoll_server监听的本地套接字并发送数据 */
 int main(int argc, char *argv[])
 {
 	int fd = -1;
