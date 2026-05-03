@@ -975,10 +975,11 @@ send_events:
 首先会针对用户态传入的超时时间处理，觉得是立刻检测时间还是，后续设置定时器等待。多次去检查是否有可用事件，防止遗漏。并且在等待外部事件时，会将自身挂入到`event_poll`的等待队列中，挂起自身进程，不断地循环检测，直到外部信号打断
 
 最终检测就绪事件，**发送就绪事件到用户态，这部分的具体实现见下文**
-
-
-
 <img src="./img/ep_poll.jpg" alt="ep_poll" />
+
+### 监听句柄活跃触发回调
+
+**ep_poll_callback函数**
 
 ### 扫描就绪链表
 
@@ -1150,7 +1151,7 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 
 后半部分：遍历检查`ovflist`链表，根据检查结果更新`rdllist`链表，然后唤醒等待链表
 
-![ep_scan_ready_list](./img/ep_scan_ready_list.jpg)
+<img src="./img/ep_scan_ready_list.jpg" alt="ep_scan_ready_list" />
 
 ### 向用户态返回结果
 
