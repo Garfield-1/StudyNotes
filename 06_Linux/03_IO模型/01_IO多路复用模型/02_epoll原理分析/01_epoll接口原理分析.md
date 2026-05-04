@@ -558,6 +558,43 @@ struct eventpoll {
 
 <img src="./img/struct_eventpoll.jpg" alt="struct_eventpoll" />
 
+#### 1) wq队列
+
+`wq`队列是面向用户态的`epoll_wait`的调用者提供
+
+**仅在`ep_poll`函数中使用**
+
+**在这些场景中会使用来wake_up(&ep->wq)唤醒等待者**
+
+1. 监听句柄活跃，触发`ep_poll_callback`
+2. `ep_scan_ready_list`中刷新完就绪队列后，检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
+3. `ep_insert`中插入节点后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
+4. `ep_modify`修改了某个已注册`fd`的 `epoll_event` 之后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
+
+#### 2) poll_wait队列
+
+`epoll_create`创建的`epoll`实例本身，也可以被当做一个句柄来监听，`poll_wait`队列就是应对这种情况使用的
+
+**在这些场景中会使用poll_wait()函数来向poll_wait队列中添加成员**
+
+1. `ep_item_poll`函数对`epitem`节点，所对应的`file`做一次与`poll`等价语义的探测
+
+    这时会检测探测的是否是`epoll`文件，如果是则使用`poll_wait()`函数将自身添加到`poll_wait`队列中。这里外层`epoll`在等待的并不是内层`epoll`文件的某个设备队列本身，而是内层`struct eventpoll`的等待队列头`poll_wait`；这样嵌套`epoll`才能像普通`fd`一样被`poll`驱动
+
+2. `epoll`模块对`VFS`提供的`poll`接口回调函数`ep_eventpoll_poll`中
+
+    这里将等待者挂在`epoll`的等待队列中，是一个常规操作，是`poll`接口实现非常常见的一种做法
+
+这二者的区别是一个使用直接使用VFS的poll接口
+
+**在这些场景中会使用来ep_poll_safewake(&ep->poll_wait)唤醒等待者**
+
+1. 监听句柄活跃，触发`ep_poll_callback`
+2. `ep_scan_ready_list`中刷新完就绪队列后，检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
+3. `ep_insert`中插入节点后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
+4. `ep_modify`修改了某个已注册`fd`的 `epoll_event` 之后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
+5. `ep_free`函数
+
 ### 2. struct epitem
 
 每当我们调用`epoll_ctl`增加一个`fd`时，内核就会为我们创建出一个`epitem`实例，并且把这个实例作为红黑树的一个子节点，增加到`eventpoll`结构体中的红黑树中，对应的字段是`rbr`。这之后，查找每一个`fd`上是否有事件发生都是通过红黑树上的`epitem`来操作
@@ -1068,14 +1105,20 @@ send_events:
 
 **核心思想**
 
-函数主要设置了处理用户态输入计算等待事件，等待检测就绪事件，发送就绪事件这几个部分，函数针对高并发，多进程，多`cpu`场景做出大量优化
+首先计算等待时间
 
-首先会针对用户态传入的超时时间处理，决定是立刻检测时间还是，后续设置定时器等待。多次去检查是否有可用事件，防止遗漏。并且在等待外部事件时，会将自身挂入到`event_poll`的等待队列中，挂起自身进程，不断地循环检测，直到外部信号打断
+
+
+三种状态
+
+1. 正常
+2. time_out小于0
+3. 极高并发
 
 最终检测就绪事件，**发送就绪事件到用户态，这部分的具体实现见下文**
 <img src="./img/ep_poll.jpg" alt="ep_poll" />
 
-### 5. 监听句柄活跃触发回调
+### 5. 监听句柄活跃触发回调ep_poll_callback
 
 **外部socket活跃**
 
@@ -1083,7 +1126,116 @@ send_events:
 
 **ep_poll_callback函数**
 
-### 6. 扫描就绪链表
+```c++
+static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
+{
+	int pwake = 0;
+	struct epitem *epi = ep_item_from_wait(wait);
+	struct eventpoll *ep = epi->ep;
+	__poll_t pollflags = key_to_poll(key);
+	unsigned long flags;
+	int ewake = 0;
+
+	read_lock_irqsave(&ep->lock, flags);
+
+	ep_set_busy_poll_napi_id(epi);
+
+	/*
+	 * If the event mask does not contain any poll(2) event, we consider the
+	 * descriptor to be disabled. This condition is likely the effect of the
+	 * EPOLLONESHOT bit that disables the descriptor when an event is received,
+	 * until the next EPOLL_CTL_MOD will be issued.
+	 */
+	if (!(epi->event.events & ~EP_PRIVATE_BITS))
+		goto out_unlock;
+
+	/*
+	 * Check the events coming with the callback. At this stage, not
+	 * every device reports the events in the "key" parameter of the
+	 * callback. We need to be able to handle both cases here, hence the
+	 * test for "key" != NULL before the event match test.
+	 */
+	if (pollflags && !(pollflags & epi->event.events))
+		goto out_unlock;
+
+	/*
+	 * If we are transferring events to userspace, we can hold no locks
+	 * (because we're accessing user memory, and because of linux f_op->poll()
+	 * semantics). All the events that happen during that period of time are
+	 * chained in ep->ovflist and requeued later on.
+	 */
+	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
+		if (epi->next == EP_UNACTIVE_PTR &&
+		    chain_epi_lockless(epi))
+			ep_pm_stay_awake_rcu(epi);
+		goto out_unlock;
+	}
+
+	/* If this file is already in the ready list we exit soon */
+	if (!ep_is_linked(epi) &&
+	    list_add_tail_lockless(&epi->rdllink, &ep->rdllist)) {
+		ep_pm_stay_awake_rcu(epi);
+	}
+
+	/*
+	 * Wake up ( if active ) both the eventpoll wait list and the ->poll()
+	 * wait list.
+	 */
+	if (waitqueue_active(&ep->wq)) {
+		if ((epi->event.events & EPOLLEXCLUSIVE) &&
+					!(pollflags & POLLFREE)) {
+			switch (pollflags & EPOLLINOUT_BITS) {
+			case EPOLLIN:
+				if (epi->event.events & EPOLLIN)
+					ewake = 1;
+				break;
+			case EPOLLOUT:
+				if (epi->event.events & EPOLLOUT)
+					ewake = 1;
+				break;
+			case 0:
+				ewake = 1;
+				break;
+			}
+		}
+		wake_up(&ep->wq);
+	}
+	if (waitqueue_active(&ep->poll_wait))
+		pwake++;
+
+out_unlock:
+	read_unlock_irqrestore(&ep->lock, flags);
+
+	/* We have to call this outside the lock */
+	if (pwake)
+		ep_poll_safewake(&ep->poll_wait);
+
+	if (!(epi->event.events & EPOLLEXCLUSIVE))
+		ewake = 1;
+
+	if (pollflags & POLLFREE) {
+		/*
+		 * If we race with ep_remove_wait_queue() it can miss
+		 * ->whead = NULL and do another remove_wait_queue() after
+		 * us, so we can't use __remove_wait_queue().
+		 */
+		list_del_init(&wait->entry);
+		/*
+		 * ->whead != NULL protects us from the race with ep_free()
+		 * or ep_remove(), ep_remove_wait_queue() takes whead->lock
+		 * held by the caller. Once we nullify it, nothing protects
+		 * ep/epi or even wait.
+		 */
+		smp_store_release(&ep_pwq_from_wait(wait)->whead, NULL);
+	}
+
+	return ewake;
+}
+```
+
+### 6. 检测就绪事件
+
+#### 1) 刷新就绪链表
 
 **ep_send_events函数**
 
@@ -1107,19 +1259,24 @@ static int ep_send_events(struct eventpoll *ep,
 
 **ep_scan_ready_list函数**
 
+由于可以通过调用`ep_item_poll`来间接调用`ep_scan_ready_list`并且`ep_scan_ready_list`本身调用时`sproc`参数传入的`ep_read_events_proc`和`ep_send_events_proc`函数会调用`ep_item_poll`，也就是说`ep_scan_ready_list`函数和外部传入的函数回调形成了**递归调用结构**
+
+`ep_scan_ready_list`函数在`epoll`流程中功能及重要且复杂，这里保留完整注释和源码，方便读者阅读理解
+
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
 // linux-5.4/fs/eventpoll.c
 /**
-* ep_scan_ready_list - 以一种能够使扫描代码调用 f_op->poll() 的方式扫描就绪列表。同时还能实现 O(NumReady) 的性能
-* @ep：指向 epoll 私有数据结构的指针
-* @sproc：指向扫描回调函数的指针
-* @priv：传递给 @sproc 回调函数的私有不透明数据
-* @depth：递归调用 f_op->poll 的当前深度
-* @ep_locked：调用者是否已经持有ep->mtx锁
-* 返回值：与 @sproc 回调所返回的相同整数错误代码
-*/
+ * ep_scan_ready_list - 以一种能够使扫描代码调用 f_op->poll() 的方式扫描就绪列表。同时还能实现 O(NumReady) 的性能
+ * @ep：指向 epoll 私有数据结构的指针
+ * @sproc：指向扫描回调函数的指针
+ * @priv：传递给 @sproc 回调函数的私有不透明数据
+ * @depth：递归调用 f_op->poll 的当前深度
+ * @ep_locked：调用者是否已经持有ep->mtx锁
+ *
+ * 返回值：与 @sproc 回调所返回的相同整数错误代码
+ */
 static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 			      __poll_t (*sproc)(struct eventpoll *,
 					   struct list_head *, void *),
@@ -1254,6 +1411,8 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 后半部分：遍历检查`ovflist`链表，根据检查结果更新`rdllist`链表，然后唤醒等待链表
 
 <img src="./img/ep_scan_ready_list.jpg" alt="ep_scan_ready_list" />
+
+#### 2) 检查红黑树节点
 
 ### 7. 向用户态返回结果
 
