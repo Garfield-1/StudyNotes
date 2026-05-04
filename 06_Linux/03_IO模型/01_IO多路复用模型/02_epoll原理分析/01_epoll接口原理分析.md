@@ -585,7 +585,7 @@ struct eventpoll {
 
     这里将等待者挂在`epoll`的等待队列中，是一个常规操作，是`poll`接口实现非常常见的一种做法
 
-这二者的区别是一个使用直接使用VFS的poll接口
+这二者的区别是一个是通过`epoll_ctl`接口将待检测的句柄传入内核，在`epoll`流程中的`ep_item_poll`函数会检测事件活跃。另一个使用直接使用`epoll`在`VFS`中注册的`poll`接口
 
 **在这些场景中会使用来ep_poll_safewake(&ep->poll_wait)唤醒等待者**
 
