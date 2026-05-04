@@ -138,8 +138,6 @@ cleanup:
 
 创建本地`socket`文件`/tmp/epoll_demo.sock`并用`epoll`监听，打印收到的消息，如果消息是`exit`则会直接结束进程
 
-> 笔者注：由于篇幅限制，部分异常未处理
-
 ```c
 /*
  * epoll_server.c
@@ -483,6 +481,12 @@ int main(int argc, char *argv[])
 
 ```c
 // linux-5.4/fs/eventpoll.c
+/*
+ * Each file descriptor added to the eventpoll interface will
+ * have an entry of this type linked to the "rbr" RB tree.
+ * Avoid increasing the size of this struct, there can be many thousands
+ * of these on a server and we do not want this to take another cache line.
+ */
 struct eventpoll {
     /**
      * ep->mtx保护的是这个eventpoll实例在逻辑上的完整性与生命周期相关操作
@@ -519,7 +523,7 @@ struct eventpoll {
      */
     struct epitem *ovflist;
     
-    /* 唤醒源 */
+    /* 电源管理相关唤醒源 */
     struct wakeup_source *ws;
 
     /* 创建eventpoll描述符的用户 */
@@ -536,7 +540,7 @@ struct eventpoll {
     struct list_head visited_list_link;
 
     /**
-     * 在开启网络RX busy polling 时
+     * 在开启网络RX busy polling时
      * 用于跟踪与NAPI(网络中断缓解接口)相关的 napi_id
      * 使epoll路径能与网卡侧的busy poll优化协作
      */
@@ -552,9 +556,7 @@ struct eventpoll {
 
 `wp`队列和`poll_wait`队列都是内核等待队列，`wp`队列向用户态`epoll_wait`调用者提供。`poll_wait`队列则是当向`VFS`系统提供的，当别的代码对这个`epoll`的`file`做 `poll/select`时用的等待队列
 
-
-
-<img src="./img/struct eventpoll 新.jpg" alt="struct eventpoll 新" />
+<img src="./img/struct_eventpoll.jpg" alt="struct_eventpoll" />
 
 ### 2. struct epitem
 
@@ -563,6 +565,13 @@ struct eventpoll {
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
+// linux-5.4/fs/eventpoll.c
+/*
+ * Each file descriptor added to the eventpoll interface will
+ * have an entry of this type linked to the "rbr" RB tree.
+ * Avoid increasing the size of this struct, there can be many thousands
+ * of these on a server and we do not want this to take another cache line.
+ */
 struct epitem {
     union {
         /* 红黑树节点将此结构链接到eventpoll红黑树 */
@@ -571,34 +580,48 @@ struct epitem {
         struct rcu_head rcu;
     };
 
-    /* 挂载到eventpoll->rdllist的节点  */
+    /**
+     * 这里使用内核公共的双向链表结构便于降低修改时的开销，实际上这只是一个节点指针，而不是整条链表
+     * 用于将此结构体链接到eventpoll->rdllist就绪列表的列表头
+     */
     struct list_head rdllink;
 
-    /* 指向eventpoll->ovflist的指针 */
+    /* 协同struct eventpoll结构体中的ovflist字段，共同维护这个单链表链 */
     struct epitem *next;
 
-    /* epoll监听的fd */
+    /* 被监视的struct file *和int fd */
     struct epoll_filefd ffd;
 
-    /* 一个文件可以被多个epoll实例所监听，这里记录了当前文件被监听的次数 */
+    /* 表示当前挂着的活跃等待队列项数量，用于注册/注销 pollwait 时维护 */
     int nwait;
 
-    /* 轮询等待队列的列表 */
+    /** 
+     * 每个被poll的文件可能有多处wait queue head。epoll通过 struct eppoll_entry把自己挂到目标文件的poll等待队列上
+     * 这些eppoll_entry通过llink挂在epi->pwqlist上
+     */
     struct list_head pwqlist;
 
-    /* 当前epollitem所属的eventpoll*/
+    /* 当前epollitem所属的eventpoll */
     struct eventpoll *ep;
 
     /* 列表头文件，用于将该项链接到"struct file"的项列表 */ 
     struct list_head fllink;
 
-    /* 设置EPOLLWAKEUP标志时使用的唤醒源 */
+    /* 设置EPOLLWAKEUP标志时使用的唤醒源,电源管理使用 */
     struct wakeup_source __rcu *ws;
 
-    /* 描述感兴趣的事件和源fd的结构 */
+    /* 用户传入的兴趣位(events mask)以及data */
     struct epoll_event event;
 };
 ```
+
+**核心思想**
+
+`struct epitem`结构体是用来管理`epoll_ctl`监听的实例的数据结构，`struct epitem`结构体可能同时存在数十万个，为了增加管理效率使用了红黑树来管理。这个结构体被设计的尽可能少的占用内容，同时使用`union`和`__packed`来进一步优化
+
+需要特别关注的是`pwqlist`存储等待队列相关信息，`event`存储用户传入待监听的句柄的数据
+
+<img src="./img/struct_epitem.jpg" alt="struct_epitem" />
 
 ### 3. struct eppoll_entry
 
@@ -610,22 +633,21 @@ struct epitem {
 /* Wait structure used by the poll hooks */
 struct eppoll_entry
 {
-    /* List header used to link this structure to the "struct epitem" */
+    /* 把本eppoll_entry串进所属epitem的pwqlist */
     struct list_head llink;
 
-    /* The "base" pointer is set to the container "struct epitem" */
+    /* 所属epitem结构体的地址 */
     struct epitem *base;
 
-    /*
-     * Wait queue item that will be linked to the target file wait
-     * queue head.
-     */
+    /* 真正挂在驱动/子系统 whead 上的等待队列项；其唤醒函数被设为 ep_poll_callback */
     wait_queue_entry_t wait;
 
-    /* The wait queue head that linked the "wait" wait queue item */
+    /* 记录 wait 被加到了哪个 wait_queue_head_t */
     wait_queue_head_t *whead;
 };
 ```
+
+![struct eppoll_entry](./img/struct eppoll_entry.jpg)
 
 ## 六、epoll基本流程
 
@@ -840,7 +862,10 @@ SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
 
 	/**
 	 * 笔者注：此处极大省略，只保留核心逻辑
-	 * 检查是否存在嵌套epoll、多进程之间是否存在环路、过深的wakeup路径 
+	 * 检查是否存在
+	 * 1. 多层嵌套epoll
+	 * 2. 多进程的epoll监听之间是否存在环路
+	 * 3. 过深的wakeup路径 
 	 */
 	if (ep_loop_check(ep, tf.file) != 0) {
 		clear_tfile_check_list();
@@ -895,7 +920,7 @@ error_tgt_fput:
 
 <img src=".\img\红黑树操作接口.jpg" alt="红黑树操作接口" style="zoom:50%;" />
 
-### 4 等待句柄活跃
+### 4. 等待句柄活跃
 
 **epoll_wait函数**
 
@@ -1322,7 +1347,7 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 }
 ```
 
-## 七、epoll模块红黑树操作
+## 七、epoll实例增删改查
 
 ### 1. ep_find函数
 
@@ -1479,10 +1504,6 @@ error_create_wakeup_source:
 1. 函数的前半段主要是创建`struct epitem *epi`并对其内容进行填充，这同时也是红黑树节点的类型
 2. 然后将`epi`添加到红黑树中
 3. 将节点添加到对应的就绪链表、等待链表，以及设置回调函数
-
-**epitem结构图**
-
-<img src=".\img\struct_epitem.jpg" alt="struct_epitem" style="zoom: 33%;" />
 
 **ep_rbtree_insert函数**
 
