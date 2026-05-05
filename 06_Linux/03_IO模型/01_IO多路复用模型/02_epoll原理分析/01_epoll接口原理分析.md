@@ -562,7 +562,7 @@ struct eventpoll {
 
 `wq`队列是面向用户态的`epoll_wait`的调用者提供
 
-**仅在`ep_poll`函数中使用**
+**仅在ep_poll函数中使用**
 
 **在这些场景中会使用来wake_up(&ep->wq)唤醒等待者**
 
@@ -684,7 +684,7 @@ struct eppoll_entry
 };
 ```
 
-![struct eppoll_entry](./img/struct eppoll_entry.jpg)
+<img src="./img/struct eppoll_entry.jpg" alt="struct eppoll_entry" />
 
 ## 六、epoll基本流程
 
@@ -1105,15 +1105,15 @@ send_events:
 
 **核心思想**
 
-首先计算等待时间
+**函数共有三种状态**
 
+1. `time_out`大于`0`时的正常流程
 
+2. `time_out`小于`0`跳过中间流程只做查询动作
 
-三种状态
+3. 极高并发下，退化成忙检测的状态
 
-1. 正常
-2. time_out小于0
-3. 极高并发
+    在极高的并发下可以认为，`ep_busy_loop`永远会查询到新的就绪事件，会直接`goto`到`send_events`最后。同时永远也不可能发送完所有的事件，又会跳转回`fetch_events`，重复这轮循环。这种设计只在一个函数内部，不依赖复杂的状态机。在高并发下由于只执行了很少的代码，会节约大量的`CPU`资源，在第并发时又会自动切换回正常流程，设计极为精妙
 
 最终检测就绪事件，**发送就绪事件到用户态，这部分的具体实现见下文**
 <img src="./img/ep_poll.jpg" alt="ep_poll" />
@@ -1822,64 +1822,9 @@ static const struct file_operations eventpoll_fops = {
 };
 ```
 
-## 4.3 关键链表及相关接口
+## 九、其他模块的poll方法实现
 
-#### 2) 等待链表和就绪链表
-
-**epitem->rdlink链表和eventpoll->rdllist链表**
-
-`epitem->rdlink`中存放等待的事件，`eventpoll->rdllist`中存放已经就绪的事件
-
-```c
-static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
-                   void *priv)
-{
-    ...
-    struct epitem *epi;
-
-    /* 将epi->rdllink插入ep->rdllist尾部 */
-    list_add_tail(&epi->rdllink, &ep->rdllist);
-    ...
-}
-```
-
-**等待链表关系图**
-
-<img src=".\img\03_就绪队列.jpg" alt="03_就绪队列" style="zoom: 20%;" />
-
-#### 3)  eventpoll->wq等待队列链表
-
-函数调用栈
-
-```c
-ep_poll
-    /* 此处设置的唤醒回调函数是default_wake_function,用于唤醒进程 */
-    ->init_waitqueue_entry(&wait, current)
-    /* 将wait添加到eventpoll->wq链表中 */
-    ->__add_wait_queue_exclusive(&ep->wq, &wait)
-        ->__add_wait_queue(wq_head, wq_entry)
-            ->list_add(&wq_entry->entry, &wq_head->head)
-    ->__remove_wait_queue(&ep->wq, &wait)
-    
-ep_ptable_queue_proc
-    /* 此处设置的唤醒回调函数是ep_poll_callback,最终使用wake_up(&ep->wq)唤醒epoll */
-    ->init_waitqueue_func_entry(&pwq->wait, ep_poll_callback)
-    ->add_wait_queue(whead, &pwq->wait)
-```
-
-此处注册唤醒函数后会通过`wake_up`接口来调用
-
-```c
-->__wake_up
-    ->__wake_up_common_lock 
-        ->__wake_up_common
-            ->curr = list_next_entry(bookmark, entry);
-            ->curr->func(curr, mode, wake_flags, key);
-```
-
-## 五、其他模块的poll方法实现
-
-### 5.1 驱动层面对文件系统的监听
+### 1. 驱动层面对文件系统的监听
 
 **file_operations->poll接口**
 
@@ -1948,7 +1893,7 @@ static const struct file_operations proc_rtas_log_operations = {
 
 可以看到不同的驱动代码中都调用了`poll_wait()`，把当前进程加入到驱动里自定义的等待队列上，当驱动事件就绪后，就可以在驱动里自定义的等待队列上唤醒调用`poll`的进程。
 
-### 内核等待队列
+### 2. 内核等待队列
 
 等待队列基本流程如下
 
@@ -1956,7 +1901,7 @@ static const struct file_operations proc_rtas_log_operations = {
 
 <img src="./img/驱动文件监听回调.jpg" alt="等待队列" />
 
-## 八、epoll与select、poll的对比
+## 十、epoll与select、poll的对比
 
 **1) 用户态将文件描述符传入内核的方式**
 
@@ -1982,7 +1927,7 @@ static const struct file_operations proc_rtas_log_operations = {
 - `poll`：将新的`struct pollfd`结构体数组拷贝传入内核中，继续以上步骤
 - `epoll`：无需重新构建红黑树，直接沿用已存在的即可
 
-## 九、总结
+## 十一、总结
 
 **epoll更高效的原因**
 
