@@ -654,11 +654,25 @@ struct epitem {
 
 **核心思想**
 
-`struct epitem`结构体是用来管理`epoll_ctl`监听的实例的数据结构，`struct epitem`结构体可能同时存在数十万个，为了增加管理效率使用了红黑树来管理。这个结构体被设计的尽可能少的占用内容，同时使用`union`和`__packed`来进一步优化
+`struct epitem`结构体是用来管理`epoll_ctl`监听的实例的数据结构，`struct epitem`结构体可能**同时存在数百万个**，为了增加管理效率使用了红黑树来管理。这个结构体被设计的尽可能少的占用内容，同时使用`union`和`__packed`来进一步优化
 
 需要特别关注的是`pwqlist`存储等待队列相关信息，`event`存储用户传入待监听的句柄的数据
 
 <img src="./img/struct_epitem.jpg" alt="struct_epitem" />
+
+**rdllist & rdllink和ovflist & next双链表及lock读写锁**
+
+`rdllist & rdllink`对应`epoll`中的就绪列表，`ovflist & next`对应的则是`epoll`中的无锁缓存溢出链表
+
+**struct epitem中存储的是链表的节点，链表真正的头在struct eventpoll中**
+
+在用户调用`epoll_ctl(EPOLL_CTL_ADD)`时就会将`struct epoll_event`类型的结构传入内核，`epoll`模块会将它放在红黑树中管理存储，并且将`ep_poll_callback`注册在监听的句柄资源的唤醒队列中，当有句柄活跃就会触发回调。`ep_poll_callback`中会把活跃的句柄对应的红黑树节点，添加在合适的队列尾部
+
+这种活跃是不可预测随机的，所以红黑树中任何一个节点有对应的句柄都可能在下一刻活跃，链表会像两条线一样在树中串联其中的节点
+
+![struct_epitem_双链表](./img/struct_epitem_双链表.jpg)
+
+
 
 ### 3. struct eppoll_entry
 
@@ -1232,6 +1246,10 @@ out_unlock:
 	return ewake;
 }
 ```
+
+**核心思想**
+
+![ep_poll_callback](./img/ep_poll_callback.jpg)
 
 ### 6. 检测就绪事件
 
