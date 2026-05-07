@@ -1119,13 +1119,15 @@ send_events:
 
 **核心思想**
 
-**函数共有三种状态**
+`ep_poll`函数对用户态提供了灵活的接口，自身在高并发的场景下也有专门的优化处理，**有四种理解角度**
 
-1. `time_out`大于`0`时的正常流程
+1. `time_out`小于`0`跳过中间流程只做查询动作，这时用户态就是只做查询而不会阻塞接口
 
-2. `time_out`小于`0`跳过中间流程只做查询动作
+2. `time_out`大于`0`时，监听一个永远不会活跃的句柄，这时用户态会一直阻塞在`epoll_wait`接口`time_out`时间，并且不会占用`CPU`资源
 
-3. 极高并发下，退化成忙检测的状态
+3. `time_out`大于`0`时，监听一个普通句柄的常规流程
+
+4. 极高并发下，退化成忙检测的状态
 
     在极高的并发下可以认为，`ep_busy_loop`永远会查询到新的就绪事件，会直接`goto`到`send_events`最后。同时永远也不可能发送完所有的事件，又会跳转回`fetch_events`，重复这轮循环。这种设计只在一个函数内部，不依赖复杂的状态机。在高并发下由于只执行了很少的代码，会节约大量的`CPU`资源，在第并发时又会自动切换回正常流程，设计极为精妙
 
@@ -1542,10 +1544,10 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
     struct epitem *epi, *epir = NULL;
     struct epoll_filefd ffd;
 
-    // 设置 epoll_filefd 结构体，用于比较查找
+    /* 设置epoll_filefd结构体，用于比较查找 */
     ep_set_ffd(&ffd, file, fd);
-    
-    // 遍历红黑树
+
+    /* 遍历红黑树 */
     for (rbp = ep->rbr.rb_root.rb_node; rbp; ) {
         /* 通过父节点获取对应的 epitem 结构体 */
         epi = rb_entry(rbp, struct epitem, rbn);
@@ -1573,114 +1575,103 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 ### 2.  ep_insert函数
 
 ```c
-/*
- * Must be called with "mtx" held.
+/**
+ * 设置等待队列回调函数是ep_poll_callback，并将对应的等待队列和对应的epitem节点记录
+ * 在新创建的eppoll_entry节点中，其加入到对应的epitem节点的等待队列链表中
  */
-static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
-             struct file *tfile, int fd, int full_check)
+static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
+				 poll_table *pt)
 {
-    int error, pwake = 0;
-    __poll_t revents;
-    long user_watches;
-    struct epitem *epi;
-    struct ep_pqueue epq;
+	struct epitem *epi = ep_item_from_epqueue(pt);
+	struct eppoll_entry *pwq;
 
-    /* 获取当前用户允许创建的epoll监听最大数量 */
-    user_watches = atomic_long_read(&ep->user->epoll_watches);
+	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
+        /* 设置等待队列回调为 ep_poll_callback,并记录对应的等待队列和对应的epitem节点 */
+		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
+		pwq->whead = whead;
+		pwq->base = epi;
+		if (epi->event.events & EPOLLEXCLUSIVE)
+			add_wait_queue_exclusive(whead, &pwq->wait);
+		else
+			add_wait_queue(whead, &pwq->wait);
+        /* 把这个pwq添加到到该epitem的链表上 */
+		list_add_tail(&pwq->llink, &epi->pwqlist);
+		epi->nwait++;
+	} else {
+		epi->nwait = -1;
+	}
+}
 
-    epi = kmem_cache_alloc(epi_cache, GFP_KERNEL)
+static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
+		     struct file *tfile, int fd, int full_check)
+{
+	int pwake = 0;
+	__poll_t revents;
+	struct epitem *epi;
+	struct ep_pqueue epq;
 
-    INIT_LIST_HEAD(&epi->rdllink);
-    INIT_LIST_HEAD(&epi->fllink);
-    INIT_LIST_HEAD(&epi->pwqlist);
-    epi->ep = ep;
-    ep_set_ffd(&epi->ffd, tfile, fd);
-    epi->event = *event;
-    epi->nwait = 0;
-    epi->next = EP_UNACTIVE_PTR;
+	/* 初始化各类链表，节点*/
+	INIT_LIST_HEAD(&epi->rdllink);
+	INIT_LIST_HEAD(&epi->fllink);
+	INIT_LIST_HEAD(&epi->pwqlist);
+	epi->ep = ep;
+	ep_set_ffd(&epi->ffd, tfile, fd);
+	epi->event = *event;
+	epi->nwait = 0;
+	epi->next = EP_UNACTIVE_PTR;
 
-    /* 设置epoll唤醒源 */
-    if (epi->event.events & EPOLLWAKEUP) {
-        error = ep_create_wakeup_source(epi);
-        if (error)
-            goto error_create_wakeup_source;
-    } else {
-        RCU_INIT_POINTER(epi->ws, NULL);
-    }
+    /* 创建电源管理相关的唤醒源 */
+    ep_create_wakeup_source(epi);
 
-    epq.epi = epi;
-    init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
+	/**
+     * 创建内核vfs_poll使用的poll_table,并将poll_table->_qproc设置为ep_ptable_queue_proc
+     * 在后续ep_item_poll()中调用具体内核对象的poll方法时使用
+     */
+	epq.epi = epi;
+	init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
 
-    revents = ep_item_poll(epi, &epq.pt, 1);
+	/**
+     * 把新 epitem 接到目标文件的 poll/waitqueue 机制上，并顺便读出「此刻是否已经就绪」的事件位
+     * 需要注意在此操作完成后，投票回调函数就可以开始处理新的项了
+	 */
+	revents = ep_item_poll(epi, &epq.pt, 1);
 
-    error = -ENOMEM;
-    if (epi->nwait < 0)
-        goto error_unregister;
+	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
 
-    list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
+	/* 将节点插入红黑树中 */
+	ep_rbtree_insert(ep, epi);
 
-    ep_rbtree_insert(ep, epi);
+    /* We have to drop the new item inside our item list to keep track of it */
+	write_lock_irq(&ep->lock);
 
-    error = -EINVAL;
-    if (full_check && reverse_path_check())
-        goto error_remove_epi;
+    /* 如果该文件已经“准备就绪”，我们就将其放入“已准备就绪”的列表中 */
+	if (revents && !ep_is_linked(epi)) {
+		list_add_tail(&epi->rdllink, &ep->rdllist);
+		ep_pm_stay_awake(epi);
 
-    if (revents && !ep_is_linked(epi)) {
-        list_add_tail(&epi->rdllink, &ep->rdllist);
-        ep_pm_stay_awake(epi);
+		/* 通知等待中的任务，事件已准备好可供使用 */
+		if (waitqueue_active(&ep->wq))
+			wake_up(&ep->wq);
+		if (waitqueue_active(&ep->poll_wait))
+			pwake++;
+	}
 
-        /* Notify waiting tasks that events are available */
-        if (waitqueue_active(&ep->wq))
-            wake_up(&ep->wq);
-        if (waitqueue_active(&ep->poll_wait))
-            pwake++;
-    }
+	write_unlock_irq(&ep->lock);
 
-    /* 原子地增加当前用户或进程使用的 epoll 监视器的计数 */
+    /* ep->user所指向的struct user_struct里的epoll_watches计数(当前被epoll监视的条目数量)加1 */
     atomic_long_inc(&ep->user->epoll_watches);
 
-    if (pwake)
-        ep_poll_safewake(&ep->poll_wait);
+	/* We have to call this outside the lock */
+	if (pwake)
+		ep_poll_safewake(&ep->poll_wait);
 
-    return 0;
-
-error_remove_epi:
-    spin_lock(&tfile->f_lock);
-    list_del_rcu(&epi->fllink);
-    spin_unlock(&tfile->f_lock);
-
-    rb_erase_cached(&epi->rbn, &ep->rbr);
-
-error_unregister:
-    ep_unregister_pollwait(ep, epi);
-
-    /*
-     * We need to do this because an event could have been arrived on some
-     * allocated wait queue. Note that we don't care about the ep->ovflist
-     * list, since that is used/cleaned only inside a section bound by "mtx".
-     * And ep_insert() is called with "mtx" held.
-     */
-    write_lock_irq(&ep->lock);
-    if (ep_is_linked(epi))
-        list_del_init(&epi->rdllink);
-    write_unlock_irq(&ep->lock);
-
-    wakeup_source_unregister(ep_wakeup_source(epi));
-
-error_create_wakeup_source:
-    kmem_cache_free(epi_cache, epi);
-
-    return error;
+	return 0;
 }
 ```
 
 **核心思想**
 
-整个函数可以分为前中后三部分
 
-1. 函数的前半段主要是创建`struct epitem *epi`并对其内容进行填充，这同时也是红黑树节点的类型
-2. 然后将`epi`添加到红黑树中
-3. 将节点添加到对应的就绪链表、等待链表，以及设置回调函数
 
 **ep_rbtree_insert函数**
 
@@ -1744,21 +1735,22 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 ```c
 static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 {
-    ep_unregister_pollwait(ep, epi); // 移除轮询等待队列钩子
+    /* 移除轮询等待队列钩子 */
+    ep_unregister_pollwait(ep, epi); 
 
-    /* Remove the current item from the list of epoll hooks */
-    list_del_rcu(&epi->fllink); // 从 epoll 钩子列表中移除当前 epitem
+    list_del_rcu(&epi->fllink); // 从epoll钩子列表中移除当前epitem
 
-    rb_erase_cached(&epi->rbn, &ep->rbr); // 从事件轮询的红黑树中移除当前 epitem
+    /* 从红黑树中移除当前epitem */
+    rb_erase_cached(&epi->rbn, &ep->rbr); 
 
-    if (ep_is_linked(epi)) // 检查当前 epitem 是否已经链接到某个链表中
-        list_del_init(&epi->rdllink); // 如果已链接，则从事件轮询的链表中移除
+    /**
+     * 检查当前epitem是否已经链接到某个链表中
+     * 如果已链接，则从事件轮询的链表中移除
+     */
+    if (ep_is_linked(epi)) 
+        list_del_init(&epi->rdllink); 
 
-    wakeup_source_unregister(ep_wakeup_source(epi)); // 取消唤醒源的注册，释放相关资源
-
-    atomic_long_dec(&ep->user->epoll_watches); // 减少 epoll 观察数计数器
-
-    return 0; // 返回成功状态
+    return 0;
 }
 ```
 
