@@ -552,7 +552,7 @@ struct eventpoll {
 
 `struct eventpoll` 是每个`epoll`实例 的核心上下文，创建 `epoll_create*`时分配，挂在对应`struct file`的`private_data`上
 
-`mtx`互斥锁确保`epoll`整体逻辑的完整，`lock`确保`rdllist`队列和`ovflist`队列读写安全，在持有`lock`时就绪事件写入`rdllist`中，没有持有`lock`时发送的就绪事件写入`ovflist`中
+`mtx`互斥锁确保`epoll`整体逻辑的完整，`lock`确保`rdllist`队列和`ovflist`队列读写安全
 
 `wp`队列和`poll_wait`队列都是内核等待队列，`wp`队列向用户态`epoll_wait`调用者提供。`poll_wait`队列则是当向`VFS`系统提供的，当别的代码对这个`epoll`的`file`做 `poll/select`时用的等待队列
 
@@ -594,6 +594,10 @@ struct eventpoll {
 3. `ep_insert`中插入节点后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
 4. `ep_modify`修改了某个已注册`fd`的 `epoll_event` 之后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
 5. `ep_free`函数
+
+#### 3) ovflist队列的启用
+
+`ovflist`在初始化和不被启用时会被指向`EP_UNACTIVE_PTR`这个特殊值，在`ep_scan_ready_list`函数中对`rdllist`操作时，这时不能写入`rdllist`。就会先将`ovflist`指向`NULL`，这时后续活跃的句柄就会写入`ovflist`而不是`rdllist`
 
 ### 2. struct epitem
 
@@ -1142,78 +1146,45 @@ send_events:
 
 **ep_poll_callback函数**
 
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
 ```c++
 static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
 	int pwake = 0;
 	struct epitem *epi = ep_item_from_wait(wait);
 	struct eventpoll *ep = epi->ep;
+	/* 本次唤醒携带的就绪事件位,例如 POLLIN、POLLOUT、POLLERR等，也就是底层这次认为发生了哪些poll语义上的事件 */
 	__poll_t pollflags = key_to_poll(key);
 	unsigned long flags;
 	int ewake = 0;
 
 	read_lock_irqsave(&ep->lock, flags);
 
-	ep_set_busy_poll_napi_id(epi);
-
-	/*
-	 * If the event mask does not contain any poll(2) event, we consider the
-	 * descriptor to be disabled. This condition is likely the effect of the
-	 * EPOLLONESHOT bit that disables the descriptor when an event is received,
-	 * until the next EPOLL_CTL_MOD will be issued.
-	 */
-	if (!(epi->event.events & ~EP_PRIVATE_BITS))
-		goto out_unlock;
-
-	/*
-	 * Check the events coming with the callback. At this stage, not
-	 * every device reports the events in the "key" parameter of the
-	 * callback. We need to be able to handle both cases here, hence the
-	 * test for "key" != NULL before the event match test.
-	 */
+	/* 和用户注册的兴趣做交集过滤,如果没有用户感兴趣的事件发生,则不唤醒用户空间的线程 */
 	if (pollflags && !(pollflags & epi->event.events))
 		goto out_unlock;
 
-	/*
-	 * If we are transferring events to userspace, we can hold no locks
-	 * (because we're accessing user memory, and because of linux f_op->poll()
-	 * semantics). All the events that happen during that period of time are
-	 * chained in ep->ovflist and requeued later on.
+	/**
+	 * 当正在把就绪事件从内核交给用户态的那段时间里的那段时间里
+	 * 新来的I/O就绪不能再去动rdllist,只能先挂到ovflist上
 	 */
 	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
 		if (epi->next == EP_UNACTIVE_PTR &&
 		    chain_epi_lockless(epi))
+			/* 向内核电源管理子系统登记,防止休眠 */
 			ep_pm_stay_awake_rcu(epi);
 		goto out_unlock;
 	}
 
-	/* If this file is already in the ready list we exit soon */
 	if (!ep_is_linked(epi) &&
 	    list_add_tail_lockless(&epi->rdllink, &ep->rdllist)) {
+		/* 向内核电源管理子系统登记,防止休眠 */
 		ep_pm_stay_awake_rcu(epi);
 	}
 
-	/*
-	 * Wake up ( if active ) both the eventpoll wait list and the ->poll()
-	 * wait list.
-	 */
+	/* 如果处于激活状态，同时唤醒事件轮询等待列表和->poll()方法的等待列表 */
 	if (waitqueue_active(&ep->wq)) {
-		if ((epi->event.events & EPOLLEXCLUSIVE) &&
-					!(pollflags & POLLFREE)) {
-			switch (pollflags & EPOLLINOUT_BITS) {
-			case EPOLLIN:
-				if (epi->event.events & EPOLLIN)
-					ewake = 1;
-				break;
-			case EPOLLOUT:
-				if (epi->event.events & EPOLLOUT)
-					ewake = 1;
-				break;
-			case 0:
-				ewake = 1;
-				break;
-			}
-		}
 		wake_up(&ep->wq);
 	}
 	if (waitqueue_active(&ep->poll_wait))
@@ -1222,7 +1193,6 @@ static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, v
 out_unlock:
 	read_unlock_irqrestore(&ep->lock, flags);
 
-	/* We have to call this outside the lock */
 	if (pwake)
 		ep_poll_safewake(&ep->poll_wait);
 
@@ -1230,18 +1200,7 @@ out_unlock:
 		ewake = 1;
 
 	if (pollflags & POLLFREE) {
-		/*
-		 * If we race with ep_remove_wait_queue() it can miss
-		 * ->whead = NULL and do another remove_wait_queue() after
-		 * us, so we can't use __remove_wait_queue().
-		 */
 		list_del_init(&wait->entry);
-		/*
-		 * ->whead != NULL protects us from the race with ep_free()
-		 * or ep_remove(), ep_remove_wait_queue() takes whead->lock
-		 * held by the caller. Once we nullify it, nothing protects
-		 * ep/epi or even wait.
-		 */
 		smp_store_release(&ep_pwq_from_wait(wait)->whead, NULL);
 	}
 
@@ -1250,6 +1209,8 @@ out_unlock:
 ```
 
 **核心思想**
+
+根据`ovflist`的状态,将新活跃的事件添加到就绪队列或者缓存队列中
 
 ![ep_poll_callback](./img/ep_poll_callback.jpg)
 
@@ -1915,7 +1876,7 @@ static const struct file_operations proc_rtas_log_operations = {
 
 **1) 用户态将文件描述符传入内核的方式**
 
-- `select`：创建3个文件描述符集并拷贝到内核中，分别监听读、写、异常动作。这里受到单个进程可以打开的`fd`数量限制，默认是`1024`
+- `select`：创建`3`个文件描述符集并拷贝到内核中，分别监听读、写、异常动作。这里受到单个进程可以打开的`fd`数量限制，默认是`1024`
 - `poll`：将传入的`struct pollfd`结构体数组拷贝到内核中进行监听
 - `epoll`：执行`epoll_create`会在内核的高速`cache`区中建立一颗红黑树以及就绪链表(该链表存储已经就绪的文件描述符)。接着用户执行的`epoll_ctl`函数添加文件描述符会在红黑树上增加相应的结点
 
