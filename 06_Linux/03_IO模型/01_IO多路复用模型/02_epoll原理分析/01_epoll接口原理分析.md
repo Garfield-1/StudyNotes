@@ -1535,6 +1535,8 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 ### 2.  ep_insert函数
 
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
+
 ```c
 /**
  * 设置等待队列回调函数是ep_poll_callback，并将对应的等待队列和对应的epitem节点记录
