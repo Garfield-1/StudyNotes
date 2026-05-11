@@ -2,26 +2,6 @@
 
 [toc]
 
-## 待补充部分
-
-* 内核与用户态交互接口和具体的方式
-
-    用户态传入内核态的部分省略，内核态传回用户态的部分和扫描就绪链表放一起
-
-* 水平触发和边沿触发，是什么怎么实现的
-
-    和扫描就绪链表放一起
-
-* `VFS`子系统和`socket`的结合
-
-* `epoll`底层监听使用的`poll`整体流程
-
-  这里可以和底层的几个链表写在一起
-
-* 几个关键回调函数在整体流程中的作用是什么
-
-* 核心数据结构和他们之间的关系
-
 ## 一、 发展历史
 
 ### API 发布的时间线
@@ -676,7 +656,7 @@ struct epitem {
 
 这种活跃是不可预测随机的，所以红黑树中任何一个节点有对应的句柄都可能在下一刻活跃，链表会像两条线一样在树中串联其中的节点
 
-![struct_epitem_双链表](./img/struct_epitem_双链表.jpg)
+<img src="./img/struct_epitem_双链表.jpg" alt="struct_epitem_双链表" />
 
 
 
@@ -1147,7 +1127,7 @@ send_events:
 
 **外部socket活跃**
 
-![等待队列注册唤醒](./img/等待队列注册唤醒.jpg)
+<img src="./img/等待队列注册唤醒.jpg" alt="等待队列注册唤醒" />
 
 **ep_poll_callback函数**
 
@@ -1218,11 +1198,11 @@ out_unlock:
 
 根据`ovflist`的状态,将新活跃的事件添加到就绪队列或者缓存队列中
 
-![ep_poll_callback](./img/ep_poll_callback.jpg)
+<img src="./img/ep_poll_callback.jpg" alt="ep_poll_callback" />
 
 ### 6. 检测就绪事件
 
-#### 1) 刷新就绪链表
+#### 1) 扫描就绪链表
 
 **ep_send_events函数**
 
@@ -1246,8 +1226,6 @@ static int ep_send_events(struct eventpoll *ep,
 
 **ep_scan_ready_list函数**
 
-由于可以通过调用`ep_item_poll`来间接调用`ep_scan_ready_list`并且`ep_scan_ready_list`本身调用时`sproc`参数传入的`ep_read_events_proc`和`ep_send_events_proc`函数会调用`ep_item_poll`，也就是说`ep_scan_ready_list`函数和外部传入的函数回调形成了**递归调用结构**
-
 `ep_scan_ready_list`函数在`epoll`流程中功能及重要且复杂，这里保留完整注释和源码，方便读者阅读理解
 
 > 笔者注：除注释外，所有代码均未删改
@@ -1255,6 +1233,18 @@ static int ep_send_events(struct eventpoll *ep,
 ```c
 // linux-5.4/fs/eventpoll.c
 /**
+ * ep_scan_ready_list - Scans the ready list in a way that makes possible for
+ *                      the scan code, to call f_op->poll(). Also allows for
+ *                      O(NumReady) performance.
+ *
+ * @ep: Pointer to the epoll private data structure.
+ * @sproc: Pointer to the scan callback.
+ * @priv: Private opaque data passed to the @sproc callback.
+ * @depth: The current depth of recursive f_op->poll calls.
+ * @ep_locked: caller already holds ep->mtx
+ *
+ * Returns: The same integer error code returned by the @sproc callback.
+ *
  * ep_scan_ready_list - 以一种能够使扫描代码调用 f_op->poll() 的方式扫描就绪列表。同时还能实现 O(NumReady) 的性能
  * @ep：指向 epoll 私有数据结构的指针
  * @sproc：指向扫描回调函数的指针
@@ -1391,15 +1381,115 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 
 **核心思想**
 
-`ep_scan_ready_list`函数的执行可以分为前后两个部分
+`ep_scan_ready_list`函数的执行可以分为以下步骤
 
-前半部分：执行传入的函数指针`sproc`这里会根据不同的场景传入`ep_read_events_proc`或`ep_send_events_proc`，分别用于检查`epoll`就绪链表或将`epoll`检测结果从内核态发送至用户态
+复制就绪链表然后将副本传入函数指针`sproc`，这里会根据不同的场景使用`ep_read_events_proc`或`ep_send_events_proc`来对就绪链表处理
 
-后半部分：遍历检查`ovflist`链表，根据检查结果更新`rdllist`链表，然后唤醒等待链表
+**ep_read_events_proc函数：**用于处理就绪链表，返回就绪事件给用户态，处理边沿触发和水平触发事件
+
+**ep_send_events_proc函数：**`epoll`模块面向`VFS`的`poll`方法
+
+遍历缓存队列将缓存的值放回就行队列中，根据检查结果更新`rdllist`链表，然后唤醒等待链表
 
 <img src="./img/ep_scan_ready_list.jpg" alt="ep_scan_ready_list" />
 
-#### 2) 检查红黑树节点
+**多层嵌套与锁：**
+
+这里需要注意`ep_read_events_proc`函数和`ep_send_events_proc`函数，都会在内部调用`ep_item_poll`函数来对红黑树节点执行等价于`vfs`的`poll`的操作，如果这时遇到了嵌套`epoll`的情况，及检查的节点是`epoll`节点，那么这时会再调用`ep_send_events_proc`函数，造成一个嵌套调用，这种嵌套的出口是找到最终的不是`epoll`的句柄
+
+**由于ep_insert函数插入时就检查过环路问题，所以这里不会出现环形调用**
+
+<img src="./img/ep_scan_ready_list递归.jpg" alt="ep_scan_ready_list递归" />
+
+#### 2) 分类处理水平触发和边沿触发并返回就绪事件
+
+```c++
+static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
+			       void *priv)
+{
+	struct ep_send_events_data *esed = priv;
+	__poll_t revents;
+	struct epitem *epi, *tmp;
+	struct epoll_event __user *uevent = esed->events;
+	struct wakeup_source *ws;
+	poll_table pt;
+
+	init_poll_funcptr(&pt, NULL);
+	esed->res = 0;
+
+	/*
+	 * We can loop without lock because we are passed a task private list.
+	 * Items cannot vanish during the loop because ep_scan_ready_list() is
+	 * holding "mtx" during this call.
+	 */
+	lockdep_assert_held(&ep->mtx);
+
+	list_for_each_entry_safe(epi, tmp, head, rdllink) {
+		if (esed->res >= esed->maxevents)
+			break;
+
+		/*
+		 * Activate ep->ws before deactivating epi->ws to prevent
+		 * triggering auto-suspend here (in case we reactive epi->ws
+		 * below).
+		 *
+		 * This could be rearranged to delay the deactivation of epi->ws
+		 * instead, but then epi->ws would temporarily be out of sync
+		 * with ep_is_linked().
+		 */
+		ws = ep_wakeup_source(epi);
+		if (ws) {
+			if (ws->active)
+				__pm_stay_awake(ep->ws);
+			__pm_relax(ws);
+		}
+
+		list_del_init(&epi->rdllink);
+
+		/*
+		 * If the event mask intersect the caller-requested one,
+		 * deliver the event to userspace. Again, ep_scan_ready_list()
+		 * is holding ep->mtx, so no operations coming from userspace
+		 * can change the item.
+		 */
+		revents = ep_item_poll(epi, &pt, 1);
+		if (!revents)
+			continue;
+
+		if (__put_user(revents, &uevent->events) ||
+		    __put_user(epi->event.data, &uevent->data)) {
+			list_add(&epi->rdllink, head);
+			ep_pm_stay_awake(epi);
+			if (!esed->res)
+				esed->res = -EFAULT;
+			return 0;
+		}
+		esed->res++;
+		uevent++;
+		if (epi->event.events & EPOLLONESHOT)
+			epi->event.events &= EP_PRIVATE_BITS;
+		else if (!(epi->event.events & EPOLLET)) {
+			/*
+			 * If this file has been added with Level
+			 * Trigger mode, we need to insert back inside
+			 * the ready list, so that the next call to
+			 * epoll_wait() will check again the events
+			 * availability. At this point, no one can insert
+			 * into ep->rdllist besides us. The epoll_ctl()
+			 * callers are locked out by
+			 * ep_scan_ready_list() holding "mtx" and the
+			 * poll callback will queue them in ep->ovflist.
+			 */
+			list_add_tail(&epi->rdllink, &ep->rdllist);
+			ep_pm_stay_awake(epi);
+		}
+	}
+
+	return 0;
+}
+```
+
+
 
 ### 7. 向用户态返回结果
 
