@@ -1610,7 +1610,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 
 **核心思想**
 
-函数大致分为三部分
+函数大致分为这几部分
 
 1. 创建和初始化`epitem`节点，将`poll_table->_qproc`设置为`ep_ptable_queue_proc`
 2. 把新`epitem`节点添加到红黑树中，把新`epitem`接到目标文件的`poll/waitqueue`队列上，这一步之后新事件就开始检测新事件了
