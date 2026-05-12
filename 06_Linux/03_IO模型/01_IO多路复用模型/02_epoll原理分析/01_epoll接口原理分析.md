@@ -646,11 +646,19 @@ struct epitem {
 
 <img src="./img/struct_epitem.jpg" alt="struct_epitem" />
 
-**rdllist & rdllink和ovflist & next双链表及lock读写锁**
+#### 1) epitem->ffd->file和eventpoll->file
+
+`epitem->ffd->file`和`eventpoll->file`都是`struct file *`类型的数据，但是二者指向不同内存地址
+
+**epitem->ffd->file：**指向的是用户监听的句柄对应`fille`，是通过`fdget(fd)`查找的
+
+**eventpoll->file：**指向的是当前`epoll`描述符对应的`eventpoll`文件
+
+#### 2) rdllist & rdllink和ovflist & next双链表及lock读写锁
 
 `rdllist & rdllink`对应`epoll`中的就绪列表，`ovflist & next`对应的则是`epoll`中的无锁缓存溢出链表
 
-**struct epitem中存储的是链表的节点，链表真正的头在struct eventpoll中**
+#### 3) struct epitem中存储的是链表的节点，链表真正的头在struct eventpoll中
 
 在用户调用`epoll_ctl(EPOLL_CTL_ADD)`时就会将`struct epoll_event`类型的结构传入内核，`epoll`模块会将它放在红黑树中管理存储，并且将`ep_poll_callback`注册在监听的句柄资源的唤醒队列中，当有句柄活跃就会触发回调。`ep_poll_callback`中会把活跃的句柄对应的红黑树节点，添加在合适的队列尾部
 
@@ -1604,6 +1612,16 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 2. 把新`epitem`节点添加到红黑树中，把新`epitem`接到目标文件的`poll/waitqueue`队列上，这一步之后新事件就开始检测新事件了
 3. 检测有没有新的事件，如果有则唤醒就绪队列
 
+<img src="./img/ep_insert主流程.jpg" alt="ep_insert主流程" />
+
+**epoll嵌套**
+
+`epoll`在添加新的节点时，是可以存在`epoll`监听`epoll`的情况，但是**不允许出现环形调用和过深的嵌套**
+
+<img src="./img/ep_insert嵌套.jpg" alt="ep_insert嵌套" />
+
+
+
 **ep_rbtree_insert函数**
 
 插入新的节点
@@ -1937,13 +1955,7 @@ static const struct file_operations proc_rtas_log_operations = {
 
 ## 参考文档
 
-[【Linux深入】epoll源码剖析_epoll剖析-CSDN博客](https://blog.csdn.net/baiye_xing/article/details/76352935)
-
-[epoll源码深度剖析 - 坚持，每天进步一点点 - 博客园 (cnblogs.com)](https://www.cnblogs.com/mysky007/p/12284842.html)
-
 [图解 | 深入揭秘 epoll 是如何实现 IO 多路复用的！-腾讯云开发者社区-腾讯云 (tencent.com)](https://cloud.tencent.com/developer/article/1964472)
-
-[Linux eventpoll解析 - aspirs - 博客园 (cnblogs.com)](https://www.cnblogs.com/aspirs/p/15861763.html)
 
 [从linux源码看epoll - 无毁的湖光-Al的个人空间 - OSCHINA - 中文开源技术交流社区](https://my.oschina.net/alchemystar/blog/3008840)
 
