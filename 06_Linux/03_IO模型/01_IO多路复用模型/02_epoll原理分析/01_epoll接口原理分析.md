@@ -1565,6 +1565,10 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 	 */
 	revents = ep_item_poll(epi, &epq.pt, 1);
 
+    /**
+     * epitem通过epi->fllink挂到被监控文件 tfile->f_ep_link即epi->ffd.file上当这个struct file被关闭时
+     * 内核能顺着f_ep_links找到所有还在监听它的epoll项，把它们卸掉
+     */
 	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
 
 	/* 将节点插入红黑树中 */
@@ -1610,7 +1614,8 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 
 1. 创建和初始化`epitem`节点，将`poll_table->_qproc`设置为`ep_ptable_queue_proc`
 2. 把新`epitem`节点添加到红黑树中，把新`epitem`接到目标文件的`poll/waitqueue`队列上，这一步之后新事件就开始检测新事件了
-3. 检测有没有新的事件，如果有则唤醒就绪队列
+3. 把`epi`节点添加到内核`f_ep_links`表中，方便内核管理，避免出现悬垂指针
+4. 检测有没有新的事件，如果有则唤醒就绪队列
 
 <img src="./img/ep_insert主流程.jpg" alt="ep_insert主流程" />
 
@@ -1631,6 +1636,7 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
+// linux-5.4/fs/eventpoll.c
 static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
              struct file *tfile, int fd, int full_check)
 {
@@ -1775,6 +1781,7 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
+// linux-5.4/fs/eventpoll.c
 static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 {
     int kcmp;
