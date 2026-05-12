@@ -654,11 +654,11 @@ struct epitem {
 
 **eventpoll->file：**指向的是当前`epoll`描述符对应的`eventpoll`文件
 
-#### 2) rdllist & rdllink和ovflist & next双链表及lock读写锁
+#### 2) rdllist & rdllink和ovflist & next双链表
 
 `rdllist & rdllink`对应`epoll`中的就绪列表，`ovflist & next`对应的则是`epoll`中的无锁缓存溢出链表
 
-#### 3) struct epitem中存储的是链表的节点，链表真正的头在struct eventpoll中
+**struct epitem中存储的是链表的节点，链表真正的头在struct eventpoll中**
 
 在用户调用`epoll_ctl(EPOLL_CTL_ADD)`时就会将`struct epoll_event`类型的结构传入内核，`epoll`模块会将它放在红黑树中管理存储，并且将`ep_poll_callback`注册在监听的句柄资源的唤醒队列中，当有句柄活跃就会触发回调。`ep_poll_callback`中会把活跃的句柄对应的红黑树节点，添加在合适的队列尾部
 
