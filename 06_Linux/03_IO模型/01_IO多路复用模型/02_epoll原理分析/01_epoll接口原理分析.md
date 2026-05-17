@@ -1808,6 +1808,8 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 
 ## 八、面向VFS部分的接口
 
+> 笔者注：本章后续完善补充
+
 `eventpoll_fops`结构体中注册了数个用于面向`VFS`的接口，在`ep_alloc`中初始化时会被使用
 
 **源代码如下**
