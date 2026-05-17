@@ -1407,9 +1407,12 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 
 <img src="./img/ep_scan_ready_list递归.jpg" alt="ep_scan_ready_list递归" />
 
-### 7. 分类处理水平触发和边沿触发并返回就绪事件
+### 7. 分类处理水平触发(LT)和边沿触发(ET)并返回就绪事件
+
+> 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c++
+// linux-5.4/fs/eventpoll.c
 static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
 			       void *priv)
 {
@@ -1423,47 +1426,20 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 	init_poll_funcptr(&pt, NULL);
 	esed->res = 0;
 
-	/*
-	 * We can loop without lock because we are passed a task private list.
-	 * Items cannot vanish during the loop because ep_scan_ready_list() is
-	 * holding "mtx" during this call.
-	 */
-	lockdep_assert_held(&ep->mtx);
-
+	/* 遍历临时队列即就绪队列的副本 */ 
 	list_for_each_entry_safe(epi, tmp, head, rdllink) {
-		if (esed->res >= esed->maxevents)
-			break;
-
-		/*
-		 * Activate ep->ws before deactivating epi->ws to prevent
-		 * triggering auto-suspend here (in case we reactive epi->ws
-		 * below).
-		 *
-		 * This could be rearranged to delay the deactivation of epi->ws
-		 * instead, but then epi->ws would temporarily be out of sync
-		 * with ep_is_linked().
-		 */
-		ws = ep_wakeup_source(epi);
-		if (ws) {
-			if (ws->active)
-				__pm_stay_awake(ep->ws);
-			__pm_relax(ws);
-		}
-
+		/* 从当前链表里摘掉节点 */
 		list_del_init(&epi->rdllink);
 
-		/*
-		 * If the event mask intersect the caller-requested one,
-		 * deliver the event to userspace. Again, ep_scan_ready_list()
-		 * is holding ep->mtx, so no operations coming from userspace
-		 * can change the item.
-		 */
+		/* 检查事件是否就绪 */
 		revents = ep_item_poll(epi, &pt, 1);
 		if (!revents)
 			continue;
 
+		/* 将就绪事件和对应的节点返回到用户态 */
 		if (__put_user(revents, &uevent->events) ||
 		    __put_user(epi->event.data, &uevent->data)) {
+			/* 如果复制到用户态失败，将节点重新加入就绪队列 */
 			list_add(&epi->rdllink, head);
 			ep_pm_stay_awake(epi);
 			if (!esed->res)
@@ -1472,20 +1448,16 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 		}
 		esed->res++;
 		uevent++;
+		/* Edge Triggered,边缘触发模式下,事件只处理一次不向用户重复上报同一监听 */
 		if (epi->event.events & EPOLLONESHOT)
+			/**
+			 * 去掉EPOLLIN、EPOLLOUT等真正的I/O事件掩码,只保留私有/模式位(WAKEUP、ONESHOT、ET、EXCLUSIVE)
+			 * 之后在ep_poll_callback()里会先检查:掩码里只剩私有位→视为disabled(已禁用),即使底层fd再次可读
+			 * 也不会再进rdllist,直到用户epoll_ctl(EPOLL_CTL_MOD,...)重新写上EPOLLIN等
+	  		 */
 			epi->event.events &= EP_PRIVATE_BITS;
+		/* Level Triggered,水平触发模式下,条件还在就继续报,事件上报后重新加入就绪队列 */
 		else if (!(epi->event.events & EPOLLET)) {
-			/*
-			 * If this file has been added with Level
-			 * Trigger mode, we need to insert back inside
-			 * the ready list, so that the next call to
-			 * epoll_wait() will check again the events
-			 * availability. At this point, no one can insert
-			 * into ep->rdllist besides us. The epoll_ctl()
-			 * callers are locked out by
-			 * ep_scan_ready_list() holding "mtx" and the
-			 * poll callback will queue them in ep->ovflist.
-			 */
 			list_add_tail(&epi->rdllink, &ep->rdllist);
 			ep_pm_stay_awake(epi);
 		}
@@ -1494,6 +1466,23 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
 	return 0;
 }
 ```
+
+**LT模式和ET模式**
+
+| 模式                              | 标志                 | 含义                                                         |
+| :-------------------------------- | :------------------- | :----------------------------------------------------------- |
+| `LT`（`Level Trigger`，水平触发） | 默认，不设 `EPOLLET` | 只要条件仍然成立（例如仍有数据可读），`epoll_wait` 可以反复通知你 |
+| `ET`（`Edge Trigger`，边沿触发）  | `EPOLLET`            | 只在条件从无到有（或发生变化）时通知一次；交付后若条件还在，不会因 `LT` 那样自动再进就绪队列 |
+
+处理临时队列中的每一节点，检查是否有活跃事件
+
+**核心思想：**
+
+如果有则将事件返回给用户态，然后按照`LT`模式和`ET`模式分别处理
+
+对于`LT`模式，会将触发的事件重新放回就绪队列中，在下一次会继续返回给用户态。对于`ET`模式当前事件处理完后就不再处理
+
+<img src="./img/ep_send_events_proc.jpg" alt="ep_send_events_proc" />
 
 ## 七、epoll实例增删改查
 
