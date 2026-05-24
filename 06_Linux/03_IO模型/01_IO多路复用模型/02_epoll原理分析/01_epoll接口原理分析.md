@@ -1866,7 +1866,7 @@ static const struct file_operations proc_rtas_log_operations = {
 
 在`select`和`poll`模块中自己实现了`pollwake`函数作为等待队列回调
 
-<img src="./img/驱动文件监听回调.jpg" alt="等待队列" />
+<img src="./img/驱动文件监听回调.jpg" alt="驱动文件监听回调" />
 
 ## 十、epoll与select、poll的对比
 
