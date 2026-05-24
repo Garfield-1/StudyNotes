@@ -115,7 +115,6 @@ cleanup:
 ### 2. 监听本地socket文件
 
 **server端**
-
 创建本地`socket`文件`/tmp/epoll_demo.sock`并用`epoll`监听，打印收到的消息，如果消息是`exit`则会直接结束进程
 
 ```c
@@ -140,199 +139,198 @@ static const char SOCK_PATH[] = "/tmp/epoll_demo.sock";
 
 static void stop_server()
 {
-	printf("服务器退出\n");
-	exit(0);
+    printf("服务器退出\n");
+    exit(0);
 }
 
 static void clean_local_socket(const int lfd)
 {
-	if (lfd >= 0)
-		close(lfd);
+    if (lfd >= 0)
+        close(lfd);
 
-	unlink(SOCK_PATH);
+    unlink(SOCK_PATH);
 }
 
 static int create_local_socket(int *lfd)
 {
-	int ret = 0;
+    int ret = 0;
 
-	*lfd = socket(AF_UNIX, SOCK_STREAM, 0);
-	if (*lfd < 0) {
-		ret = -1;
-		perror("socket");
-		goto end;
-	}
+    *lfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (*lfd < 0) {
+        ret = -1;
+        perror("socket");
+        goto end;
+    }
 
 end:
-	return ret;
+    return ret;
 }
 
 static int listen_local_socket(int lfd)
 {
-	int ret = 0;
-	struct sockaddr_un addr = {0};
+    int ret = 0;
+    struct sockaddr_un addr = {0};
 
-	unlink(SOCK_PATH);
-	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", SOCK_PATH);
+    unlink(SOCK_PATH);
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", SOCK_PATH);
 
-	ret = bind(lfd, (struct sockaddr *)&addr, sizeof(addr));
-	if (ret < 0) {
-		perror("bind");
-		goto end;
-	}
+    ret = bind(lfd, (struct sockaddr *)&addr, sizeof(addr));
+    if (ret < 0) {
+        perror("bind");
+        goto end;
+    }
 
-	ret = listen(lfd, MAX_EVENTS);
-	if (ret < 0) {
-		perror("listen");
-		goto end;
-	}
+    ret = listen(lfd, MAX_EVENTS);
+    if (ret < 0) {
+        perror("listen");
+        goto end;
+    }
 
-	printf("监听 %s 中...\n", SOCK_PATH);
+    printf("监听 %s 中...\n", SOCK_PATH);
 end:
-	return ret;
+    return ret;
 }
 
 /* 处理客户端发来的消息 */
 static void handle_client_data(int epfd, int cfd)
 {
-	char buf[1024] = {0};
-	ssize_t nr = 0;
+    char buf[1024] = {0};
+    ssize_t nr = 0;
 
-	nr = read(cfd, buf, sizeof(buf) - 1);
-	/* read 返回 0：对端关闭；LT 下若不 epoll_del+close，会一直可读 */
-	if (nr <= 0) {
-		epoll_ctl(epfd, EPOLL_CTL_DEL, cfd, NULL);
-		close(cfd);
-		goto end;
-	}
+    nr = read(cfd, buf, sizeof(buf) - 1);
+    /* read 返回 0：对端关闭；LT 下若不 epoll_del+close，会一直可读 */
+    if (nr <= 0) {
+        epoll_ctl(epfd, EPOLL_CTL_DEL, cfd, NULL);
+        close(cfd);
+        goto end;
+    }
 
-	buf[nr] = '\0';
-	if (strcmp(buf, "exit") == 0)
-		stop_server();
-	else
-		printf("收到: %s\n", buf);
+    buf[nr] = '\0';
+    if (strcmp(buf, "exit") == 0)
+        stop_server();
+    else
+        printf("收到: %s\n", buf);
 
 end:
-	fflush(stdout);
+    fflush(stdout);
 }
 
 /* 新客户端在 Unix 域流套接字上连接成功，将 accept 得到的句柄加入 epoll 监听 */
 static int handle_client_connect(int epfd, int fd)
 {
-	int ret = 0;
-	int cfd = -1;
-	struct epoll_event ev = {0};
+    int ret = 0;
+    int cfd = -1;
+    struct epoll_event ev = {0};
 
-	cfd = accept(fd, NULL, NULL);
-	if (cfd < 0) {
-		ret = cfd;
-		perror("accept");
-		goto end;
-	}
+    cfd = accept(fd, NULL, NULL);
+    if (cfd < 0) {
+        ret = cfd;
+        perror("accept");
+        goto end;
+    }
 
-	ev.events = EPOLLIN;
-	ev.data.fd = cfd;
-	ret = epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &ev);
-	if (ret < 0) {
-		perror("epoll_ctl");
-		close(cfd);
-		goto end;
-	}
+    ev.events = EPOLLIN;
+    ev.data.fd = cfd;
+    ret = epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &ev);
+    if (ret < 0) {
+        perror("epoll_ctl");
+        close(cfd);
+        goto end;
+    }
 
 end:
-	return ret;
+    return ret;
 }
 
 /* 使用 epoll（事件轮询，默认水平触发 LT）监听 lfd 与新接受的连接 */
 static int run_epoll_demo(int lfd)
 {
-	int n = -1;
-	int i = -1;
-	int ret = 0;
-	int epfd = -1;
-	struct epoll_event ev = {0};
-	struct epoll_event events[MAX_EVENTS] = {0};
+    int n = -1;
+    int i = -1;
+    int ret = 0;
+    int epfd = -1;
+    struct epoll_event ev = {0};
+    struct epoll_event events[MAX_EVENTS] = {0};
 
-	ev.events = EPOLLIN;
-	ev.data.fd = lfd;
+    ev.events = EPOLLIN;
+    ev.data.fd = lfd;
 
-	epfd = epoll_create1(0);
-	if (epfd < 0) {
-		ret = epfd;
-		perror("epoll_create1");
-		goto end;
-	}
+    epfd = epoll_create1(0);
+    if (epfd < 0) {
+        ret = epfd;
+        perror("epoll_create1");
+        goto end;
+    }
 
-	ret = epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &ev);
-	if (ret < 0) {
-		perror("epoll_ctl");
-		goto end;
-	}
+    ret = epoll_ctl(epfd, EPOLL_CTL_ADD, lfd, &ev);
+    if (ret < 0) {
+        perror("epoll_ctl");
+        goto end;
+    }
 
-	while(1) {
-		n = epoll_wait(epfd, events, sizeof(events) / sizeof(events[0]), -1);
-		if (n < 0) {
-			ret = n;
-			perror("epoll_wait");
-			goto end;
-		}
+    while(1) {
+        n = epoll_wait(epfd, events, sizeof(events) / sizeof(events[0]), -1);
+        if (n < 0) {
+            ret = n;
+            perror("epoll_wait");
+            goto end;
+        }
 
-		for (i = 0; i < n; i++) {
-			if (events[i].data.fd == lfd) {
-				/* 新客户端连接成功 */
-				ret = handle_client_connect(epfd, events[i].data.fd);
-				if (ret < 0) {
-					perror("handle_client_connect");
-					goto end;
-				}
-			} else {
-				/* 已有客户端发来消息，处理数据 */
-				handle_client_data(epfd, events[i].data.fd);
-			}
-		}
-	}
+        for (i = 0; i < n; i++) {
+            if (events[i].data.fd == lfd) {
+                /* 新客户端连接成功 */
+                ret = handle_client_connect(epfd, events[i].data.fd);
+                if (ret < 0) {
+                    perror("handle_client_connect");
+                    goto end;
+                }
+            } else {
+                /* 已有客户端发来消息，处理数据 */
+                handle_client_data(epfd, events[i].data.fd);
+            }
+        }
+    }
 
 end:
-	if (epfd >= 0)
-		close(epfd);
+    if (epfd >= 0)
+        close(epfd);
 
-	return ret;
+    return ret;
 }
 
 int main(void)
 {
-	int ret = -1;
-	int lfd = -1;
+    int ret = -1;
+    int lfd = -1;
 
-	ret = create_local_socket(&lfd);
-	if (ret < 0) {
-		perror("create_local_socket");
-		return 1;
-	}
+    ret = create_local_socket(&lfd);
+    if (ret < 0) {
+        perror("create_local_socket");
+        return 1;
+    }
 
-	ret = listen_local_socket(lfd);
-	if (ret < 0) {
-		perror("listen_local_socket");
-		clean_local_socket(lfd);
-		return 1;
-	}
+    ret = listen_local_socket(lfd);
+    if (ret < 0) {
+        perror("listen_local_socket");
+        clean_local_socket(lfd);
+        return 1;
+    }
 
-	ret = run_epoll_demo(lfd);
-	if (ret < 0) {
-		perror("run_epoll_demo");
-		clean_local_socket(lfd);
-		return 1;
-	}
+    ret = run_epoll_demo(lfd);
+    if (ret < 0) {
+        perror("run_epoll_demo");
+        clean_local_socket(lfd);
+        return 1;
+    }
 
-	clean_local_socket(lfd);
+    clean_local_socket(lfd);
 
-	return 0;
+    return 0;
 }
 ```
 
 **client端**
-
 创建`socket`绑定到`/tmp/epoll_demo.sock`，通过`socket`发送消息
 
 ```c
@@ -351,41 +349,41 @@ static const char SOCK_PATH[] = "/tmp/epoll_demo.sock";
 
 static void create_socket(int *fd)
 {
-	struct sockaddr_un addr = {0};
+    struct sockaddr_un addr = {0};
 
-	addr.sun_family = AF_UNIX;
-	snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", SOCK_PATH);
+    addr.sun_family = AF_UNIX;
+    snprintf(addr.sun_path, sizeof(addr.sun_path), "%s", SOCK_PATH);
 
-	*fd = socket(AF_UNIX, SOCK_STREAM, 0);
-	connect(*fd, (struct sockaddr *)&addr, sizeof(addr));
+    *fd = socket(AF_UNIX, SOCK_STREAM, 0);
+    connect(*fd, (struct sockaddr *)&addr, sizeof(addr));
 }
 
 static void send_message(char *message, const int fd)
 {
-	char buf[1024] = {0};
+    char buf[1024] = {0};
 
-	snprintf(buf, sizeof(buf), "%s", message);
-	send(fd, buf, strlen(buf) + 1, 0);
+    snprintf(buf, sizeof(buf), "%s", message);
+    send(fd, buf, strlen(buf) + 1, 0);
 }
 
 /* 作为客户端(client)连接epoll_server监听的本地套接字并发送数据 */
 int main(int argc, char *argv[])
 {
-	int fd = -1;
+    int fd = -1;
 
-	if(argc < 2) {
-		printf("Usage: %s <message>\n", argv[0]);
+    if(argc < 2) {
+        printf("Usage: %s <message>\n", argv[0]);
         printf("if want to exit, send 'exit' message\n");
-		return 1;
-	}
+        return 1;
+    }
 
-	create_socket(&fd);
-	send_message(argv[1], fd);
+    create_socket(&fd);
+    send_message(argv[1], fd);
 
-	if (fd > 0)
-		close(fd);
+    if (fd > 0)
+        close(fd);
 
-	return 0;
+    return 0;
 }
 ```
 
@@ -394,7 +392,6 @@ int main(int argc, char *argv[])
 > 笔者注：本文对**多进程下锁的调度与使用以及多CPU下与内存屏障问题**部分不做展开
 
 **关于epoll模块对于多进程下锁的处理**
-
 附上源代码中注释一段，供读者自行理解
 
 > 笔者注：所有代码均未删改
@@ -529,7 +526,6 @@ struct eventpoll {
 ```
 
 **核心思想**
-
 `struct eventpoll` 是每个`epoll`实例 的核心上下文，创建 `epoll_create*`时分配，挂在对应`struct file`的`private_data`上
 
 `mtx`互斥锁确保`epoll`整体逻辑的完整，`lock`确保`rdllist`队列和`ovflist`队列读写安全
@@ -543,9 +539,7 @@ struct eventpoll {
 `wq`队列是面向用户态的`epoll_wait`的调用者提供
 
 **仅在ep_poll函数中使用**
-
 **在这些场景中会使用来wake_up(&ep->wq)唤醒等待者**
-
 1. 监听句柄活跃，触发`ep_poll_callback`
 2. `ep_scan_ready_list`中刷新完就绪队列后，检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
 3. `ep_insert`中插入节点后，立刻检查一次，如果有就绪事件，把它推进 `rdllist` 并唤醒等待者
@@ -558,7 +552,6 @@ struct eventpoll {
 **在这些场景中会使用poll_wait()函数来向poll_wait队列中添加成员**
 
 1. `ep_item_poll`函数对`epitem`节点，所对应的`file`做一次与`poll`等价语义的探测
-
     这时会检测探测的是否是`epoll`文件，如果是则使用`poll_wait()`函数将自身添加到`poll_wait`队列中。这里外层`epoll`在等待的并不是内层`epoll`文件的某个设备队列本身，而是内层`struct eventpoll`的等待队列头`poll_wait`；这样嵌套`epoll`才能像普通`fd`一样被`poll`驱动
 
 2. `epoll`模块对`VFS`提供的`poll`接口回调函数`ep_eventpoll_poll`中
@@ -639,7 +632,6 @@ struct epitem {
 ```
 
 **核心思想**
-
 `struct epitem`结构体是用来管理`epoll_ctl`监听的实例的数据结构，`struct epitem`结构体可能**同时存在数百万个**，为了增加管理效率使用了红黑树来管理。这个结构体被设计的尽可能少的占用内容，同时使用`union`和`__packed`来进一步优化
 
 需要特别关注的是`pwqlist`存储等待队列相关信息，`event`存储用户传入待监听的句柄的数据
@@ -659,14 +651,11 @@ struct epitem {
 `rdllist & rdllink`对应`epoll`中的就绪列表，`ovflist & next`对应的则是`epoll`中的无锁缓存溢出链表
 
 **struct epitem中存储的是链表的节点，链表真正的头在struct eventpoll中**
-
 在用户调用`epoll_ctl(EPOLL_CTL_ADD)`时就会将`struct epoll_event`类型的结构传入内核，`epoll`模块会将它放在红黑树中管理存储，并且将`ep_poll_callback`注册在监听的句柄资源的唤醒队列中，当有句柄活跃就会触发回调。`ep_poll_callback`中会把活跃的句柄对应的红黑树节点，添加在合适的队列尾部
 
 这种活跃是不可预测随机的，所以红黑树中任何一个节点有对应的句柄都可能在下一刻活跃，链表会像两条线一样在树中串联其中的节点
 
 <img src="./img/struct_epitem_双链表.jpg" alt="struct_epitem_双链表" />
-
-
 
 ### 3. struct eppoll_entry
 
@@ -727,11 +716,9 @@ SYSCALL_DEFINE1(epoll_create, int, size)
 ```
 
 **do_epoll_create函数**
-
 创建新的`epoll`节点
 
 **核心逻辑如下**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
@@ -861,11 +848,9 @@ static int do_epoll_create(int flags)
 ### 3. 修改监听句柄
 
 **epoll_ctl函数**
-
 用于向`epoll`实例中**添加、修改或删除**感兴趣的文件描述符（`socket`、文件等）及其关注的事件
 
 **核心逻辑如下**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
@@ -881,82 +866,81 @@ static int do_epoll_create(int flags)
  * @event:与fd相关的对象,描述了要添加、修改或删除的事件。
  */
 SYSCALL_DEFINE4(epoll_ctl, int, epfd, int, op, int, fd,
-		struct epoll_event __user *, event)
+        struct epoll_event __user *, event)
 {
-	int error;
-	struct fd f, tf;
-	struct eventpoll *ep;
-	struct epitem *epi;
-	struct epoll_event epds;
-	struct eventpoll *tep = NULL;
+    int error;
+    struct fd f, tf;
+    struct eventpoll *ep;
+    struct epitem *epi;
+    struct epoll_event epds;
+    struct eventpoll *tep = NULL;
 
-	error = -EFAULT;
-	/* 从用户空间获取epoll_event结构体数据 */
-	copy_from_user(&epds, event, sizeof(struct epoll_event));
+    error = -EFAULT;
+    /* 从用户空间获取epoll_event结构体数据 */
+    copy_from_user(&epds, event, sizeof(struct epoll_event));
 
-	/* 获取epoll_create1创建的epoll_event实例对应struct file *结构体 */
-	f = fdget(epfd);
+    /* 获取epoll_create1创建的epoll_event实例对应struct file *结构体 */
+    f = fdget(epfd);
 
-	/* 获取要监听的句柄对应的struct file *结构体 */
-	tf = fdget(fd);
+    /* 获取要监听的句柄对应的struct file *结构体 */
+    tf = fdget(fd);
 
-	/* 不允许自己监听自己，同时检查tf.file和f.file是否支持poll操作 */
-	if (f.file == tf.file || !is_file_epoll(f.file) || !file_can_poll(tf.file))
-		goto error_tgt_fput;
+    /* 不允许自己监听自己，同时检查tf.file和f.file是否支持poll操作 */
+    if (f.file == tf.file || !is_file_epoll(f.file) || !file_can_poll(tf.file))
+        goto error_tgt_fput;
 
-	ep = f.file->private_data;
+    ep = f.file->private_data;
 
-	/**
-	 * 笔者注：此处极大省略，只保留核心逻辑
-	 * 检查是否存在
-	 * 1. 多层嵌套epoll
-	 * 2. 多进程的epoll监听之间是否存在环路
-	 * 3. 过深的wakeup路径 
-	 */
-	if (ep_loop_check(ep, tf.file) != 0) {
-		clear_tfile_check_list();
-		goto error_tgt_fput;
-	}
+    /**
+     * 笔者注：此处极大省略，只保留核心逻辑
+     * 检查是否存在
+     * 1. 多层嵌套epoll
+     * 2. 多进程的epoll监听之间是否存在环路
+     * 3. 过深的wakeup路径 
+     */
+    if (ep_loop_check(ep, tf.file) != 0) {
+        clear_tfile_check_list();
+        goto error_tgt_fput;
+    }
 
-	/* 在红黑树中查找要监听的文件描述符对应的epitem结构体，如果存在则返回指向该结构体的指针，否则返回NULL */
-	epi = ep_find(ep, tf.file, fd);
+    /* 在红黑树中查找要监听的文件描述符对应的epitem结构体，如果存在则返回指向该结构体的指针，否则返回NULL */
+    epi = ep_find(ep, tf.file, fd);
 
-	error = -EINVAL;
-	switch (op) {
-	case EPOLL_CTL_ADD:
-		if (!epi) {
-			epds.events |= EPOLLERR | EPOLLHUP;
-			error = ep_insert(ep, &epds, tf.file, fd);
-		} else
-			error = -EEXIST;
-		break;
-	case EPOLL_CTL_DEL:
-		if (epi)
-			error = ep_remove(ep, epi);
-		else
-			error = -ENOENT;
-		break;
-	case EPOLL_CTL_MOD:
-		if (epi) {
-			if (!(epi->event.events & EPOLLEXCLUSIVE)) {
-				epds.events |= EPOLLERR | EPOLLHUP;
-				error = ep_modify(ep, epi, &epds);
-			}
-		} else
-			error = -ENOENT;
-		break;
-	}
+    error = -EINVAL;
+    switch (op) {
+    case EPOLL_CTL_ADD:
+        if (!epi) {
+            epds.events |= EPOLLERR | EPOLLHUP;
+            error = ep_insert(ep, &epds, tf.file, fd);
+        } else
+            error = -EEXIST;
+        break;
+    case EPOLL_CTL_DEL:
+        if (epi)
+            error = ep_remove(ep, epi);
+        else
+            error = -ENOENT;
+        break;
+    case EPOLL_CTL_MOD:
+        if (epi) {
+            if (!(epi->event.events & EPOLLEXCLUSIVE)) {
+                epds.events |= EPOLLERR | EPOLLHUP;
+                error = ep_modify(ep, epi, &epds);
+            }
+        } else
+            error = -ENOENT;
+        break;
+    }
 
 error_tgt_fput:
-	fdput(tf);
-	fdput(f);
+    fdput(tf);
+    fdput(f);
 
-	return error;
+    return error;
 }
 ```
 
 **核心思想**
-
 `epoll_ctl`接口从用户态传入的配置好的`struct epoll_event`结构体和对应的`epoll_create1`创建的`epoll_event`实例
 
 1. 通过`fdget`接口获取句柄对应的进程描述符`struct file`，检查了是否支持`poll`操作
@@ -969,11 +953,9 @@ error_tgt_fput:
 ### 4. 等待句柄活跃
 
 **epoll_wait函数**
-
 `epoll_ctl(EPOLL_CTL_ADD)`已经将句柄添加到内核的等待队列中了，`epoll_wait`则用户态是获取句柄活跃时的通知
 
 **核心逻辑如下**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
@@ -1002,11 +984,9 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
 ```
 
 **ep_poll函数**
-
 这个函数真正将执行`epoll_wait`的进程带入睡眠状态
 
 **核心逻辑如下**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
@@ -1022,98 +1002,97 @@ static int do_epoll_wait(int epfd, struct epoll_event __user *events,
  * @return: 返回已获取的就绪事件的数量，或者在出现错误时返回错误代码。
  */
 static int ep_poll(struct eventpoll *ep, struct epoll_event __user *events,
-		   int maxevents, long timeout)
+           int maxevents, long timeout)
 {
-	int res = 0, eavail, timed_out = 0;
-	u64 slack = 0;
-	bool waiter = false;
-	wait_queue_entry_t wait;
-	ktime_t expires, *to = NULL;
+    int res = 0, eavail, timed_out = 0;
+    u64 slack = 0;
+    bool waiter = false;
+    wait_queue_entry_t wait;
+    ktime_t expires, *to = NULL;
 
-	lockdep_assert_irqs_enabled();
+    lockdep_assert_irqs_enabled();
 
-	/* 时间大于0则计算等待时间 */
-	if (timeout > 0) {
-		slack = select_estimate_accuracy(&end_time);
-		*to = timespec64_to_ktime(end_time);
-	/* 时间小于0则这一次直接跳过等待过程 */
-	} else if (timeout == 0) {
-		timed_out = 1;
-		/* 检查当前就绪事件 */
-		eavail = ep_events_available(ep);
+    /* 时间大于0则计算等待时间 */
+    if (timeout > 0) {
+        slack = select_estimate_accuracy(&end_time);
+        *to = timespec64_to_ktime(end_time);
+    /* 时间小于0则这一次直接跳过等待过程 */
+    } else if (timeout == 0) {
+        timed_out = 1;
+        /* 检查当前就绪事件 */
+        eavail = ep_events_available(ep);
 
-		goto send_events;
-	}
+        goto send_events;
+    }
 
 fetch_events:
     /* 先执行忙等待 */
     if (!ep_events_available(ep))
-		ep_busy_loop(ep, timed_out);
+        ep_busy_loop(ep, timed_out);
 
     /* 检查当前就绪事件，如果有则直接返回就绪事件 */
-	if (ep_events_available(ep))
-		goto send_events;
+    if (ep_events_available(ep))
+        goto send_events;
 
-	if (!waiter) {
-		waiter = true;
-		 /* 初始化本线程等待队列，把本线程登记到epoll的waitqueue  */
-		init_waitqueue_entry(&wait, current);
-		__add_wait_queue_exclusive(&ep->wq, &wait);
-	}
+    if (!waiter) {
+        waiter = true;
+         /* 初始化本线程等待队列，把本线程登记到epoll的waitqueue  */
+        init_waitqueue_entry(&wait, current);
+        __add_wait_queue_exclusive(&ep->wq, &wait);
+    }
 
-	for (;;) {
-		/* 将进程设置为可中断睡眠态 */
-		set_current_state(TASK_INTERRUPTIBLE);
-		/* 先检查致命信号，如果有则直接返回错误 */
-		if (fatal_signal_pending(current)) {
-			res = -EINTR;
-			break;
-		}
+    for (;;) {
+        /* 将进程设置为可中断睡眠态 */
+        set_current_state(TASK_INTERRUPTIBLE);
+        /* 先检查致命信号，如果有则直接返回错误 */
+        if (fatal_signal_pending(current)) {
+            res = -EINTR;
+            break;
+        }
 
-		/* 再检查就绪事件，如果有则直接返回就绪事件 */
-		eavail = ep_events_available(ep);
-		if (eavail)
-			break;
+        /* 再检查就绪事件，如果有则直接返回就绪事件 */
+        eavail = ep_events_available(ep);
+        if (eavail)
+            break;
 
-		/* 最后检查普通信号，如果有则直接返回错误 */
-		if (signal_pending(current)) {
-			res = -EINTR;
-			break;
-		}
+        /* 最后检查普通信号，如果有则直接返回错误 */
+        if (signal_pending(current)) {
+            res = -EINTR;
+            break;
+        }
 
-		/* 如果有等待时间则继续等待，否则直接返回超时 */
-		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
-			timed_out = 1;
-			break;
-		}
-	}
+        /* 如果有等待时间则继续等待，否则直接返回超时 */
+        if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS)) {
+            timed_out = 1;
+            break;
+        }
+    }
 
-	/* 将进程状态设置为运行态 */
-	__set_current_state(TASK_RUNNING);
+    /* 将进程状态设置为运行态 */
+    __set_current_state(TASK_RUNNING);
 
 send_events:
-	/**
-	 * Try to transfer events to user space. In case we get 0 events and
-	 * there's still timeout left over, we go trying again in search of
-	 * more luck.
-	 *
-	 * 尽力将事件转移到用户空间。倘若我们获取到的事件数为 0，而剩余的超时时间仍有剩余的话，我们就继续尝试，希望能获得更多的机会。
-	 */
-	if (!res && eavail &&
-	    !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
-		goto fetch_events;
+    /**
+     * Try to transfer events to user space. In case we get 0 events and
+     * there's still timeout left over, we go trying again in search of
+     * more luck.
+     *
+     * 尽力将事件转移到用户空间。倘若我们获取到的事件数为 0，而剩余的超时时间仍有剩余的话，我们就继续尝试，希望能获得更多的机会。
+     */
+    if (!res && eavail &&
+        !(res = ep_send_events(ep, events, maxevents)) && !timed_out)
+        goto fetch_events;
 
-	/* 如果之前登记了等待队列，则将本线程从epoll的waitqueue中移除 */
-	if (waiter) {
-		__remove_wait_queue(&ep->wq, &wait);
-	}
+    /* 如果之前登记了等待队列，则将本线程从epoll的waitqueue中移除 */
+    if (waiter) {
+        __remove_wait_queue(&ep->wq, &wait);
+    }
 
-	return res;
+    return res;
 }
 ```
 
 **核心思想**
-
 `ep_poll`函数对用户态提供了灵活的接口，自身在高并发的场景下也有专门的优化处理，**有四种理解角度**
 
 1. `time_out`小于`0`时，一直阻塞接口直到监听的句柄有任何一个活跃
@@ -1134,76 +1113,73 @@ send_events:
 ### 5. 监听句柄活跃触发回调ep_poll_callback
 
 **外部socket活跃**
-
 <img src="./img/等待队列注册唤醒.jpg" alt="等待队列注册唤醒" />
 
 **ep_poll_callback函数**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c++
 // linux-5.4/fs/eventpoll.c
 static int ep_poll_callback(wait_queue_entry_t *wait, unsigned mode, int sync, void *key)
 {
-	int pwake = 0;
-	struct epitem *epi = ep_item_from_wait(wait);
-	struct eventpoll *ep = epi->ep;
-	/* 本次唤醒携带的就绪事件位,例如 POLLIN、POLLOUT、POLLERR等，也就是底层这次认为发生了哪些poll语义上的事件 */
-	__poll_t pollflags = key_to_poll(key);
-	unsigned long flags;
-	int ewake = 0;
+    int pwake = 0;
+    struct epitem *epi = ep_item_from_wait(wait);
+    struct eventpoll *ep = epi->ep;
+    /* 本次唤醒携带的就绪事件位,例如 POLLIN、POLLOUT、POLLERR等，也就是底层这次认为发生了哪些poll语义上的事件 */
+    __poll_t pollflags = key_to_poll(key);
+    unsigned long flags;
+    int ewake = 0;
 
-	read_lock_irqsave(&ep->lock, flags);
+    read_lock_irqsave(&ep->lock, flags);
 
-	/* 和用户注册的兴趣做交集过滤,如果没有用户感兴趣的事件发生,则不唤醒用户空间的线程 */
-	if (pollflags && !(pollflags & epi->event.events))
-		goto out_unlock;
+    /* 和用户注册的兴趣做交集过滤,如果没有用户感兴趣的事件发生,则不唤醒用户空间的线程 */
+    if (pollflags && !(pollflags & epi->event.events))
+        goto out_unlock;
 
-	/**
-	 * 当正在把就绪事件从内核交给用户态的那段时间里的那段时间里
-	 * 新来的I/O就绪不能再去动rdllist,只能先挂到ovflist上
-	 */
-	if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
-		if (epi->next == EP_UNACTIVE_PTR &&
-		    chain_epi_lockless(epi))
-			/* 向内核电源管理子系统登记,防止休眠 */
-			ep_pm_stay_awake_rcu(epi);
-		goto out_unlock;
-	}
+    /**
+     * 当正在把就绪事件从内核交给用户态的那段时间里的那段时间里
+     * 新来的I/O就绪不能再去动rdllist,只能先挂到ovflist上
+     */
+    if (READ_ONCE(ep->ovflist) != EP_UNACTIVE_PTR) {
+        if (epi->next == EP_UNACTIVE_PTR &&
+            chain_epi_lockless(epi))
+            /* 向内核电源管理子系统登记,防止休眠 */
+            ep_pm_stay_awake_rcu(epi);
+        goto out_unlock;
+    }
 
-	if (!ep_is_linked(epi) &&
-	    list_add_tail_lockless(&epi->rdllink, &ep->rdllist)) {
-		/* 向内核电源管理子系统登记,防止休眠 */
-		ep_pm_stay_awake_rcu(epi);
-	}
+    if (!ep_is_linked(epi) &&
+        list_add_tail_lockless(&epi->rdllink, &ep->rdllist)) {
+        /* 向内核电源管理子系统登记,防止休眠 */
+        ep_pm_stay_awake_rcu(epi);
+    }
 
-	/* 如果处于激活状态，同时唤醒事件轮询等待列表和->poll()方法的等待列表 */
-	if (waitqueue_active(&ep->wq)) {
-		wake_up(&ep->wq);
-	}
-	if (waitqueue_active(&ep->poll_wait))
-		pwake++;
+    /* 如果处于激活状态，同时唤醒事件轮询等待列表和->poll()方法的等待列表 */
+    if (waitqueue_active(&ep->wq)) {
+        wake_up(&ep->wq);
+    }
+    if (waitqueue_active(&ep->poll_wait))
+        pwake++;
 
 out_unlock:
-	read_unlock_irqrestore(&ep->lock, flags);
+    read_unlock_irqrestore(&ep->lock, flags);
 
-	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
+    if (pwake)
+        ep_poll_safewake(&ep->poll_wait);
 
-	if (!(epi->event.events & EPOLLEXCLUSIVE))
-		ewake = 1;
+    if (!(epi->event.events & EPOLLEXCLUSIVE))
+        ewake = 1;
 
-	if (pollflags & POLLFREE) {
-		list_del_init(&wait->entry);
-		smp_store_release(&ep_pwq_from_wait(wait)->whead, NULL);
-	}
+    if (pollflags & POLLFREE) {
+        list_del_init(&wait->entry);
+        smp_store_release(&ep_pwq_from_wait(wait)->whead, NULL);
+    }
 
-	return ewake;
+    return ewake;
 }
 ```
 
 **核心思想**
-
 根据`ovflist`的状态,将新活跃的事件添加到就绪队列或者缓存队列中
 
 <img src="./img/ep_poll_callback.jpg" alt="ep_poll_callback" />
@@ -1211,22 +1187,21 @@ out_unlock:
 ### 6. 扫描就绪链表
 
 **ep_send_events函数**
-
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
 // linux-5.4/fs/eventpoll.c
 static int ep_send_events(struct eventpoll *ep,
-			  struct epoll_event __user *events, int maxevents)
+              struct epoll_event __user *events, int maxevents)
 {
-	struct ep_send_events_data esed;
+    struct ep_send_events_data esed;
 
-	esed.maxevents = maxevents;
-	esed.events = events;
+    esed.maxevents = maxevents;
+    esed.events = events;
 
     /* 扫描就绪队列 */
-	ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
-	return esed.res;
+    ep_scan_ready_list(ep, ep_send_events_proc, &esed, 0, false);
+    return esed.res;
 }
 ```
 
@@ -1261,132 +1236,131 @@ static int ep_send_events(struct eventpoll *ep,
  * 返回值：与 @sproc 回调所返回的相同整数错误代码
  */
 static __poll_t ep_scan_ready_list(struct eventpoll *ep,
-			      __poll_t (*sproc)(struct eventpoll *,
-					   struct list_head *, void *),
-			      void *priv, int depth, bool ep_locked)
+                  __poll_t (*sproc)(struct eventpoll *,
+                       struct list_head *, void *),
+                  void *priv, int depth, bool ep_locked)
 {
-	__poll_t res;
-	int pwake = 0;
-	struct epitem *epi, *nepi;
-	LIST_HEAD(txlist);
+    __poll_t res;
+    int pwake = 0;
+    struct epitem *epi, *nepi;
+    LIST_HEAD(txlist);
 
-	lockdep_assert_irqs_enabled();
+    lockdep_assert_irqs_enabled();
 
-	/**
-	 * We need to lock this because we could be hit by
-	 * eventpoll_release_file() and epoll_ctl().
-	 * 
-	 * 这里需要锁定这个，因为可能会受到
-	 * eventpoll_release_file()和epoll_ctl()的影响
-	 */
-	if (!ep_locked)
-		mutex_lock_nested(&ep->mtx, depth);
+    /**
+     * We need to lock this because we could be hit by
+     * eventpoll_release_file() and epoll_ctl().
+     * 
+     * 这里需要锁定这个，因为可能会受到
+     * eventpoll_release_file()和epoll_ctl()的影响
+     */
+    if (!ep_locked)
+        mutex_lock_nested(&ep->mtx, depth);
 
-	/**
-	 * Steal the ready list, and re-init the original one to the
-	 * empty list. Also, set ep->ovflist to NULL so that events
-	 * happening while looping w/out locks, are not lost. We cannot
-	 * have the poll callback to queue directly on ep->rdllist,
-	 * because we want the "sproc" callback to be able to do it
-	 * in a lockless way.
-	 * 
-	 * 窃取就绪列表，并将原始列表重新初始化为空列表
-	 * 同时，将ep->ovflist设置为NULL，这样在无锁循环期间发生的事件就不会丢失
-	 * 不能让轮询(poll)回调直接排队到ep->rdllist上，因为我们希望特殊处理(sproc)回调能够以无锁的方式执行此操作
-	 */
-	write_lock_irq(&ep->lock);
-	/* 将就绪列表复制到临时列表 */
-	list_splice_init(&ep->rdllist, &txlist);
-	/* 将缓冲链表ep->ovflist设置为NULL */
-	WRITE_ONCE(ep->ovflist, NULL);
-	write_unlock_irq(&ep->lock);
+    /**
+     * Steal the ready list, and re-init the original one to the
+     * empty list. Also, set ep->ovflist to NULL so that events
+     * happening while looping w/out locks, are not lost. We cannot
+     * have the poll callback to queue directly on ep->rdllist,
+     * because we want the "sproc" callback to be able to do it
+     * in a lockless way.
+     * 
+     * 窃取就绪列表，并将原始列表重新初始化为空列表
+     * 同时，将ep->ovflist设置为NULL，这样在无锁循环期间发生的事件就不会丢失
+     * 不能让轮询(poll)回调直接排队到ep->rdllist上，因为我们希望特殊处理(sproc)回调能够以无锁的方式执行此操作
+     */
+    write_lock_irq(&ep->lock);
+    /* 将就绪列表复制到临时列表 */
+    list_splice_init(&ep->rdllist, &txlist);
+    /* 将缓冲链表ep->ovflist设置为NULL */
+    WRITE_ONCE(ep->ovflist, NULL);
+    write_unlock_irq(&ep->lock);
 
-	/**
-	 * Now call the callback function.
-	 *
-	 * 在没有锁的情况下调用回调函数
-	 */
-	res = (*sproc)(ep, &txlist, priv);
+    /**
+     * Now call the callback function.
+     *
+     * 在没有锁的情况下调用回调函数
+     */
+    res = (*sproc)(ep, &txlist, priv);
 
-	write_lock_irq(&ep->lock);
-	/*
-	 * During the time we spent inside the "sproc" callback, some
-	 * other events might have been queued by the poll callback.
-	 * We re-insert them inside the main ready-list here.
-	 * 
-	 * 在我们处于"sproc"回调函数内部的这段时间里
-	 * 还有一些其他事件可能已被轮询回调函数加入到了队列中
-	 * 我们在此处将它们重新插入到主就绪列表中
-	 */
-	for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
-	     nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
-		/*
-		 * We need to check if the item is already in the list.
-		 * During the "sproc" callback execution time, items are
-		 * queued into ->ovflist but the "txlist" might already
-		 * contain them, and the list_splice() below takes care of them.
-		 * 
-		 * 我们需要检查一下这个条目是否已经在列表里了
-		 * 在"特殊处理(sproc)"回调执行期间条目会被排入->ovflist
-		 * 但txlist里可能已经包含它们了,而下面的list_splice()操作会负责处理这些(已存在的)条目
-		 */
-		if (!ep_is_linked(epi)) {
-			/*
-			 * ->ovflist is LIFO, so we have to reverse it in order
-			 * to keep in FIFO.
-			 * 
-			 * -> 由于队列遵循后进先出原则，所以我们需要对其进行反转，以便保持先进先出的顺序。
-			 */
-			list_add(&epi->rdllink, &ep->rdllist);
-			ep_pm_stay_awake(epi);
-		}
-	}
-	/*
-	 * We need to set back ep->ovflist to EP_UNACTIVE_PTR, so that after
-	 * releasing the lock, events will be queued in the normal way inside
-	 * ep->rdllist.
-	 * 
-	 * 我们需要将 ep->ovflist 设为 EP_UNACTIVE_PTR，这样在释放锁之后，事件就会按照正常方式依次存放在 ep->rdllist 中。
-	 */
-	WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
+    write_lock_irq(&ep->lock);
+    /*
+     * During the time we spent inside the "sproc" callback, some
+     * other events might have been queued by the poll callback.
+     * We re-insert them inside the main ready-list here.
+     * 
+     * 在我们处于"sproc"回调函数内部的这段时间里
+     * 还有一些其他事件可能已被轮询回调函数加入到了队列中
+     * 我们在此处将它们重新插入到主就绪列表中
+     */
+    for (nepi = READ_ONCE(ep->ovflist); (epi = nepi) != NULL;
+         nepi = epi->next, epi->next = EP_UNACTIVE_PTR) {
+        /*
+         * We need to check if the item is already in the list.
+         * During the "sproc" callback execution time, items are
+         * queued into ->ovflist but the "txlist" might already
+         * contain them, and the list_splice() below takes care of them.
+         * 
+         * 我们需要检查一下这个条目是否已经在列表里了
+         * 在"特殊处理(sproc)"回调执行期间条目会被排入->ovflist
+         * 但txlist里可能已经包含它们了,而下面的list_splice()操作会负责处理这些(已存在的)条目
+         */
+        if (!ep_is_linked(epi)) {
+            /*
+             * ->ovflist is LIFO, so we have to reverse it in order
+             * to keep in FIFO.
+             * 
+             * -> 由于队列遵循后进先出原则，所以我们需要对其进行反转，以便保持先进先出的顺序。
+             */
+            list_add(&epi->rdllink, &ep->rdllist);
+            ep_pm_stay_awake(epi);
+        }
+    }
+    /*
+     * We need to set back ep->ovflist to EP_UNACTIVE_PTR, so that after
+     * releasing the lock, events will be queued in the normal way inside
+     * ep->rdllist.
+     * 
+     * 我们需要将 ep->ovflist 设为 EP_UNACTIVE_PTR，这样在释放锁之后，事件就会按照正常方式依次存放在 ep->rdllist 中。
+     */
+    WRITE_ONCE(ep->ovflist, EP_UNACTIVE_PTR);
 
-	/*
-	 * Quickly re-inject items left on "txlist".
-	 */
-	list_splice(&txlist, &ep->rdllist);
-	__pm_relax(ep->ws);
+    /*
+     * Quickly re-inject items left on "txlist".
+     */
+    list_splice(&txlist, &ep->rdllist);
+    __pm_relax(ep->ws);
 
-	if (!list_empty(&ep->rdllist)) {
-		/*
-		 * Wake up (if active) both the eventpoll wait list and
-		 * the ->poll() wait list (delayed after we release the lock).
-		 * 
-		 * (如果处于激活状态)同时唤醒事件轮询等待列表和
-		 * ->poll()等待列表(在我们释放锁之后延迟进行)
-		 */
-		if (waitqueue_active(&ep->wq))
-			wake_up(&ep->wq);
-		if (waitqueue_active(&ep->poll_wait))
-			pwake++;
-	}
-	write_unlock_irq(&ep->lock);
+    if (!list_empty(&ep->rdllist)) {
+        /*
+         * Wake up (if active) both the eventpoll wait list and
+         * the ->poll() wait list (delayed after we release the lock).
+         * 
+         * (如果处于激活状态)同时唤醒事件轮询等待列表和
+         * ->poll()等待列表(在我们释放锁之后延迟进行)
+         */
+        if (waitqueue_active(&ep->wq))
+            wake_up(&ep->wq);
+        if (waitqueue_active(&ep->poll_wait))
+            pwake++;
+    }
+    write_unlock_irq(&ep->lock);
 
-	if (!ep_locked)
-		mutex_unlock(&ep->mtx);
+    if (!ep_locked)
+        mutex_unlock(&ep->mtx);
 
-	/**
-	 * We have to call this outside the lock
-	 * 我们得把这个东西从锁里取出来。
-	 */
-	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
+    /**
+     * We have to call this outside the lock
+     * 我们得把这个东西从锁里取出来。
+     */
+    if (pwake)
+        ep_poll_safewake(&ep->poll_wait);
 
-	return res;
+    return res;
 }
 ```
 
 **核心思想**
-
 `ep_scan_ready_list`函数的执行可以分为以下步骤
 
 复制就绪链表然后将副本传入函数指针`sproc`，这里会根据不同的场景使用`ep_read_events_proc`或`ep_send_events_proc`来对就绪链表处理
@@ -1404,7 +1378,6 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 这里需要注意`ep_read_events_proc`函数和`ep_send_events_proc`函数，都会在内部调用`ep_item_poll`函数来对红黑树节点执行等价于`vfs`的`poll`的操作，如果这时遇到了嵌套`epoll`的情况，及检查的节点是`epoll`节点，那么这时会再调用`ep_send_events_proc`函数，造成一个嵌套调用，这种嵌套的出口是找到最终的不是`epoll`的句柄
 
 **由于ep_insert函数插入时就检查过环路问题，所以这里不会出现环形调用**
-
 <img src="./img/ep_scan_ready_list递归.jpg" alt="ep_scan_ready_list递归" />
 
 ### 7. 分类处理水平触发(LT)和边沿触发(ET)并返回就绪事件
@@ -1414,56 +1387,56 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 ```c++
 // linux-5.4/fs/eventpoll.c
 static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head,
-			       void *priv)
+                   void *priv)
 {
-	struct ep_send_events_data *esed = priv;
-	__poll_t revents;
-	struct epitem *epi, *tmp;
-	struct epoll_event __user *uevent = esed->events;
-	struct wakeup_source *ws;
-	poll_table pt;
+    struct ep_send_events_data *esed = priv;
+    __poll_t revents;
+    struct epitem *epi, *tmp;
+    struct epoll_event __user *uevent = esed->events;
+    struct wakeup_source *ws;
+    poll_table pt;
 
-	init_poll_funcptr(&pt, NULL);
-	esed->res = 0;
+    init_poll_funcptr(&pt, NULL);
+    esed->res = 0;
 
-	/* 遍历临时队列即就绪队列的副本 */ 
-	list_for_each_entry_safe(epi, tmp, head, rdllink) {
-		/* 从当前链表里摘掉节点 */
-		list_del_init(&epi->rdllink);
+    /* 遍历临时队列即就绪队列的副本 */ 
+    list_for_each_entry_safe(epi, tmp, head, rdllink) {
+        /* 从当前链表里摘掉节点 */
+        list_del_init(&epi->rdllink);
 
-		/* 检查事件是否就绪 */
-		revents = ep_item_poll(epi, &pt, 1);
-		if (!revents)
-			continue;
+        /* 检查事件是否就绪 */
+        revents = ep_item_poll(epi, &pt, 1);
+        if (!revents)
+            continue;
 
-		/* 将就绪事件和对应的节点返回到用户态 */
-		if (__put_user(revents, &uevent->events) ||
-		    __put_user(epi->event.data, &uevent->data)) {
-			/* 如果复制到用户态失败，将节点重新加入就绪队列 */
-			list_add(&epi->rdllink, head);
-			ep_pm_stay_awake(epi);
-			if (!esed->res)
-				esed->res = -EFAULT;
-			return 0;
-		}
-		esed->res++;
-		uevent++;
-		/* Edge Triggered,边缘触发模式下,事件只处理一次不向用户重复上报同一监听 */
-		if (epi->event.events & EPOLLONESHOT)
-			/**
-			 * 去掉EPOLLIN、EPOLLOUT等真正的I/O事件掩码,只保留私有/模式位(WAKEUP、ONESHOT、ET、EXCLUSIVE)
-			 * 之后在ep_poll_callback()里会先检查:掩码里只剩私有位→视为disabled(已禁用),即使底层fd再次可读
-			 * 也不会再进rdllist,直到用户epoll_ctl(EPOLL_CTL_MOD,...)重新写上EPOLLIN等
-	  		 */
-			epi->event.events &= EP_PRIVATE_BITS;
-		/* Level Triggered,水平触发模式下,条件还在就继续报,事件上报后重新加入就绪队列 */
-		else if (!(epi->event.events & EPOLLET)) {
-			list_add_tail(&epi->rdllink, &ep->rdllist);
-			ep_pm_stay_awake(epi);
-		}
-	}
+        /* 将就绪事件和对应的节点返回到用户态 */
+        if (__put_user(revents, &uevent->events) ||
+            __put_user(epi->event.data, &uevent->data)) {
+            /* 如果复制到用户态失败，将节点重新加入就绪队列 */
+            list_add(&epi->rdllink, head);
+            ep_pm_stay_awake(epi);
+            if (!esed->res)
+                esed->res = -EFAULT;
+            return 0;
+        }
+        esed->res++;
+        uevent++;
+        /* Edge Triggered,边缘触发模式下,事件只处理一次不向用户重复上报同一监听 */
+        if (epi->event.events & EPOLLONESHOT)
+            /**
+             * 去掉EPOLLIN、EPOLLOUT等真正的I/O事件掩码,只保留私有/模式位(WAKEUP、ONESHOT、ET、EXCLUSIVE)
+             * 之后在ep_poll_callback()里会先检查:掩码里只剩私有位→视为disabled(已禁用),即使底层fd再次可读
+             * 也不会再进rdllist,直到用户epoll_ctl(EPOLL_CTL_MOD,...)重新写上EPOLLIN等
+               */
+            epi->event.events &= EP_PRIVATE_BITS;
+        /* Level Triggered,水平触发模式下,条件还在就继续报,事件上报后重新加入就绪队列 */
+        else if (!(epi->event.events & EPOLLET)) {
+            list_add_tail(&epi->rdllink, &ep->rdllist);
+            ep_pm_stay_awake(epi);
+        }
+    }
 
-	return 0;
+    return 0;
 }
 ```
 
@@ -1497,108 +1470,107 @@ static __poll_t ep_send_events_proc(struct eventpoll *ep, struct list_head *head
  * 在新创建的eppoll_entry节点中，其加入到对应的epitem节点的等待队列链表中
  */
 static void ep_ptable_queue_proc(struct file *file, wait_queue_head_t *whead,
-				 poll_table *pt)
+                 poll_table *pt)
 {
-	struct epitem *epi = ep_item_from_epqueue(pt);
-	struct eppoll_entry *pwq;
+    struct epitem *epi = ep_item_from_epqueue(pt);
+    struct eppoll_entry *pwq;
 
-	if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
+    if (epi->nwait >= 0 && (pwq = kmem_cache_alloc(pwq_cache, GFP_KERNEL))) {
         /* 设置等待队列回调为 ep_poll_callback,并记录对应的等待队列和对应的epitem节点 */
-		init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
-		pwq->whead = whead;
-		pwq->base = epi;
-		if (epi->event.events & EPOLLEXCLUSIVE)
-			add_wait_queue_exclusive(whead, &pwq->wait);
-		else
-			add_wait_queue(whead, &pwq->wait);
+        init_waitqueue_func_entry(&pwq->wait, ep_poll_callback);
+        pwq->whead = whead;
+        pwq->base = epi;
+        if (epi->event.events & EPOLLEXCLUSIVE)
+            add_wait_queue_exclusive(whead, &pwq->wait);
+        else
+            add_wait_queue(whead, &pwq->wait);
         /* 把这个pwq添加到到该epitem的链表上 */
-		list_add_tail(&pwq->llink, &epi->pwqlist);
-		epi->nwait++;
-	} else {
-		epi->nwait = -1;
-	}
+        list_add_tail(&pwq->llink, &epi->pwqlist);
+        epi->nwait++;
+    } else {
+        epi->nwait = -1;
+    }
 }
 
 // linux-5.4/fs/eventpoll.c
 static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
-		     struct file *tfile, int fd, int full_check)
+             struct file *tfile, int fd, int full_check)
 {
-	int pwake = 0;
-	__poll_t revents;
-	struct epitem *epi;
-	struct ep_pqueue epq;
+    int pwake = 0;
+    __poll_t revents;
+    struct epitem *epi;
+    struct ep_pqueue epq;
 
-	/* 初始化各类链表，节点*/
-	INIT_LIST_HEAD(&epi->rdllink);
-	INIT_LIST_HEAD(&epi->fllink);
-	INIT_LIST_HEAD(&epi->pwqlist);
-	epi->ep = ep;
-	ep_set_ffd(&epi->ffd, tfile, fd);
-	epi->event = *event;
-	epi->nwait = 0;
-	epi->next = EP_UNACTIVE_PTR;
+    /* 初始化各类链表，节点*/
+    INIT_LIST_HEAD(&epi->rdllink);
+    INIT_LIST_HEAD(&epi->fllink);
+    INIT_LIST_HEAD(&epi->pwqlist);
+    epi->ep = ep;
+    ep_set_ffd(&epi->ffd, tfile, fd);
+    epi->event = *event;
+    epi->nwait = 0;
+    epi->next = EP_UNACTIVE_PTR;
 
     /* 创建电源管理相关的唤醒源 */
     ep_create_wakeup_source(epi);
 
-	/**
+    /**
      * 创建内核vfs_poll使用的poll_table,并将poll_table->_qproc设置为ep_ptable_queue_proc
      * 在后续ep_item_poll()中调用具体内核对象的poll方法时使用
      */
-	epq.epi = epi;
-	init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
+    epq.epi = epi;
+    init_poll_funcptr(&epq.pt, ep_ptable_queue_proc);
 
-	/**
+    /**
      * 把新epitem接到目标文件的poll/waitqueue队列上，并顺便读出此刻是否已经就绪的事件位
      * 需要注意在此操作完成后注册的回调函数就可以开始处理新的项了
-	 */
-	revents = ep_item_poll(epi, &epq.pt, 1);
+     */
+    revents = ep_item_poll(epi, &epq.pt, 1);
 
     /**
      * epitem通过epi->fllink挂到被监控文件 tfile->f_ep_link即epi->ffd.file上当这个struct file被关闭时
      * 内核能顺着f_ep_links找到所有还在监听它的epoll项，把它们卸掉
      */
-	list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
+    list_add_tail_rcu(&epi->fllink, &tfile->f_ep_links);
 
-	/* 将节点插入红黑树中 */
-	ep_rbtree_insert(ep, epi);
+    /* 将节点插入红黑树中 */
+    ep_rbtree_insert(ep, epi);
 
     /**
      * We have to drop the new item inside our item list to keep track of it
      * 我们得从我们的物品清单中删除这个新项目，以便对其进行跟踪管理
      */
-	write_lock_irq(&ep->lock);
+    write_lock_irq(&ep->lock);
 
     /* 如果该文件已经“准备就绪”，我们就将其放入“已准备就绪”的列表中 */
-	if (revents && !ep_is_linked(epi)) {
-		list_add_tail(&epi->rdllink, &ep->rdllist);
-		ep_pm_stay_awake(epi);
+    if (revents && !ep_is_linked(epi)) {
+        list_add_tail(&epi->rdllink, &ep->rdllist);
+        ep_pm_stay_awake(epi);
 
-		/* 通知等待中的任务，事件已准备好可供使用 */
-		if (waitqueue_active(&ep->wq))
-			wake_up(&ep->wq);
-		if (waitqueue_active(&ep->poll_wait))
-			pwake++;
-	}
+        /* 通知等待中的任务，事件已准备好可供使用 */
+        if (waitqueue_active(&ep->wq))
+            wake_up(&ep->wq);
+        if (waitqueue_active(&ep->poll_wait))
+            pwake++;
+    }
 
-	write_unlock_irq(&ep->lock);
+    write_unlock_irq(&ep->lock);
 
     /* ep->user所指向的struct user_struct里的epoll_watches计数(当前被epoll监视的条目数量)加1 */
     atomic_long_inc(&ep->user->epoll_watches);
 
-	/**
+    /**
      * We have to call this outside the lock
      * 我们得把这个东西从锁里取出来
      */
-	if (pwake)
-		ep_poll_safewake(&ep->poll_wait);
+    if (pwake)
+        ep_poll_safewake(&ep->poll_wait);
 
-	return 0;
+    return 0;
 }
 ```
 
 **核心思想**
-
 函数大致分为这几部分
 
 1. 创建和初始化`epitem`节点，将`poll_table->_qproc`设置为`ep_ptable_queue_proc`
@@ -1609,19 +1581,14 @@ static int ep_insert(struct eventpoll *ep, const struct epoll_event *event,
 <img src="./img/ep_insert主流程.jpg" alt="ep_insert主流程" />
 
 **epoll嵌套**
-
 `epoll`在添加新的节点时，是可以存在`epoll`监听`epoll`的情况，但是**不允许出现环形调用和过深的嵌套**
 
 <img src="./img/ep_insert嵌套.jpg" alt="ep_insert嵌套" />
 
-
-
 **ep_rbtree_insert函数**
-
 插入新的节点
 
 **源代码如下**
-
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
@@ -1665,7 +1632,6 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 ```
 
 **核心思想**
-
 采用深度优先的策略，遍历红黑树找到目标节点，然后将节点插入
 
 ### 2. ep_remove函数
@@ -1673,7 +1639,6 @@ static void ep_rbtree_insert(struct eventpoll *ep, struct epitem *epi)
 从红黑树中删除节点
 
 **核心逻辑如下**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
@@ -1708,7 +1673,6 @@ static int ep_remove(struct eventpoll *ep, struct epitem *epi)
 修改节点
 
 **核心逻辑如下**
-
 > 笔者注：下文代码已格式化处理，并适当简化只保留核心逻辑
 
 ```c
@@ -1766,7 +1730,6 @@ static int ep_modify(struct eventpoll *ep, struct epitem *epi,
 在红黑树中查找节点
 
 **源代码如下**
-
 > 笔者注：除注释外，所有代码均未删改
 
 ```c
@@ -1803,7 +1766,6 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 ```
 
 **核心思想**
-
 采用深度优先的策略，遍历红黑树找到目标节点
 
 ## 八、面向VFS部分的接口
@@ -1813,7 +1775,6 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 `eventpoll_fops`结构体中注册了数个用于面向`VFS`的接口，在`ep_alloc`中初始化时会被使用
 
 **源代码如下**
-
 > 笔者注：所有代码均未删改
 
 ```c++
@@ -1822,11 +1783,11 @@ static struct epitem *ep_find(struct eventpoll *ep, struct file *file, int fd)
 /* File callbacks that implement the eventpoll file behaviour */
 static const struct file_operations eventpoll_fops = {
 #ifdef CONFIG_PROC_FS
-	.show_fdinfo	= ep_show_fdinfo,
+    .show_fdinfo    = ep_show_fdinfo,
 #endif
-	.release	= ep_eventpoll_release,
-	.poll		= ep_eventpoll_poll,
-	.llseek		= noop_llseek,
+    .release    = ep_eventpoll_release,
+    .poll        = ep_eventpoll_poll,
+    .llseek        = noop_llseek,
 };
 ```
 
@@ -1835,9 +1796,7 @@ static const struct file_operations eventpoll_fops = {
 ### 1. 驱动层面对文件系统的监听
 
 **file_operations->poll接口**
-
 **函数声明**
-
 在`linux-5.4\include\linux\fs.h`中可以看到`struct file_operations`的定义
 
 ```c
