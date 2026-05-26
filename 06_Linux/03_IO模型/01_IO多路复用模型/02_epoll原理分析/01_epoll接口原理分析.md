@@ -1369,7 +1369,9 @@ static __poll_t ep_scan_ready_list(struct eventpoll *ep,
 
 **ep_send_events_proc函数：**`epoll`模块面向`VFS`的`poll`方法
 
-遍历缓存队列将缓存的值放回就行队列中，根据检查结果更新`rdllist`链表，然后唤醒等待链表
+**关于对rdllist就绪队列的处理：**
+
+创建一个临时队列，就绪队列的值转移到临时队列中。交给`ep_read_events_proc`或者`ep_send_events_proc`去处理，然后把在这期间添加到溢出缓存队列中的节点，重新放回就绪队列中。最后将处理完后将没有通知的节点重新放回就绪队列中
 
 <img src="./img/ep_scan_ready_list.jpg" alt="ep_scan_ready_list" />
 
