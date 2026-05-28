@@ -87,10 +87,10 @@ int main(void)
     if (retval == -1)
         perror("select()");
     else if (retval)
-        printf("Data is available now.\n");
+        printf("标准输入已就绪\n");
         /* FD_ISSET(0, &rfds) will be true. */
     else
-        printf("No data within five seconds.\n");
+        printf("5秒内没有事件发生\n");
 
     exit(EXIT_SUCCESS);
 }
