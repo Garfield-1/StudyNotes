@@ -50,7 +50,6 @@ static int create_epoll_event()
         return -1;
 
     event.events = EPOLLIN;
-    event.data.fd = STDIN_FILENO;
     if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, STDIN_FILENO, &event) != 0) {
         close(epoll_fd);
         return -1;
@@ -231,7 +230,6 @@ static int handle_client_connect(int epfd, int fd)
     }
 
     ev.events = EPOLLIN;
-    ev.data.fd = cfd;
     ret = epoll_ctl(epfd, EPOLL_CTL_ADD, cfd, &ev);
     if (ret < 0) {
         perror("epoll_ctl");
