@@ -457,10 +457,9 @@ int main(int argc, char *argv[])
 ```c
 // linux-5.4/fs/eventpoll.c
 /*
- * Each file descriptor added to the eventpoll interface will
- * have an entry of this type linked to the "rbr" RB tree.
- * Avoid increasing the size of this struct, there can be many thousands
- * of these on a server and we do not want this to take another cache line.
+ * This structure is stored inside the "private_data" member of the file
+ * structure and represents the main data structure for the eventpoll
+ * interface.
  */
 struct eventpoll {
     /**
@@ -493,8 +492,8 @@ struct eventpoll {
     struct rb_root_cached rbr;
 
     /**
-     * 当向用户空间拷贝就绪事件的过程中，有时候不能持有->lock锁，就会将事件放在这里
-     * 之后添加到正式的就绪队列中
+     * 当向用户空间拷贝就绪事件的过程中，避免资源竞争和内存安全问题rdllist不可用
+     * 就会将事件放在这里之后添加到正式的就绪队列中
      */
     struct epitem *ovflist;
     
