@@ -12,6 +12,32 @@
 
 ## 2. Git常用命令
 
+### 配置和查询用户名和邮箱
+
+#### 配置
+
+```shell
+git config --global user.name "你的名字"
+git config --global user.email "你的邮箱"
+```
+
+#### 查看
+
+```shell
+# 查看当前仓库生效的配置
+git config user.name
+git config user.email
+
+# 查看全局配置
+git config --global user.name
+git config --global user.email
+
+# 列出所有配置
+git config --list
+```
+
+
+
 ### 2.1 仓库管理
 
 | 命令          | 作用                      | 备注 |
