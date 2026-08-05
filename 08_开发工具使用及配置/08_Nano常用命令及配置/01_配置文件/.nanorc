@@ -1,0 +1,52 @@
+# nano 配置文件
+# 使用方法: 复制到 ~/.nanorc 后重新启动 nano 即可生效
+# 适用版本: nano >= 6.0 (constantshow 等选项), 建议 >= 8.0
+
+# ==================== 显示设置 ====================
+# 在左侧显示行号
+set linenumbers
+# 始终显示光标位置 (行号、列号、字符位置)
+set constantshow
+# 重新打开文件时恢复上次的编辑位置 (光标、锚点)
+set positionlog
+# 软换行时优先在空白字符处折行, 避免截断单词
+set atblanks
+# 长行超出屏幕宽度时软换行显示 (不截断)
+set softwrap
+
+# ==================== 编辑行为 ====================
+# Tab 键插入空格而不是制表符 (推荐, 避免混用缩进)
+set tabstospaces
+# Tab 显示宽度为 4 个空格
+set tabsize 4
+# 新行自动继承上一行的缩进
+set autoindent
+# 当前行超出屏幕宽度时自动硬换行到下一行
+set breaklonglines
+# Backspace/Delete 可直接删除整个选区文本 (而非单个字符)
+set zap
+# 保存时自动创建备份文件 (文件名后加 ~)
+set backup
+# 退出时自动保存修改过的缓冲区, 不再提示确认 (按需开启)
+# set saveonexit
+
+# ==================== 鼠标与交互 ====================
+# 开启鼠标支持: 点击定位光标, 滚轮翻页
+set mouse
+# 关闭底部两行快捷键提示栏, 腾出编辑空间
+# 需要查看快捷键时按 Ctrl+g 查看帮助, 按 Alt+x 切换提示栏
+set nohelp
+
+# ==================== 键绑定调整 ====================
+# 8.0 之前的习惯: Ctrl+f/Ctrl+b 为光标右移/左移 (8.0+ 改为搜索)
+# 如需恢复旧行为, 取消下面注释:
+# bind ^F forward main
+# bind ^B back main
+
+# Alt+g 快速跳转到指定行号、列号
+bind M-g gotoline main
+
+# ==================== 语法高亮 ====================
+# 引入系统自带的全部语法高亮规则 (C、Python、Shell、Markdown 等)
+# 若发行版路径不同, 可用 find / -name "*.nanorc" 查找实际位置
+include "/usr/share/nano/*.nanorc"
