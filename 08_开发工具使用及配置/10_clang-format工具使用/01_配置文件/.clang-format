@@ -1,0 +1,132 @@
+Language: Cpp
+# 基础风格模板, 下面未显式指定的选项均继承 LLVM 默认值
+BasedOnStyle: LLVM
+
+# ==================== 缩进 ====================
+# 代码块缩进宽度
+IndentWidth: 8
+# Tab 字符显示的宽度
+TabWidth: 8
+# 是否使用 Tab: Never=全用空格 / Always=全用 Tab / ForIndentation=仅缩进用 Tab
+UseTab: Never
+# 语句换行后 (续行) 的缩进宽度
+ContinuationIndentWidth: 8
+# switch-case 中 case 标签是否额外缩进 (false 表示 case 与 switch 对齐)
+IndentCaseLabels: false
+# goto 标签是否缩进 (Linux 内核习惯缩进标签)
+IndentGotoLabels: true
+# 预处理指令 (#include/#define) 是否缩进, None=不缩进
+IndentPPDirectives: None
+# 命名空间内部是否缩进, None=不缩进
+NamespaceIndentation: None
+
+# ==================== 大括号风格 ====================
+# Custom 表示由下方 BraceWrapping 逐项控制
+BreakBeforeBraces: Custom
+BraceWrapping:
+  # 函数定义后的左大括号换行 (Linux/K&R 变体习惯)
+  AfterFunction: true
+  # if/for/while 等控制语句后的左大括号不换行 (同行)
+  AfterControlStatement: Never
+  # enum 定义后的左大括号不换行
+  AfterEnum: false
+  # struct 定义后的左大括号不换行
+  AfterStruct: false
+  # union 定义后的左大括号不换行
+  AfterUnion: false
+  # class 定义后的左大括号不换行
+  AfterClass: false
+  # catch 前的左大括号不换行 (同行 } catch)
+  BeforeCatch: false
+  # else 前的左大括号不换行 (同行 } else)
+  BeforeElse: false
+  # 大括号本身是否缩进 (false=与所属语句对齐)
+  IndentBraces: false
+  # 空函数体的大括号是否拆成两行 (false 表示写成 {})
+  SplitEmptyFunction: false
+  # 空 struct/class/enum 的大括号是否拆成两行
+  SplitEmptyRecord: false
+  # 空命名空间的大括号是否拆成两行
+  SplitEmptyNamespace: false
+
+# ==================== 列宽与换行 ====================
+# 每行最大列数, 超出则尝试换行
+ColumnLimit: 140
+# 短 if 是否允许写成单行, Never=一律展开成多行
+AllowShortIfStatementsOnASingleLine: Never
+# 短循环 (for/while) 是否允许写成单行
+AllowShortLoopsOnASingleLine: false
+# 短函数是否允许写成单行, None=一律展开
+AllowShortFunctionsOnASingleLine: None
+# 短代码块 (如 lambda) 是否允许写成单行
+AllowShortBlocksOnASingleLine: Never
+# 短 case 标签 (如 case 1: break;) 是否允许写成单行
+AllowShortCaseLabelsOnASingleLine: false
+# 函数返回类型后是否强制换行, None=不强制 (Linux 内核风格可改为 AllDefinitions)
+AlwaysBreakAfterReturnType: None
+# 函数调用实参过多时是否打包到同一行 (而非每个参数一行)
+BinPackArguments: true
+# 函数定义形参过多时是否打包到同一行
+BinPackParameters: true
+
+# ==================== 指针与引用对齐 ====================
+# 指针星号靠右: int *p (Linux 习惯), Left=int* p, Middle=int * p
+PointerAlignment: Right
+# 引用符号对齐方式, 与指针保持一致
+ReferenceAlignment: Right
+# 是否根据代码现状自动推断指针对齐 (false=严格按上面设置统一)
+DerivePointerAlignment: false
+
+# ==================== 空格处理 ====================
+# C 风格强制转换后是否加空格: false 表示 (int)x 而非 (int) x
+SpaceAfterCStyleCast: false
+# 赋值运算符两侧加空格: a = 1
+SpaceBeforeAssignmentOperators: true
+# C++11 花括号初始化前是否加空格: false 表示 vector{1}
+SpaceBeforeCpp11BracedList: false
+# 左括号前加空格的范围: ControlStatements=仅 if/for/while 等控制语句后加空格
+SpaceBeforeParens: ControlStatements
+# 空括号内是否加空格: false 表示 foo() 而非 foo( )
+SpaceInEmptyParentheses: false
+# 模板尖括号内是否加空格
+SpacesInAngles: false
+# C 风格转换的括号内是否加空格
+SpacesInCStyleCastParentheses: false
+# 数组/容器字面量花括号内是否加空格
+SpacesInContainerLiterals: false
+# 普通圆括号内是否加空格: false 表示 foo(a, b)
+SpacesInParentheses: false
+# 方括号内是否加空格: false 表示 arr[0]
+SpacesInSquareBrackets: false
+
+# ==================== include 排序 ====================
+# 对 #include 排序, 大小写不敏感 (Never=完全不排序)
+SortIncludes: CaseInsensitive
+# include 分组方式: Preserve=保留原有的空行分组, 只在组内排序
+IncludeBlocks: Preserve
+
+# ==================== 其他 ====================
+# 换行后的函数调用参数与左括号对齐
+AlignAfterOpenBracket: Align
+# 连续赋值语句是否对齐等号 (false=不对齐)
+AlignConsecutiveAssignments: false
+# 连续声明语句是否对齐变量名 (false=不对齐)
+AlignConsecutiveDeclarations: false
+# 行尾注释是否纵向对齐
+AlignTrailingComments: true
+# 二元运算符换行时放在行尾 (None), 放行首用 Left
+BreakBeforeBinaryOperators: None
+# 三元运算符换行时放在行首 (?: 更易读)
+BreakBeforeTernaryOperators: true
+# C++11 花括号初始化按容器风格处理 (逗号后加空格)
+Cpp11BracedListStyle: true
+# 命名空间结束的 } 后自动补注释 // namespace xxx
+FixNamespaceComments: true
+# 连续空行最多保留 1 行, 多余的空行会被删除
+MaxEmptyLinesToKeep: 1
+# 是否重新整理注释内容 (让注释也遵守列宽)
+ReflowComments: true
+# 是否对 using 声明排序
+SortUsingDeclarations: true
+# 遵循的语言标准, 影响语法解析 (如 C++11 特性)
+Standard: c++14
